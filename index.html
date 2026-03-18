@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>VZP Editor — Verkehrszeichenplan nach RSA 21</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="hdr">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" fill="var(--ac)" stroke="var(--ac)" opacity=".8"/>
+        <path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+      <b>VZP <span>Editor</span></b>
+    </div>
+
+    <div class="htools">
+      <button class="tbtn on" id="tV" title="Auswahl (V)" onclick="DrawTools.setMode('select')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+      </button>
+      <button class="tbtn" id="tL" title="Linie zeichnen (L)" onclick="DrawTools.setMode('draw')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      </button>
+      <button class="tbtn" id="tM" title="Messen (M)" onclick="DrawTools.setMode('measure')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 2h20v6H2z"/><path d="M6 2v6M10 2v4M14 2v6M18 2v4"/></svg>
+      </button>
+      <button class="tbtn" id="tA" title="Fläche zeichnen (A)" onclick="DrawTools.setMode('area')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      </button>
+    </div>
+
+    <div class="hsearch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="sInp" placeholder="Adresse suchen…" autocomplete="off">
+    </div>
+
+    <div class="hspace"></div>
+
+    <div class="hacts">
+      <button class="abtn" onclick="ObjectManager.undo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        Undo
+      </button>
+      <button class="abtn" onclick="ObjectManager.clearAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Leeren
+      </button>
+      <button class="abtn pri" onclick="PDFExport.exportPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="main">
+
+    <!-- LEFT SIDEBAR -->
+    <div class="side">
+      <div class="side-hdr"><h3>Verkehrszeichen</h3></div>
+      <div class="tabs" id="tabs"></div>
+      <div class="side-filter">
+        <input type="text" id="vzFilter" placeholder="Zeichen filtern…" oninput="UI.filterVZ(this.value)">
+      </div>
+      <div class="slist" id="slist"></div>
+      <div class="scount" id="scount"></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="mapc">
+      <div id="map"></div>
+      <div class="layers">
+        <button class="lbtn on" data-l="osm" onclick="swLayer(this)">OSM</button>
+        <button class="lbtn" data-l="sat" onclick="swLayer(this)">Satellit</button>
+        <button class="lbtn" data-l="alkis" onclick="swLayer(this)">ALKIS</button>
+        <button class="lbtn" data-l="str" onclick="swLayer(this)">Straßen</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="rpanel">
+      <div class="rp-hdr"><h3>Eigenschaften</h3></div>
+      <div class="rcontent">
+        <div class="pgrp">
+          <div class="pgrp-t">Regelplan</div>
+          <div id="rpList"></div>
+        </div>
+        <div class="pgrp" id="propP" style="display:none">
+          <div class="pgrp-t">Ausgewähltes Objekt</div>
+          <div class="prow">
+            <span class="plbl">Rotation</span>
+            <input class="pinp" type="range" min="0" max="360" value="0" id="pRot"
+              oninput="ObjectManager.updateSelected('rotation',this.value);document.getElementById('pRotV').textContent=this.value+'°'">
+            <span class="pval" id="pRotV">0°</span>
+          </div>
+          <div class="prow">
+            <span class="plbl">Größe</span>
+            <input class="pinp" type="range" min="20" max="120" value="50" id="pSz"
+              oninput="ObjectManager.updateSelected('size',this.value);document.getElementById('pSzV').textContent=this.value">
+            <span class="pval" id="pSzV">50</span>
+          </div>
+          <div class="pbtns">
+            <button class="pbtn" onclick="ObjectManager.duplicateSelected()">Duplizieren</button>
+            <button class="pbtn dng" onclick="ObjectManager.deleteSelected()">Löschen</button>
+          </div>
+        </div>
+        <div class="pgrp">
+          <div class="pgrp-t">Projekt</div>
+          <div class="prow"><span class="plbl">Name</span><input class="pinp" type="text" id="pName" placeholder="Projektname"></div>
+          <div class="prow"><span class="plbl">Firma</span><input class="pinp" type="text" id="pFirma" value="QFM GmbH"></div>
+          <div class="prow"><span class="plbl">Datum</span><input class="pinp" type="date" id="pDate"></div>
+          <div class="prow"><span class="plbl">Bearbeiter</span><input class="pinp" type="text" id="pBearb" placeholder="Name"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="sbar">
+    <span><span class="sdot"></span>Bereit</span>
+    <span id="stCoord">52.5200° N, 13.4050° E</span>
+    <span id="stZoom">Zoom: 15</span>
+    <span id="stObj">Objekte: 0</span>
+  </div>
+
+  <!-- CONTEXT MENU -->
+  <div class="ctx" id="ctx">
+    <div class="ctx-i" onclick="UI.ctxAction('dup')">Duplizieren <span class="k">Ctrl+D</span></div>
+    <div class="ctx-i" onclick="UI.ctxAction('front')">Vordergrund</div>
+    <div class="ctx-i" onclick="UI.ctxAction('back')">Hintergrund</div>
+    <div class="ctx-s"></div>
+    <div class="ctx-i" onclick="UI.ctxAction('del')" style="color:var(--danger)">Löschen <span class="k">Del</span></div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <!-- SCRIPTS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- App modules -->
+  <script src="js/vz-catalog.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/draw-tools.js"></script>
+  <script src="js/objects.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pdf-export.js"></script>
+
+  <script>
+    // Global helper for layer switcher
+    function swLayer(btn) {
+      document.querySelectorAll('.lbtn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      MapModule.switchLayer(btn.dataset.l);
+    }
+
+    // Boot
+    document.addEventListener('DOMContentLoaded', () => {
+      MapModule.init();
+      UI.init();
+    });
+  </script>
+
+</body>
+</html>
