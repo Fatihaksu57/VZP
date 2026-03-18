@@ -135,6 +135,16 @@ body {
 }
 .leaflet-control-zoom a:hover { background: var(--sf3) !important; }
 
+/* Scale bar dark theme */
+.leaflet-control-scale-line {
+  background: var(--sf) !important;
+  border-color: var(--tx2) !important;
+  color: var(--tx) !important;
+  font: 500 11px var(--mono) !important;
+  padding: 1px 6px !important;
+  border-radius: 0 0 4px 4px !important;
+}
+
 .layers {
   position: absolute; top: 10px; right: 10px; z-index: 800;
   background: var(--sf); border: 1px solid var(--bd);
