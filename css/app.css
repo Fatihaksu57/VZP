@@ -249,6 +249,16 @@ body {
 .vz-m img.vz-icon:active { cursor: grabbing; }
 .vz-m.sel img.vz-icon { filter: drop-shadow(0 0 4px var(--ac)) drop-shadow(0 0 1px var(--ac)); }
 
+/* ═══ REGELPLAN SVG OVERLAY ═══ */
+.rp-overlay-container { background: none !important; border: none !important; }
+.rp-overlay {
+  overflow: visible;
+}
+.rp-overlay svg {
+  width: 100%; height: 100%;
+  overflow: visible;
+}
+
 /* ═══ CURSOR MODES ═══ */
 body.mode-draw #map, body.mode-measure #map, body.mode-area #map { cursor: crosshair; }
 
