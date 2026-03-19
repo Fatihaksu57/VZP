@@ -52,6 +52,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         Leeren
       </button>
+      <button class="abtn" onclick="RegelplanEngine.setScale500()" title="Maßstab 1:500 für Beantragung">
+        1:500
+      </button>
       <button class="abtn pri" onclick="PDFExport.exportPDF()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         PDF
@@ -87,12 +90,42 @@
 
     <!-- RIGHT PANEL -->
     <div class="rpanel">
-      <div class="rp-hdr"><h3>Eigenschaften</h3></div>
+      <div class="rp-hdr"><h3>VZP Erstellen</h3></div>
       <div class="rcontent">
+
+        <!-- Step 1: Draw construction line -->
         <div class="pgrp">
-          <div class="pgrp-t">Regelplan</div>
+          <div class="pgrp-t">① Baustellenlinie</div>
+          <button class="pbtn" style="width:100%;height:32px;margin-bottom:6px;background:var(--acbg);color:var(--ac);border-color:var(--ac)" onclick="RegelplanEngine.startDrawLine()">
+            ✏️ Linie zeichnen
+          </button>
+          <div style="font-size:10px;color:var(--tx3);line-height:1.4">
+            Klicke Start + Ende der Baustelle auf die Karte (Längsrichtung der Straße).
+          </div>
+        </div>
+
+        <!-- Step 2: Choose side -->
+        <div class="pgrp" id="sideSelector" style="display:none">
+          <div class="pgrp-t">② Sperrseite</div>
+          <div style="display:flex;gap:6px">
+            <button class="pbtn side-btn on" data-side="left" onclick="RegelplanEngine.setSide('left')" style="flex:1;height:32px">← Links</button>
+            <button class="pbtn side-btn" data-side="right" onclick="RegelplanEngine.setSide('right')" style="flex:1;height:32px">Rechts →</button>
+          </div>
+          <div style="font-size:10px;color:var(--tx3);margin-top:4px">
+            In Zeichenrichtung gesehen.
+          </div>
+        </div>
+
+        <!-- Step 3: Choose Regelplan -->
+        <div class="pgrp">
+          <div class="pgrp-t">③ Regelplan wählen</div>
           <div id="rpList"></div>
         </div>
+
+        <!-- Group properties (shown after generation) -->
+        <div class="pgrp" id="groupProps" style="display:none"></div>
+
+        <!-- Single object properties -->
         <div class="pgrp" id="propP" style="display:none">
           <div class="pgrp-t">Ausgewähltes Objekt</div>
           <div class="prow">
@@ -112,6 +145,8 @@
             <button class="pbtn dng" onclick="ObjectManager.deleteSelected()">Löschen</button>
           </div>
         </div>
+
+        <!-- Project info -->
         <div class="pgrp">
           <div class="pgrp-t">Projekt</div>
           <div class="prow"><span class="plbl">Name</span><input class="pinp" type="text" id="pName" placeholder="Projektname"></div>
@@ -154,6 +189,7 @@
   <script src="js/draw-tools.js"></script>
   <script src="js/objects.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/regelplan-engine.js"></script>
   <script src="js/pdf-export.js"></script>
 
   <script>
