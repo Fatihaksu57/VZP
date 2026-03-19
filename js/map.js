@@ -55,6 +55,7 @@ const MapModule = (() => {
       document.getElementById('stCoord').textContent =
         `${e.latlng.lat.toFixed(5)}° N, ${e.latlng.lng.toFixed(5)}° E`;
       DrawTools.onMouseMove(e.latlng);
+      RegelplanEngine.onMouseMoveWhileDrawing(e.latlng);
     });
     map.on('zoomend', () => {
       updateScaleDisplay();
@@ -62,7 +63,9 @@ const MapModule = (() => {
 
     // Click handlers
     map.on('click', e => {
-      if (DrawTools.isActive()) {
+      if (RegelplanEngine.isDrawing()) {
+        RegelplanEngine.addLinePoint(e.latlng);
+      } else if (DrawTools.isActive()) {
         DrawTools.addPoint(e.latlng);
       } else {
         ObjectManager.deselect();
