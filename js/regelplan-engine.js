@@ -1,187 +1,238 @@
 // ═══════════════════════════════════════════════════
-// VZP Editor — Regelplan Engine
-// Auto-placement of traffic signs per RSA 21
+// VZP Editor — Regelplan Engine (RSA 21)
+// Based on official Regelpläne B II/1 – B II/5
 // ═══════════════════════════════════════════════════
 
 const RegelplanEngine = (() => {
 
-  // ─── RSA 21 PLACEMENT RULES (innerorts) ───
-  // Abstände in Metern, gemessen von Arbeitsstelle
-  const RSA21 = {
-    // B I/1 — Arbeitsstelle im Seitenraum (Gehweg)
-    'BI1': {
-      name: 'B I/1 — Seitenraum',
-      // Signs placed BEFORE the construction zone (approaching traffic)
-      before: [
-        { vz: '125', offset: -70, side: 'road', label: 'Baustelle' },       // 50-100m vor Arbeitsstelle
-        { vz: '101', offset: -80, side: 'road', label: 'Gefahrstelle' },
-      ],
-      // Signs/devices along the construction zone
-      along: [
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke Anfang', pos: 'start' },
-        { vz: '610-41', spacing: 5, side: 'work', label: 'Leitkegel', repeat: true },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke Ende', pos: 'end' },
-      ],
-      after: [],
-    },
+  // ─── DISPLAY SIZE in real meters ───
+  // Icons scale with the map. These define how big they appear
+  // relative to the street at 1:500.
+  const SZ = {
+    vz: 1.8,          // round/triangle VZ signs
+    schranke: 3.0,    // Absperrschrankengitter width
+    bake: 1.8,        // Leitbake (shown square for simplicity)
+    kegel: 0.8,       // Leitkegel
+    lsa: 1.5,         // Lichtzeichenanlage
+  };
 
-    // B I/2 — Neben der Fahrbahn mit Einengung
-    'BI2': {
-      name: 'B I/2 — Neben Fahrbahn',
-      before: [
-        { vz: '101', offset: -100, side: 'road', label: 'Gefahrstelle' },
-        { vz: '125', offset: -90, side: 'road', label: 'Baustelle' },
-        { vz: '274-50', offset: -80, side: 'road', label: 'Tempo 30' },
-      ],
-      along: [
-        { vz: '605-10', spacing: 0, side: 'work', label: 'Leitbake Anfang', pos: 'start' },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke Anfang', pos: 'start', offsetLateral: 0.5 },
-        { vz: '610-41', spacing: 6, side: 'work', label: 'Leitkegel', repeat: true },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke Ende', pos: 'end', offsetLateral: 0.5 },
-        { vz: '605-20', spacing: 0, side: 'work', label: 'Leitbake Ende', pos: 'end' },
-      ],
-      after: [
-        { vz: '278-50', offset: 30, side: 'road', label: 'Ende Tempo 30' },
-      ],
-    },
+  // ─── REGELPLAN DEFINITIONS ───
+  // Positions: along = 'before'|'start'|'repeat'|'end'|'after'
+  // lateral = meters perpendicular (positive = work side, negative = road/traffic side)
+  // offsetM = meters from start/end for before/after
+  // offsetAlongM = additional shift along the line from the anchor point
+  // spacing = repeat interval in meters
 
-    // B II/1 — Halbseitige Sperrung
+  const PLANS = {
+
+    // ═══ B II/1 — Radwegsperrung, geringe Einengung ═══
+    // Querabsperrung: Schrankengitter + Leitbake + 3 Warnleuchten
+    // Längsabsperr. Fahrbahn: doppelseitige Leitbaken max 9m + Schrankengitter Baufeld
+    // Längsabsperr. Gehweg: Schrankengitter
+    // Z 123 bei -50 bis -70m
     'BII1': {
-      name: 'B II/1 — Halbseitig',
-      before: [
-        { vz: '101', offset: -120, side: 'road', label: 'Gefahrstelle' },
-        { vz: '125', offset: -110, side: 'road', label: 'Baustelle' },
-        { vz: '274-50', offset: -100, side: 'road', label: 'Tempo 30' },
-        { vz: '120', offset: -70, side: 'road', label: 'Verengte Fahrbahn' },
-        { vz: '308', offset: -50, side: 'road', label: 'Vorrang v. Gegenverkehr' },
-        { vz: '625-10', offset: -10, side: 'work', label: 'Richtungstafel' },
-      ],
-      along: [
-        { vz: '605-10', spacing: 0, side: 'work', label: 'Leitbake Anfang', pos: 'start' },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke', pos: 'start', offsetLateral: 1 },
-        { vz: '610-41', spacing: 8, side: 'work', label: 'Leitkegel', repeat: true },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke', pos: 'end', offsetLateral: 1 },
-        { vz: '605-20', spacing: 0, side: 'work', label: 'Leitbake Ende', pos: 'end' },
-      ],
-      after: [
-        { vz: '278-50', offset: 30, side: 'road', label: 'Ende Tempo 30' },
-        { vz: '280', offset: 40, side: 'road', label: 'Ende Überholverbot' },
+      name: 'B II/1', title: 'Radwegsperrung, geringe Einengung',
+      elements: [
+        // Z 123 Baustelle -50 bis -70m (Mittelwert -60m)
+        { type:'vz', vz:'125', along:'before', offsetM:60, lateral:-4 },
+
+        // Querabsperrung oben: Schrankengitter quer über Radweg + Leitbake
+        { type:'schranke', vz:'600-30', along:'start', lateral:2.5 },
+        { type:'bake', vz:'605-12', along:'start', lateral:0.5 },
+
+        // Längsabsperrung zur Fahrbahn: Leitbaken max 9m
+        { type:'bake', vz:'605-10', along:'repeat', spacing:9, lateral:-0.3 },
+
+        // Schrankengitter am fahrbahnseitigen Baufeldrand
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:1.5 },
+
+        // Längsabsperrung zum Gehweg: Schrankengitter
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:4.5 },
+
+        // Querabsperrung unten
+        { type:'schranke', vz:'600-30', along:'end', lateral:2.5 },
+        { type:'bake', vz:'605-12', along:'end', lateral:0.5 },
       ],
     },
 
-    // B II/2 — Halbseitige Sperrung mit LSA
+    // ═══ B II/2 — Radwegsperrung mit Radverkehr-Umleitung ═══
+    // Wie B II/1, zusätzlich Z 138, Z 241-30, Z 240 und Wegbegrenzungen
     'BII2': {
-      name: 'B II/2 — Halbseitig + LSA',
-      before: [
-        { vz: '101', offset: -120, side: 'road', label: 'Gefahrstelle' },
-        { vz: '125', offset: -110, side: 'road', label: 'Baustelle' },
-        { vz: '274-50', offset: -100, side: 'road', label: 'Tempo 30' },
-        { vz: '131', offset: -60, side: 'road', label: 'Lichtzeichenanlage' },
-        { vz: '625-10', offset: -10, side: 'work', label: 'Richtungstafel' },
-      ],
-      along: [
-        { vz: '605-10', spacing: 0, side: 'work', label: 'Leitbake Anfang', pos: 'start' },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke', pos: 'start', offsetLateral: 1 },
-        { vz: '610-41', spacing: 8, side: 'work', label: 'Leitkegel', repeat: true },
-        { vz: '600-30', spacing: 0, side: 'work', label: 'Absperrschranke', pos: 'end', offsetLateral: 1 },
-        { vz: '605-20', spacing: 0, side: 'work', label: 'Leitbake Ende', pos: 'end' },
-      ],
-      after: [
-        { vz: '278-50', offset: 30, side: 'road', label: 'Ende Tempo 30' },
+      name: 'B II/2', title: 'Radwegsperrung mit Umleitung',
+      elements: [
+        { type:'vz', vz:'125', along:'before', offsetM:60, lateral:-4 },
+
+        // Z 138 (Radverkehr kreuzt) + Z 241-30 oben am Radweg
+        { type:'vz', vz:'138-20', along:'start', lateral:5, offsetAlongM:-6 },
+        { type:'vz', vz:'241-31', along:'start', lateral:5, offsetAlongM:-3 },
+
+        // Querabsperrung oben
+        { type:'schranke', vz:'600-30', along:'start', lateral:2.5 },
+        { type:'bake', vz:'605-12', along:'start', lateral:0.5 },
+
+        // Längsabsperrung Fahrbahn: Leitbaken max 9m
+        { type:'bake', vz:'605-10', along:'repeat', spacing:9, lateral:-0.3 },
+
+        // Schrankengitter Baufeld
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:1.5 },
+
+        // Schrankengitter Gehweg
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:4.5 },
+
+        // Querabsperrung unten
+        { type:'schranke', vz:'600-30', along:'end', lateral:2.5 },
+        { type:'bake', vz:'605-12', along:'end', lateral:0.5 },
+
+        // Z 240 (Fuß-/Radweg gemeinsam) unten
+        { type:'vz', vz:'240', along:'end', lateral:5, offsetAlongM:3 },
       ],
     },
 
-    // B II/3 — Vollsperrung
+    // ═══ B II/3 — Nicht benutzungspfl. Radweg ═══
+    // Einfachere Absperrung: Schrankengitter + Absperrschranke Radweg
+    // Z 123 in BEIDEN Richtungen, Z 239 für Fußgänger
     'BII3': {
-      name: 'B II/3 — Vollsperrung',
-      before: [
-        { vz: '101', offset: -120, side: 'road', label: 'Gefahrstelle' },
-        { vz: '125', offset: -110, side: 'road', label: 'Baustelle' },
-        { vz: '250', offset: -50, side: 'road', label: 'Verbot für Fahrzeuge' },
-        { vz: '1000-10', offset: -50, side: 'road', label: 'ZZ Pfeil rechts', offsetLateral: -1 },
+      name: 'B II/3', title: 'Nicht benutzungspfl. Radweg',
+      elements: [
+        // Z 123 beide Fahrtrichtungen
+        { type:'vz', vz:'125', along:'before', offsetM:60, lateral:-4 },
+        { type:'vz', vz:'125', along:'after', offsetM:60, lateral:-4 },
+
+        // Querabsperrung Radweg oben: Absperrschranke + Leitbake
+        { type:'schranke', vz:'600-30', along:'start', lateral:2 },
+        { type:'bake', vz:'605-10', along:'start', lateral:0.8 },
+
+        // Längsabsperrung Fahrbahn: Schrankengitter
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:-0.3 },
+
+        // Längsabsperrung Gehweg: Schrankengitter
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:4.5 },
+
+        // Querabsperrung Radweg unten
+        { type:'schranke', vz:'600-30', along:'end', lateral:2 },
+        { type:'bake', vz:'605-20', along:'end', lateral:0.8 },
+
+        // Z 239 Fußgänger
+        { type:'vz', vz:'259', along:'end', lateral:3.5, offsetAlongM:3 },
       ],
-      along: [
-        { vz: '600-32', spacing: 0, side: 'center', label: 'Absperrschranke rot', pos: 'start' },
-        { vz: '605-10', spacing: 0, side: 'left', label: 'Leitbake links', pos: 'start', offsetLateral: 3 },
-        { vz: '605-20', spacing: 0, side: 'right', label: 'Leitbake rechts', pos: 'start', offsetLateral: 3 },
-        { vz: '600-32', spacing: 0, side: 'center', label: 'Absperrschranke rot', pos: 'end' },
+    },
+
+    // ═══ B II/4 — Gehwegsperrung, Notweg auf Fahrbahn ═══
+    // Querabsperrung: mind. 3 doppelseitige Leitbaken diagonal (Abstand 1-2m längs, 0.6-1m quer)
+    // + Schrankengitter zum Gehweg
+    // Längsabsperr. Fahrbahn: doppelseitige Leitbaken max 9m
+    // Z 123 bei -30 bis -50m
+    'BII4': {
+      name: 'B II/4', title: 'Gehwegsperrung, Notweg Fahrbahn',
+      elements: [
+        // Z 123 in beiden Richtungen -30 bis -50m
+        { type:'vz', vz:'125', along:'before', offsetM:40, lateral:-4 },
+        { type:'vz', vz:'125', along:'after', offsetM:40, lateral:-4 },
+
+        // Querabsperrung oben zur Fahrbahn: 3 Leitbaken diagonal
+        { type:'bake', vz:'605-12', along:'start', lateral:-1.5 },
+        { type:'bake', vz:'605-12', along:'start', lateral:-2.3, offsetAlongM:1.5 },
+        { type:'bake', vz:'605-12', along:'start', lateral:-3.1, offsetAlongM:3.0 },
+
+        // Querabsperrung oben zum Gehweg
+        { type:'schranke', vz:'600-30', along:'start', lateral:3 },
+
+        // Längsabsperrung zum Gehweg
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:4 },
+
+        // Längsabsperrung zur Fahrbahn: Leitbaken max 9m
+        { type:'bake', vz:'605-10', along:'repeat', spacing:9, lateral:-1 },
+
+        // Querabsperrung unten zur Fahrbahn: 3 Leitbaken diagonal (umgekehrt)
+        { type:'bake', vz:'605-12', along:'end', lateral:-1.5 },
+        { type:'bake', vz:'605-12', along:'end', lateral:-2.3, offsetAlongM:-1.5 },
+        { type:'bake', vz:'605-12', along:'end', lateral:-3.1, offsetAlongM:-3.0 },
+
+        // Querabsperrung unten zum Gehweg
+        { type:'schranke', vz:'600-30', along:'end', lateral:3 },
       ],
-      after: [],
+    },
+
+    // ═══ B II/5 — Halbseitig + Gehweg, mit LSA ═══
+    // Querabsperrung: Leitbake + Schrankengitter mit 3 Warnleuchten
+    // LSA 0-10m vor Baufeld (beide Seiten)
+    // Z 123 bei -50 bis -70m (Gegenrichtung -70 bis -100m)
+    'BII5': {
+      name: 'B II/5', title: 'Halbseitig + Gehweg, LSA',
+      elements: [
+        // Z 123 Fahrtrichtung -50 bis -70m
+        { type:'vz', vz:'125', along:'before', offsetM:60, lateral:-6 },
+        // Z 123 Gegenrichtung -70 bis -100m
+        { type:'vz', vz:'125', along:'after', offsetM:85, lateral:-6 },
+
+        // LSA Fahrtrichtung, 0-10m vor Baufeld-Ende
+        { type:'lsa', vz:'131', along:'end', lateral:-4, offsetAlongM:5 },
+        // LSA Gegenrichtung, 0-10m vor Baufeld-Start (von dort gesehen)
+        { type:'lsa', vz:'131', along:'start', lateral:-4, offsetAlongM:-5 },
+
+        // Querabsperrung oben: Leitbake + Schrankengitter
+        { type:'bake', vz:'605-12', along:'start', lateral:-0.5 },
+        { type:'schranke', vz:'600-30', along:'start', lateral:1.5 },
+
+        // Längsabsperrung Gehweg
+        { type:'schranke', vz:'600-30', along:'repeat', spacing:9, lateral:5 },
+
+        // Längsabsperrung Fahrbahn: Leitbaken max 9m
+        { type:'bake', vz:'605-10', along:'repeat', spacing:9, lateral:-0.5 },
+
+        // Querabsperrung unten
+        { type:'bake', vz:'605-12', along:'end', lateral:-0.5 },
+        { type:'schranke', vz:'600-30', along:'end', lateral:1.5 },
+      ],
     },
   };
 
   // ─── STATE ───
-  let constructionLine = null;   // Array of L.LatLng
-  let workSide = 'right';        // 'left' or 'right' of line direction
-  let activeRegelplan = null;    // 'BI1', 'BII1', etc.
-  let placedGroup = null;        // { markers: [], line: L.Polyline, id }
-  let groups = [];               // All placed regelplan groups
-  let isDrawingLine = false;
-  let linePreview = null;
-  let linePoints = [];
+  let constructionLine = null, workSide = 'right', activeRegelplan = null;
+  let groups = [], isDrawingLine = false, linePreview = null, linePoints = [];
 
-  // ─── PUBLIC: Start drawing construction line ───
+  // ─── DRAWING ───
   function startDrawLine() {
-    isDrawingLine = true;
-    linePoints = [];
+    isDrawingLine = true; linePoints = [];
     if (linePreview) { MapModule.getMap().removeLayer(linePreview); linePreview = null; }
     document.body.classList.add('mode-draw');
-    UI.toast('Klicke Start- und Endpunkt der Baustelle auf die Karte');
+    UI.toast('Klicke Start- und Endpunkt der Baustelle');
   }
 
   function addLinePoint(latlng) {
     if (!isDrawingLine) return false;
     linePoints.push(latlng);
     const map = MapModule.getMap();
-
     if (linePreview) map.removeLayer(linePreview);
-    if (linePoints.length >= 1) {
-      linePreview = L.polyline(linePoints, {
-        color: '#f97316', weight: 4, dashArray: '10,6', opacity: 0.9
-      }).addTo(map);
-    }
-
-    if (linePoints.length >= 2) {
-      finishLine();
-      return true;
-    }
+    linePreview = L.polyline(linePoints, { color:'#f97316', weight:4, dashArray:'10,6' }).addTo(map);
+    if (linePoints.length >= 2) { finishLine(); return true; }
     return true;
   }
 
   function onMouseMoveWhileDrawing(latlng) {
-    if (!isDrawingLine || linePoints.length === 0) return;
+    if (!isDrawingLine || !linePoints.length) return;
     const map = MapModule.getMap();
     if (linePreview) map.removeLayer(linePreview);
-    linePreview = L.polyline([...linePoints, latlng], {
-      color: '#f97316', weight: 4, dashArray: '10,6', opacity: 0.7
-    }).addTo(map);
+    linePreview = L.polyline([...linePoints, latlng], { color:'#f97316', weight:4, dashArray:'10,6', opacity:0.7 }).addTo(map);
   }
 
   function finishLine() {
     isDrawingLine = false;
     constructionLine = [...linePoints];
     document.body.classList.remove('mode-draw');
-
-    const dist = constructionLine[0].distanceTo(constructionLine[1]);
-    UI.toast(`Baustellenlinie: ${dist.toFixed(1)}m — Wähle Seite und Regelplan`);
-    showSideSelector();
+    const d = constructionLine[0].distanceTo(constructionLine[1]);
+    UI.toast(`Baustellenlinie: ${d.toFixed(1)}m — Seite + Regelplan wählen`);
+    const el = document.getElementById('sideSelector');
+    if (el) el.style.display = 'block';
   }
 
   function cancelLine() {
-    isDrawingLine = false;
-    linePoints = [];
+    isDrawingLine = false; linePoints = [];
     if (linePreview) { MapModule.getMap().removeLayer(linePreview); linePreview = null; }
     document.body.classList.remove('mode-draw');
   }
 
   function isDrawing() { return isDrawingLine; }
-
-  // ─── SIDE SELECTION ───
-  function showSideSelector() {
-    // Update UI to show side selector
-    const el = document.getElementById('sideSelector');
-    if (el) el.style.display = 'block';
-  }
 
   function setSide(side) {
     workSide = side;
@@ -189,331 +240,181 @@ const RegelplanEngine = (() => {
     document.querySelector(`.side-btn[data-side="${side}"]`)?.classList.add('on');
   }
 
-  function getSide() { return workSide; }
+  // ─── METERS → PIXELS ───
+  function m2px(meters) {
+    const map = MapModule.getMap();
+    const mpp = 156543.03392 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom());
+    return Math.max(14, Math.round(meters / mpp));
+  }
 
-  // ─── GENERATE REGELPLAN ───
-  function generate(regelplanId) {
+  // ─── GENERATE ───
+  function generate(planId) {
     if (!constructionLine || constructionLine.length < 2) {
-      UI.toast('Erst Baustellenlinie zeichnen!');
-      return;
+      UI.toast('Erst Baustellenlinie zeichnen!'); return;
     }
+    const plan = PLANS[planId];
+    if (!plan) { UI.toast('Regelplan nicht gefunden'); return; }
+    activeRegelplan = planId;
 
-    const rules = RSA21[regelplanId];
-    if (!rules) {
-      UI.toast('Regelplan nicht gefunden');
-      return;
-    }
-
-    activeRegelplan = regelplanId;
     const map = MapModule.getMap();
-
-    // Calculate geometry
-    const p1 = constructionLine[0];
-    const p2 = constructionLine[1];
-    const totalLength = p1.distanceTo(p2);
+    const p1 = constructionLine[0], p2 = constructionLine[1];
+    const totalLen = p1.distanceTo(p2);
     const bearing = getBearing(p1, p2);
-
-    // Side offset direction (perpendicular to line)
-    const sideAngle = workSide === 'right' ? bearing + 90 : bearing - 90;
-    const roadSideAngle = workSide === 'right' ? bearing - 90 : bearing + 90;
-
-    const groupMarkers = [];
+    const sideMul = workSide === 'right' ? 1 : -1;
     const groupId = 'rp_' + Date.now();
+    const markers = [];
 
-    // Helper: place a single VZ
-    function placeSign(vzId, latlng, rotation) {
-      const entry = VZ_CATALOG.find(v => v.id === vzId);
-      if (!entry) return null;
-
-      const size = 45;
-      const icon = L.divIcon({
-        html: `<img class="vz-icon" src="assets/vz/${entry.file}" style="transform:rotate(${rotation || 0}deg);width:${size}px;height:auto" draggable="false">`,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-        className: 'vz-m',
-      });
-
-      const marker = L.marker(latlng, { icon, draggable: false }).addTo(map);
-      marker._vzGroupId = groupId;
-      marker._vzId = vzId;
-      marker._vzSize = size;
-      marker._vzRotation = rotation || 0;
-      return marker;
-    }
-
-    // ── Place BEFORE signs (approaching traffic) ──
-    rules.before.forEach(rule => {
-      const dist = Math.abs(rule.offset);
-      // Place along the line direction, before start point
-      let pos = offsetPoint(p1, bearing + 180, dist); // Go backwards from start
-
-      // Lateral offset: road side or work side
-      const latOff = rule.offsetLateral || 0;
-      if (rule.side === 'road') {
-        pos = offsetPoint(pos, roadSideAngle, 3 + latOff); // 3m from line on road side
-      } else if (rule.side === 'work') {
-        pos = offsetPoint(pos, sideAngle, 3 + latOff);
-      }
-
-      const m = placeSign(rule.vz, pos, 0);
-      if (m) {
-        m._vzRule = rule;
-        m._vzSection = 'before';
-        groupMarkers.push(m);
-      }
-    });
-
-    // ── Place ALONG signs (construction zone) ──
-    rules.along.forEach(rule => {
-      const positions = [];
-
-      if (rule.pos === 'start') {
-        positions.push(p1);
-      } else if (rule.pos === 'end') {
-        positions.push(p2);
-      } else if (rule.repeat && rule.spacing > 0) {
-        // Repeat along the line at given spacing
-        const count = Math.max(1, Math.floor(totalLength / rule.spacing));
-        for (let i = 1; i < count; i++) {
-          const frac = (i * rule.spacing) / totalLength;
-          if (frac >= 1) break;
-          positions.push(interpolate(p1, p2, frac));
-        }
-      }
-
+    plan.elements.forEach(el => {
+      const positions = resolvePositions(el, p1, p2, totalLen, bearing);
       positions.forEach(basePos => {
-        let pos = basePos;
-        const latOff = rule.offsetLateral || 0;
+        const latM = (el.lateral || 0) * sideMul;
+        const pos = offsetPoint(basePos, bearing + 90, latM);
+        const entry = VZ_CATALOG.find(v => v.id === el.vz);
+        if (!entry) return;
 
-        if (rule.side === 'work') {
-          pos = offsetPoint(pos, sideAngle, 2 + latOff);
-        } else if (rule.side === 'road') {
-          pos = offsetPoint(pos, roadSideAngle, 2 + latOff);
-        } else if (rule.side === 'center') {
-          // Center of road — no lateral offset
-        } else if (rule.side === 'left') {
-          pos = offsetPoint(pos, bearing - 90, latOff);
-        } else if (rule.side === 'right') {
-          pos = offsetPoint(pos, bearing + 90, latOff);
-        }
+        const sizeM = SZ[el.type] || SZ.vz;
+        const sizePx = m2px(sizeM);
+        const rot = el.type === 'schranke' ? bearing : 0;
 
-        // Rotate barriers perpendicular to line
-        let rotation = 0;
-        if (rule.vz.startsWith('600')) {
-          rotation = bearing; // Barriers perpendicular to traffic
-        }
-
-        const m = placeSign(rule.vz, pos, rotation);
-        if (m) {
-          m._vzRule = rule;
-          m._vzSection = 'along';
-          groupMarkers.push(m);
-        }
+        const icon = L.divIcon({
+          html: `<img class="vz-icon" src="assets/vz/${entry.file}" style="transform:rotate(${rot}deg);width:${sizePx}px;height:auto" draggable="false">`,
+          iconSize: [sizePx, sizePx], iconAnchor: [sizePx/2, sizePx/2], className: 'vz-m',
+        });
+        const marker = L.marker(pos, { icon, draggable: false }).addTo(map);
+        marker._vzGroupId = groupId;
+        marker._vzId = el.vz;
+        marker._vzSizeM = sizeM;
+        marker._vzRotation = rot;
+        markers.push(marker);
       });
     });
 
-    // ── Place AFTER signs (leaving traffic) ──
-    rules.after.forEach(rule => {
-      let pos = offsetPoint(p2, bearing, rule.offset);
-      const latOff = rule.offsetLateral || 0;
-
-      if (rule.side === 'road') {
-        pos = offsetPoint(pos, roadSideAngle, 3 + latOff);
-      } else if (rule.side === 'work') {
-        pos = offsetPoint(pos, sideAngle, 3 + latOff);
-      }
-
-      const m = placeSign(rule.vz, pos, 0);
-      if (m) {
-        m._vzRule = rule;
-        m._vzSection = 'after';
-        groupMarkers.push(m);
-      }
-    });
-
-    // ── Draw construction zone highlight ──
-    const zoneLine = L.polyline(constructionLine, {
-      color: '#f97316', weight: 5, opacity: 0.8, dashArray: '12,6'
-    }).addTo(map);
-
-    // ── Create group object ──
-    const group = {
-      id: groupId,
-      regelplan: regelplanId,
-      name: rules.name,
-      markers: groupMarkers,
-      line: zoneLine,
-      constructionLine: [...constructionLine],
-      workSide,
-      bearing,
-    };
-
+    const zoneLine = L.polyline(constructionLine, { color:'#f97316', weight:5, opacity:0.8, dashArray:'12,6' }).addTo(map);
+    const group = { id: groupId, regelplan: planId, name: `${plan.name} — ${plan.title}`, markers, line: zoneLine, constructionLine:[...constructionLine], workSide, bearing };
     groups.push(group);
-    placedGroup = group;
-
-    // Enable group dragging
     enableGroupDrag(group);
-
-    // Remove preview line
     if (linePreview) { map.removeLayer(linePreview); linePreview = null; }
-
-    // Update object count
-    document.getElementById('stObj').textContent = 'Objekte: ' + groupMarkers.length;
-
-    UI.toast(`${rules.name} — ${groupMarkers.length} Zeichen platziert`);
+    document.getElementById('stObj').textContent = 'Objekte: ' + markers.length;
+    UI.toast(`${plan.name} — ${markers.length} Elemente platziert`);
     showGroupProperties(group);
+
+    map.off('zoomend.rpScale');
+    map.on('zoomend.rpScale', rescaleAll);
   }
 
-  // ─── GROUP DRAG BEHAVIOR ───
-  function enableGroupDrag(group) {
-    const map = MapModule.getMap();
-
-    // Make the construction line draggable as handle
-    group.line.on('mousedown', function (e) {
-      L.DomEvent.stopPropagation(e);
-      startGroupDrag(group, e);
-    });
-
-    // Also make each marker part of the group drag
-    group.markers.forEach(m => {
-      m.on('mousedown', function (e) {
-        L.DomEvent.stopPropagation(e);
-        startGroupDrag(group, e);
-      });
-    });
+  function resolvePositions(el, p1, p2, totalLen, bearing) {
+    const out = [], extra = el.offsetAlongM || 0;
+    if (el.along === 'before') {
+      let p = offsetPoint(p1, bearing+180, el.offsetM||50);
+      if (extra) p = offsetPoint(p, bearing, extra);
+      out.push(p);
+    } else if (el.along === 'after') {
+      let p = offsetPoint(p2, bearing, el.offsetM||50);
+      if (extra) p = offsetPoint(p, bearing, extra);
+      out.push(p);
+    } else if (el.along === 'start') {
+      let p = L.latLng(p1.lat, p1.lng);
+      if (extra) p = offsetPoint(p, bearing, extra);
+      out.push(p);
+    } else if (el.along === 'end') {
+      let p = L.latLng(p2.lat, p2.lng);
+      if (extra) p = offsetPoint(p, bearing, extra);
+      out.push(p);
+    } else if (el.along === 'repeat') {
+      const sp = el.spacing || 9;
+      for (let d = 0; d <= totalLen; d += sp) {
+        let p = interpolate(p1, p2, d / totalLen);
+        if (extra) p = offsetPoint(p, bearing, extra);
+        out.push(p);
+      }
+      // End cap if needed
+      const lastD = (out.length - 1) * sp;
+      if (totalLen - lastD > sp * 0.3) {
+        let p = L.latLng(p2.lat, p2.lng);
+        if (extra) p = offsetPoint(p, bearing, extra);
+        out.push(p);
+      }
+    }
+    return out;
   }
 
+  function rescaleAll() {
+    groups.forEach(g => g.markers.forEach(m => {
+      const entry = VZ_CATALOG.find(v => v.id === m._vzId);
+      if (!entry) return;
+      const px = m2px(m._vzSizeM || SZ.vz);
+      const rot = m._vzRotation || 0;
+      m.setIcon(L.divIcon({
+        html: `<img class="vz-icon" src="assets/vz/${entry.file}" style="transform:rotate(${rot}deg);width:${px}px;height:auto" draggable="false">`,
+        iconSize: [px,px], iconAnchor: [px/2,px/2], className: 'vz-m',
+      }));
+    }));
+  }
+
+  // ─── GROUP DRAG ───
   let dragState = null;
-
-  function startGroupDrag(group, e) {
-    const map = MapModule.getMap();
-    map.dragging.disable();
-
-    const startLatLng = e.latlng;
-    // Store initial positions of all markers
-    const initialPositions = group.markers.map(m => m.getLatLng());
-    const initialLine = group.constructionLine.map(ll => L.latLng(ll.lat, ll.lng));
-
-    dragState = { group, startLatLng, initialPositions, initialLine };
-
-    map.on('mousemove', onGroupDragMove);
-    map.on('mouseup', onGroupDragEnd);
+  function enableGroupDrag(g) {
+    const start = e => { L.DomEvent.stopPropagation(e); beginDrag(g, e); };
+    g.line.on('mousedown', start);
+    g.markers.forEach(m => m.on('mousedown', start));
   }
-
-  function onGroupDragMove(e) {
-    if (!dragState) return;
-    const { group, startLatLng, initialPositions, initialLine } = dragState;
-
-    const dlat = e.latlng.lat - startLatLng.lat;
-    const dlng = e.latlng.lng - startLatLng.lng;
-
-    // Move all markers
-    group.markers.forEach((m, i) => {
-      const orig = initialPositions[i];
-      m.setLatLng(L.latLng(orig.lat + dlat, orig.lng + dlng));
-    });
-
-    // Move line
-    const newLine = initialLine.map(ll => L.latLng(ll.lat + dlat, ll.lng + dlng));
-    group.line.setLatLngs(newLine);
-    group.constructionLine = newLine;
+  function beginDrag(g, e) {
+    const map = MapModule.getMap(); map.dragging.disable();
+    dragState = { g, s: e.latlng, ip: g.markers.map(m=>m.getLatLng()), il: g.constructionLine.map(l=>L.latLng(l.lat,l.lng)) };
+    map.on('mousemove', onDrag); map.on('mouseup', endDrag);
   }
-
-  function onGroupDragEnd(e) {
+  function onDrag(e) {
     if (!dragState) return;
-    const map = MapModule.getMap();
-    map.dragging.enable();
-    map.off('mousemove', onGroupDragMove);
-    map.off('mouseup', onGroupDragEnd);
+    const {g,s,ip,il} = dragState, dl=e.latlng.lat-s.lat, dn=e.latlng.lng-s.lng;
+    g.markers.forEach((m,i) => m.setLatLng(L.latLng(ip[i].lat+dl, ip[i].lng+dn)));
+    const nl = il.map(l=>L.latLng(l.lat+dl, l.lng+dn));
+    g.line.setLatLngs(nl); g.constructionLine = nl;
+  }
+  function endDrag() {
+    if (!dragState) return;
+    MapModule.getMap().dragging.enable();
+    MapModule.getMap().off('mousemove', onDrag);
+    MapModule.getMap().off('mouseup', endDrag);
     dragState = null;
   }
 
-  // ─── GROUP PROPERTIES ───
-  function showGroupProperties(group) {
-    const el = document.getElementById('groupProps');
-    if (!el) return;
+  function showGroupProperties(g) {
+    const el = document.getElementById('groupProps'); if (!el) return;
     el.style.display = 'block';
-    el.innerHTML = `
-      <div class="pgrp-t">${group.name}</div>
-      <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">${group.markers.length} Zeichen platziert</div>
-      <div class="pbtns">
-        <button class="pbtn" onclick="RegelplanEngine.regenerate()">Neu generieren</button>
-        <button class="pbtn dng" onclick="RegelplanEngine.removeGroup('${group.id}')">Gruppe löschen</button>
-      </div>
-    `;
+    el.innerHTML = `<div class="pgrp-t">${g.name}</div>
+      <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">${g.markers.length} Elemente</div>
+      <div class="pbtns"><button class="pbtn" onclick="RegelplanEngine.regenerate()">Neu generieren</button>
+      <button class="pbtn dng" onclick="RegelplanEngine.removeGroup('${g.id}')">Löschen</button></div>`;
   }
-
-  function removeGroup(groupId) {
-    const map = MapModule.getMap();
-    const idx = groups.findIndex(g => g.id === groupId);
-    if (idx === -1) return;
-
-    const group = groups[idx];
-    group.markers.forEach(m => map.removeLayer(m));
-    map.removeLayer(group.line);
-    groups.splice(idx, 1);
-
-    if (placedGroup?.id === groupId) placedGroup = null;
-
-    const el = document.getElementById('groupProps');
-    if (el) el.style.display = 'none';
-
-    UI.toast('Regelplan-Gruppe gelöscht');
-    document.getElementById('stObj').textContent = 'Objekte: ' + groups.reduce((n, g) => n + g.markers.length, 0);
+  function removeGroup(id) {
+    const map = MapModule.getMap(), i = groups.findIndex(g=>g.id===id);
+    if (i===-1) return;
+    groups[i].markers.forEach(m=>map.removeLayer(m));
+    map.removeLayer(groups[i].line); groups.splice(i,1);
+    document.getElementById('groupProps').style.display='none';
+    UI.toast('Gelöscht');
+    document.getElementById('stObj').textContent='Objekte: '+groups.reduce((n,g)=>n+g.markers.length,0);
   }
-
   function regenerate() {
-    if (!placedGroup || !activeRegelplan) return;
-    removeGroup(placedGroup.id);
+    if (!activeRegelplan) return;
+    if (groups.length) removeGroup(groups[groups.length-1].id);
     generate(activeRegelplan);
   }
 
-  // ─── GEO HELPERS ───
-  function getBearing(p1, p2) {
-    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
-    const lat1 = p1.lat * Math.PI / 180;
-    const lat2 = p2.lat * Math.PI / 180;
-    const y = Math.sin(dLng) * Math.cos(lat2);
-    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  // ─── GEO ───
+  function getBearing(a,b) {
+    const dl=(b.lng-a.lng)*Math.PI/180, la=a.lat*Math.PI/180, lb=b.lat*Math.PI/180;
+    return (Math.atan2(Math.sin(dl)*Math.cos(lb), Math.cos(la)*Math.sin(lb)-Math.sin(la)*Math.cos(lb)*Math.cos(dl))*180/Math.PI+360)%360;
   }
-
-  function offsetPoint(latlng, bearingDeg, distanceM) {
-    const R = 6378137; // Earth radius in meters
-    const d = distanceM / R;
-    const brng = bearingDeg * Math.PI / 180;
-    const lat1 = latlng.lat * Math.PI / 180;
-    const lng1 = latlng.lng * Math.PI / 180;
-
-    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
-    const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
-
-    return L.latLng(lat2 * 180 / Math.PI, lng2 * 180 / Math.PI);
+  function offsetPoint(ll, deg, m) {
+    const R=6378137, d=m/R, b=deg*Math.PI/180, la=ll.lat*Math.PI/180, lo=ll.lng*Math.PI/180;
+    const la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(b));
+    const lo2=lo+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+    return L.latLng(la2*180/Math.PI, lo2*180/Math.PI);
   }
+  function interpolate(a,b,f) { return L.latLng(a.lat+(b.lat-a.lat)*f, a.lng+(b.lng-a.lng)*f); }
 
-  function interpolate(p1, p2, fraction) {
-    return L.latLng(
-      p1.lat + (p2.lat - p1.lat) * fraction,
-      p1.lng + (p2.lng - p1.lng) * fraction
-    );
-  }
+  function setScale500() { MapModule.getMap().setZoom(20); UI.toast('Maßstab ≈ 1:500'); }
 
-  // ─── SCALE SHORTCUT ───
-  function setScale500() {
-    const map = MapModule.getMap();
-    // 1:500 at Berlin latitude ≈ zoom 19-20
-    // mpp = 156543.03 * cos(52.52°) / 2^zoom
-    // For 1:500: mpp ≈ 0.132mm * 500 = 0.066m → need mpp ≈ 0.132
-    // zoom = log2(156543 * cos(52.52°) / 0.132) ≈ 19.8
-    map.setZoom(20);
-    UI.toast('Maßstab ≈ 1:500');
-  }
-
-  return {
-    startDrawLine, addLinePoint, onMouseMoveWhileDrawing, cancelLine, isDrawing,
-    setSide, getSide,
-    generate, regenerate, removeGroup,
-    setScale500,
-    getGroups: () => groups,
-  };
+  return { startDrawLine, addLinePoint, onMouseMoveWhileDrawing, cancelLine, isDrawing, setSide, generate, regenerate, removeGroup, setScale500, getGroups:()=>groups };
 })();
