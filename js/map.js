@@ -16,17 +16,30 @@ const MapModule = (() => {
 
     osmL = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     satL = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
-    alkL = L.tileLayer.wms('https://gdi.berlin.de/services/wms/a_alkis_raster', {
-      layers: '0', format: 'image/png', transparent: true, maxZoom: 20
+    alkL = L.tileLayer.wms('https://gdi.berlin.de/services/wms/alkis', {
+      layers: 'a_alkis_raster', styles: '', format: 'image/png', transparent: true, maxZoom: 22
     });
-    // Straßenbefahrung 2014 — korrekter WMS-Endpunkt (gdi.berlin.de)
+    // Straßenbefahrung 2014 — Verkehrsflächen (Fahrbahn, Gehweg, Bordstein, Radweg)
     strL = L.tileLayer.wms('https://gdi.berlin.de/services/wms/strassenbefahrung', {
-      layers: '0', format: 'image/png', transparent: true, maxZoom: 20
+      layers: 'cm_fahrbahn,cl_gehweg,ch_radweg,bd_bordstein,ck_parkflaeche,ce_gruenflaeche,cf_trennstreifen',
+      styles: '',
+      format: 'image/png', transparent: true, maxZoom: 22,
     });
-    // Fachkarte Straßenbefahrung 2014 — zeigt Verkehrsflächen, Bordsteinkanten, Objekte
+    // Fachkarte Straßenbefahrung 2014 — alles: Flächen + Markierungen + Objekte + VZ
     fachL = L.tileLayer.wms('https://gdi.berlin.de/services/wms/strassenbefahrung', {
-      layers: '0', format: 'image/png', transparent: true, maxZoom: 22,
-      // Overlay-Modus: wird über OSM gelegt
+      layers: [
+        'cm_fahrbahn','cl_gehweg','ch_radweg','bd_bordstein',
+        'ck_parkflaeche','ce_gruenflaeche','cf_trennstreifen',
+        'be_fahrbahnmarkierunglinie','bp_fahrbahnmarkierung_flaeche',
+        'an_fahrbahnmarkierung_piktogramm',
+        'bg_leitplanke','bf_gelaender','bh_mauer',
+        'bx_fahrbahnschwelle','by_gehwegueberfahrt',
+        'bz_gleiskoerper_strab',
+        'as_mast','at_mast_lsa',
+        'aa_verkehrszeichen',
+      ].join(','),
+      styles: '',
+      format: 'image/png', transparent: true, maxZoom: 22,
     });
 
     // Maßstabsleiste (metrisch, unten links)
