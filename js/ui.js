@@ -131,7 +131,15 @@ const UI = (() => {
       });
     }
     renderVZ(currentTab);
-    toast(`Regelplan ${rp.code} — relevante Zeichen hervorgehoben`);
+
+    // Map Regelplan code to engine ID
+    const rpIdMap = { 'B I/1': 'BI1', 'B I/2': 'BI2', 'B II/1': 'BII1', 'B II/2': 'BII2', 'B II/3': 'BII3' };
+    const engineId = rpIdMap[rp.code];
+    if (engineId) {
+      RegelplanEngine.generate(engineId);
+    } else {
+      toast(`Regelplan ${rp.code} — relevante Zeichen hervorgehoben`);
+    }
   }
 
   /* ─── PROPERTIES PANEL ─── */
