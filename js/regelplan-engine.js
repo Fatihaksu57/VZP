@@ -1,48 +1,110 @@
 // ═══════════════════════════════════════════════════
-// VZP Editor — Regelplan Engine
-// Uses L.imageOverlay for barrier zone images
+// VZP Editor — Regelplan Engine (Final)
+// 3-part image: top cap + repeating middle + bottom cap
+// Symbols never distort when resizing
 // ═══════════════════════════════════════════════════
 
 const RegelplanEngine = (() => {
 
+  // Each plan image has 3 zones:
+  //   - Top cap (Querabsperrung oben): fixed height, not stretched
+  //   - Middle (Längsabsperrung): repeating tile, stretched vertically
+  //   - Bottom cap (Querabsperrung unten): fixed height, not stretched
+  //
+  // The engine composites these on a canvas at render time.
+  // This means length changes = more/fewer middle tiles (no symbol distortion).
+
   const PLANS = {
     'BII1': {
       name: 'B II/1', title: 'Radwegsperrung, geringe Einengung',
-      image: 'assets/rp_BII1.png',
       widthM: 5,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [],
     },
     'BII2': {
       name: 'B II/2', title: 'Radwegsperrung mit Umleitung',
-      image: 'assets/rp_BII2.png',
       widthM: 5.5,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [{ vz: '240', offsetM: 3 }],
     },
     'BII3': {
       name: 'B II/3', title: 'Nicht benutzungspfl. Radweg',
-      image: 'assets/rp_BII3.png',
       widthM: 5,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [{ vz: '125', offsetM: 60 }],
     },
     'BII4': {
       name: 'B II/4', title: 'Gehwegsperrung, Notweg Fahrbahn',
-      image: 'assets/rp_BII4.png',
       widthM: 6,
       vzBefore: [{ vz: '125', offsetM: 40 }],
       vzAfter: [{ vz: '125', offsetM: 40 }],
     },
     'BII5': {
       name: 'B II/5', title: 'Halbseitig + Gehweg, LSA',
-      image: 'assets/rp_BII5.png',
       widthM: 6,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [{ vz: '125', offsetM: 85 }],
     },
   };
 
+  // Pre-loaded image parts (loaded on first use)
+  let imageParts = {}; // planId -> { top: Image, mid: Image, bot: Image }
+  let imagesLoaded = false;
+
+  // Load the 3-part images for each plan
+  function loadImages() {
+    return new Promise(resolve => {
+      const plans = Object.keys(PLANS);
+      let remaining = plans.length * 3;
+      const done = () => { remaining--; if (remaining <= 0) { imagesLoaded = true; resolve(); } };
+
+      plans.forEach(id => {
+        imageParts[id] = { top: new Image(), mid: new Image(), bot: new Image() };
+        imageParts[id].top.onload = done; imageParts[id].top.onerror = done;
+        imageParts[id].mid.onload = done; imageParts[id].mid.onerror = done;
+        imageParts[id].bot.onload = done; imageParts[id].bot.onerror = done;
+        imageParts[id].top.src = `assets/rp_${id}_top.png`;
+        imageParts[id].mid.src = `assets/rp_${id}_mid.png`;
+        imageParts[id].bot.src = `assets/rp_${id}_bot.png`;
+      });
+    });
+  }
+
+  // Render a plan to a canvas data URL
+  function renderPlan(planId, targetHeight) {
+    const parts = imageParts[planId];
+    if (!parts || !parts.top.naturalWidth) return null;
+
+    const topH = parts.top.naturalHeight;
+    const midH = parts.mid.naturalHeight;
+    const botH = parts.bot.naturalHeight;
+    const w = parts.top.naturalWidth; // All parts same width
+
+    // Calculate how many mid tiles we need
+    const availableH = Math.max(0, targetHeight - topH - botH);
+    const numTiles = Math.max(1, Math.ceil(availableH / midH));
+    const totalH = topH + numTiles * midH + botH;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = totalH;
+    const ctx = canvas.getContext('2d');
+
+    // Draw top cap
+    ctx.drawImage(parts.top, 0, 0);
+
+    // Draw repeated middle tiles
+    for (let i = 0; i < numTiles; i++) {
+      ctx.drawImage(parts.mid, 0, topH + i * midH);
+    }
+
+    // Draw bottom cap
+    ctx.drawImage(parts.bot, 0, topH + numTiles * midH);
+
+    return { dataUrl: canvas.toDataURL('image/png'), width: w, height: totalH };
+  }
+
+  // ─── STATE ───
   let constructionLine = null, workSide = 'right', activeRegelplan = null;
   let groups = [], isDrawingLine = false, linePreview = null, linePoints = [];
 
@@ -97,15 +159,25 @@ const RegelplanEngine = (() => {
     document.querySelector(`.side-btn[data-side="${side}"]`)?.classList.add('on');
   }
 
+  function getMPP(map) {
+    return 156543.03392 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom());
+  }
+
   // ─── GENERATE ───
-  function generate(planId) {
+  async function generate(planId) {
     if (!constructionLine || constructionLine.length < 2) {
       UI.toast('Erst Baustellenlinie zeichnen!'); return;
     }
     const plan = PLANS[planId];
     if (!plan) { UI.toast('Regelplan nicht gefunden'); return; }
-    activeRegelplan = planId;
 
+    // Load images if not yet loaded
+    if (!imagesLoaded) {
+      UI.toast('Lade Regelplan-Bilder…');
+      await loadImages();
+    }
+
+    activeRegelplan = planId;
     const map = MapModule.getMap();
     const p1 = constructionLine[0], p2 = constructionLine[1];
     const lengthM = p1.distanceTo(p2);
@@ -115,76 +187,58 @@ const RegelplanEngine = (() => {
     const layers = [];
 
     const widthM = plan.widthM;
+    const metersPerPx = getMPP(map);
+    const lengthPx = Math.max(30, Math.round(lengthM / metersPerPx));
+    const widthPx = Math.max(15, Math.round(widthM / metersPerPx));
 
-    // Calculate the 4 corners of the image overlay
-    // The image is vertical: top=start, bottom=end
-    // Width extends to the work side
-    const perpAngle = bearing + 90;
+    // Render the composite image
+    const rendered = renderPlan(planId, lengthPx);
+    const imgSrc = rendered ? rendered.dataUrl : `assets/rp_${planId}.png`;
+    const imgW = rendered ? rendered.width : 100;
+    const imgH = rendered ? rendered.height : 400;
 
-    // Offset from the construction line to the work side
-    const offsetCenter = widthM * 0.5 * sideMul;
+    // Scale rendered image to match the pixel dimensions we need
+    // Width of rendered image should map to widthPx on screen
+    const scaleX = widthPx / imgW;
+    const displayW = widthPx;
+    const displayH = Math.round(imgH * scaleX);
 
-    // 4 corners: startLeft, startRight, endRight, endLeft
-    // "Left" = road side (negative lateral), "Right" = work side (positive lateral)
-    const startRoad = offsetPoint(p1, perpAngle, offsetCenter - widthM * sideMul);
-    const startWork = offsetPoint(p1, perpAngle, offsetCenter);
-    const endRoad = offsetPoint(p2, perpAngle, offsetCenter - widthM * sideMul);
-    const endWork = offsetPoint(p2, perpAngle, offsetCenter);
-
-    // L.imageOverlay needs axis-aligned bounds, but our image may be rotated.
-    // For non-north-aligned lines, we need a different approach.
-    // 
-    // Solution: Use a Leaflet custom pane with a positioned+rotated <img> element.
-    // We place a regular marker at the center, but use a HUGE iconSize and overflow:visible.
-
+    // Position: center of line, offset to work side
     const midLat = (p1.lat + p2.lat) / 2;
     const midLng = (p1.lng + p2.lng) / 2;
-    const center = offsetPoint(L.latLng(midLat, midLng), perpAngle, offsetCenter * 0.5);
+    const perpAngle = bearing + 90;
+    const center = offsetPoint(L.latLng(midLat, midLng), perpAngle, (widthM * 0.3) * sideMul);
 
-    // Convert real-world meters to screen pixels
-    const metersPerPx = getMPP(map);
-    const lengthPx = Math.round(lengthM / metersPerPx);
-    const widthPx = Math.round(widthM / metersPerPx);
-
-    // The trick: make iconSize very large (diagonal of the rotated rect)
-    // so Leaflet doesn't clip the rotated image
-    const diagPx = Math.ceil(Math.sqrt(lengthPx * lengthPx + widthPx * widthPx));
-
+    const diagPx = Math.ceil(Math.sqrt(displayW * displayW + displayH * displayH));
     const flipStyle = workSide === 'left' ? 'scaleX(-1)' : '';
 
     const icon = L.divIcon({
-      className: '',  // No default leaflet styles
+      className: '',
       iconSize: [diagPx, diagPx],
       iconAnchor: [diagPx / 2, diagPx / 2],
       html: `<div style="
-        position: absolute;
-        left: ${(diagPx - widthPx) / 2}px;
-        top: ${(diagPx - lengthPx) / 2}px;
-        width: ${widthPx}px;
-        height: ${lengthPx}px;
-        transform: rotate(${bearing}deg) ${flipStyle};
-        transform-origin: center center;
-        pointer-events: auto;
-        cursor: move;
-      "><img src="${plan.image}" style="
-        width: 100%;
-        height: 100%;
-        display: block;
-      " draggable="false"></div>`,
+        position:absolute;
+        left:${(diagPx - displayW) / 2}px;
+        top:${(diagPx - displayH) / 2}px;
+        width:${displayW}px;
+        height:${displayH}px;
+        transform:rotate(${bearing}deg) ${flipStyle};
+        transform-origin:center center;
+        pointer-events:auto; cursor:move;
+      "><img src="${imgSrc}" style="width:100%;height:100%;display:block;" draggable="false"></div>`,
     });
 
     const overlayMarker = L.marker(center, { icon, draggable: true, zIndexOffset: -100 }).addTo(map);
-    overlayMarker._rp = { groupId, planId, widthM, lengthM, bearing, center };
+    overlayMarker._rp = { groupId, planId, widthM, lengthM, bearing };
     layers.push(overlayMarker);
 
-    // ── VZ signs before/after as individual markers ──
+    // VZ signs
     plan.vzBefore.forEach(cfg => {
       const pos = offsetPoint(p1, bearing + 180, cfg.offsetM);
       const posL = offsetPoint(pos, perpAngle, -3 * sideMul);
       const m = placeVZ(cfg.vz, posL, map);
       if (m) layers.push(m);
     });
-
     plan.vzAfter.forEach(cfg => {
       const pos = offsetPoint(p2, bearing, cfg.offsetM);
       const posL = offsetPoint(pos, perpAngle, -3 * sideMul);
@@ -202,11 +256,11 @@ const RegelplanEngine = (() => {
     groups.push(group);
 
     document.getElementById('stObj').textContent = 'Objekte: ' + layers.length;
-    UI.toast(`${plan.name} platziert — verschiebbar per Drag`);
+    UI.toast(`${plan.name} platziert`);
     showGroupProperties(group);
 
     map.off('zoomend.rpScale');
-    map.on('zoomend.rpScale', rescaleAll);
+    map.on('zoomend.rpScale', () => rescaleAll());
   }
 
   function placeVZ(vzId, pos, map) {
@@ -220,10 +274,6 @@ const RegelplanEngine = (() => {
     return L.marker(pos, { icon, draggable: true }).addTo(map);
   }
 
-  function getMPP(map) {
-    return 156543.03392 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom());
-  }
-
   // ─── RESCALE ───
   function rescaleAll() {
     const map = MapModule.getMap();
@@ -235,9 +285,18 @@ const RegelplanEngine = (() => {
       const plan = PLANS[rp.planId];
       if (!plan) return;
 
-      const lengthPx = Math.round(rp.lengthM / metersPerPx);
-      const widthPx = Math.round(rp.widthM / metersPerPx);
-      const diagPx = Math.ceil(Math.sqrt(lengthPx * lengthPx + widthPx * widthPx));
+      const lengthPx = Math.max(30, Math.round(rp.lengthM / metersPerPx));
+      const widthPx = Math.max(15, Math.round(g.widthM / metersPerPx));
+
+      const rendered = renderPlan(rp.planId, lengthPx);
+      const imgSrc = rendered ? rendered.dataUrl : `assets/rp_${rp.planId}.png`;
+      const imgW = rendered ? rendered.width : 100;
+      const imgH = rendered ? rendered.height : 400;
+
+      const scaleX = widthPx / imgW;
+      const displayW = widthPx;
+      const displayH = Math.round(imgH * scaleX);
+      const diagPx = Math.ceil(Math.sqrt(displayW * displayW + displayH * displayH));
       const flipStyle = g.workSide === 'left' ? 'scaleX(-1)' : '';
 
       g.overlayMarker.setIcon(L.divIcon({
@@ -245,20 +304,15 @@ const RegelplanEngine = (() => {
         iconSize: [diagPx, diagPx],
         iconAnchor: [diagPx / 2, diagPx / 2],
         html: `<div style="
-          position: absolute;
-          left: ${(diagPx - widthPx) / 2}px;
-          top: ${(diagPx - lengthPx) / 2}px;
-          width: ${widthPx}px;
-          height: ${lengthPx}px;
-          transform: rotate(${rp.bearing}deg) ${flipStyle};
-          transform-origin: center center;
-          pointer-events: auto;
-          cursor: move;
-        "><img src="${plan.image}" style="
-          width: 100%;
-          height: 100%;
-          display: block;
-        " draggable="false"></div>`,
+          position:absolute;
+          left:${(diagPx - displayW) / 2}px;
+          top:${(diagPx - displayH) / 2}px;
+          width:${displayW}px;
+          height:${displayH}px;
+          transform:rotate(${rp.bearing}deg) ${flipStyle};
+          transform-origin:center center;
+          pointer-events:auto; cursor:move;
+        "><img src="${imgSrc}" style="width:100%;height:100%;display:block;" draggable="false"></div>`,
       }));
     });
   }
@@ -271,7 +325,7 @@ const RegelplanEngine = (() => {
     el.innerHTML = `
       <div class="pgrp-t">${g.name}</div>
       <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">
-        ${g.lengthM.toFixed(1)}m × ${g.widthM}m — verschiebbar
+        ${g.lengthM.toFixed(1)}m × ${g.widthM}m
       </div>
       <div class="prow">
         <span class="plbl">Breite</span>
