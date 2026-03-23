@@ -1,212 +1,649 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>VZP Editor — Verkehrszeichenplan nach RSA 21</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VZP Editor — Regelplan-Templates + Maßketten Demo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #12121a;
+    --bg3: #1a1a25;
+    --border: rgba(255,255,255,0.08);
+    --accent: #1565C0;
+    --accent2: #FF6D00;
+    --text: #E0E0E0;
+    --text2: #78909C;
+    --danger: #E53935;
+    --success: #43A047;
+    --radius: 8px;
+  }
+
+  html, body { height: 100%; font-family: 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); }
+
+  /* ── Layout ── */
+  .app {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sb-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(21,101,192,0.08), rgba(255,109,0,0.05));
+  }
+  .sb-logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sb-logo-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .sb-logo-text { font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
+  .sb-logo-sub { font-size: 9px; color: var(--text2); margin-top: 2px; }
+
+  .sb-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sb-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text2); margin-bottom: 10px;
+  }
+
+  /* ── Regelplan Cards ── */
+  .rp-grid { display: flex; flex-direction: column; gap: 6px; }
+  .rp-card {
+    padding: 10px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .rp-card:hover { border-color: var(--accent); background: rgba(21,101,192,0.06); }
+  .rp-card.active { border-color: var(--accent); background: rgba(21,101,192,0.12); box-shadow: 0 0 0 1px var(--accent); }
+  .rp-name { font-size: 12px; font-weight: 700; color: var(--accent); }
+  .rp-desc { font-size: 10px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
+  .rp-vz { font-size: 9px; color: #546E7A; margin-top: 4px; }
+
+  /* ── Controls ── */
+  .ctrl-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .ctrl-label { font-size: 10px; color: var(--text2); min-width: 80px; }
+  .ctrl-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+  }
+  .ctrl-input:focus { outline: none; border-color: var(--accent); }
+  select.ctrl-input { cursor: pointer; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1976D2; }
+  .btn-accent { background: var(--accent2); color: #fff; }
+  .btn-accent:hover { background: #E65100; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+  /* ── Map ── */
+  .map-wrap {
+    flex: 1;
+    position: relative;
+  }
+  #map { width: 100%; height: 100%; background: #0d1117; }
+
+  /* ── Status Bar ── */
+  .status-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 28px;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 20px;
+    font-size: 10px;
+    color: var(--text2);
+    z-index: 600;
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success);
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .status-mode {
+    padding: 2px 8px;
+    background: rgba(21,101,192,0.2);
+    border-radius: 4px;
+    color: #90CAF9;
+    font-weight: 600;
+  }
+
+  /* ── Drawing Hint ── */
+  .draw-hint {
+    position: absolute;
+    top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 700;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 11px;
+    color: #90CAF9;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(21,101,192,0.2);
+  }
+  .draw-hint.active { display: flex; }
+  .draw-hint kbd {
+    background: rgba(21,101,192,0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+  }
+
+  /* ── Massketten Toggle ── */
+  .mk-layer-toggle {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 700;
+    display: flex;
+    gap: 6px;
+  }
+  .mk-btn {
+    background: rgba(10,10,15,0.88);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mk-btn:hover { border-color: var(--accent); color: var(--text); }
+  .mk-btn.active { background: rgba(21,101,192,0.2); border-color: var(--accent); color: #90CAF9; }
+
+  /* ── Leaflet overrides ── */
+  .leaflet-control-zoom { border: 1px solid var(--border) !important; }
+  .leaflet-control-zoom a {
+    background: var(--bg2) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+  .leaflet-control-scale-line {
+    background: rgba(10,10,15,0.8) !important;
+    color: var(--text) !important;
+    border-color: var(--accent) !important;
+  }
+
+  /* ── VZ marker styling ── */
+  .vz-m { background: none !important; border: none !important; }
+
+  /* ── Warnleuchten-Glow ── */
+  .warnleuchte-glow {
+    filter: drop-shadow(0 0 3px rgba(255,215,0,0.6));
+  }
+
+  /* ── Absperrschranke clip ── */
+  .absperrschranke { overflow: hidden; }
+</style>
 </head>
 <body>
 
-  <!-- ═══ HEADER ═══ -->
-  <div class="hdr">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" fill="var(--ac)" stroke="var(--ac)" opacity=".8"/>
-        <path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-      </svg>
-      <b>VZP <span>Editor</span></b>
-    </div>
-
-    <div class="htools">
-      <button class="tbtn on" id="tV" title="Auswahl (V)" onclick="DrawTools.setMode('select')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
-      </button>
-      <button class="tbtn" id="tL" title="Linie zeichnen (L)" onclick="DrawTools.setMode('draw')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
-      </button>
-      <button class="tbtn" id="tM" title="Messen (M)" onclick="DrawTools.setMode('measure')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 2h20v6H2z"/><path d="M6 2v6M10 2v4M14 2v6M18 2v4"/></svg>
-      </button>
-      <button class="tbtn" id="tA" title="Fläche zeichnen (A)" onclick="DrawTools.setMode('area')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-      </button>
-    </div>
-
-    <div class="hsearch">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input type="text" id="sInp" placeholder="Adresse suchen…" autocomplete="off">
-    </div>
-
-    <div class="hspace"></div>
-
-    <div class="hacts">
-      <button class="abtn" onclick="ObjectManager.undo()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-        Undo
-      </button>
-      <button class="abtn" onclick="ObjectManager.clearAll()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        Leeren
-      </button>
-      <button class="abtn" onclick="RegelplanEngine.setScale500()" title="Maßstab 1:500 für Beantragung">
-        1:500
-      </button>
-      <button class="abtn pri" onclick="PDFExport.exportPDF()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        PDF
-      </button>
-    </div>
-  </div>
-
-  <!-- ═══ MAIN ═══ -->
-  <div class="main">
-
-    <!-- LEFT SIDEBAR -->
-    <div class="side">
-      <div class="side-hdr"><h3>Verkehrszeichen</h3></div>
-      <div class="tabs" id="tabs"></div>
-      <div class="side-filter">
-        <input type="text" id="vzFilter" placeholder="Zeichen filtern…" oninput="UI.filterVZ(this.value)">
-      </div>
-      <div class="slist" id="slist"></div>
-      <div class="scount" id="scount"></div>
-    </div>
-
-    <!-- MAP -->
-    <div class="mapc">
-      <div id="map"></div>
-      <div class="layers">
-        <button class="lbtn on" data-l="osm" onclick="swLayer(this)">OSM</button>
-        <button class="lbtn" data-l="sat" onclick="swLayer(this)">Satellit</button>
-        <button class="lbtn" data-l="alkis" onclick="swLayer(this)">ALKIS</button>
-        <button class="lbtn" data-l="str" onclick="swLayer(this)">Straßenbef.</button>
-        <button class="lbtn" data-l="fach" onclick="swLayer(this)">Fachkarte</button>
-      </div>
-    </div>
-
-    <!-- RIGHT PANEL -->
-    <div class="rpanel">
-      <div class="rp-hdr"><h3>VZP Erstellen</h3></div>
-      <div class="rcontent">
-
-        <!-- Step 1: Draw construction line -->
-        <div class="pgrp">
-          <div class="pgrp-t">① Baustellenlinie</div>
-          <button class="pbtn" style="width:100%;height:32px;margin-bottom:6px;background:var(--acbg);color:var(--ac);border-color:var(--ac)" onclick="RegelplanEngine.startDrawLine()">
-            ✏️ Linie zeichnen
-          </button>
-          <div style="font-size:10px;color:var(--tx3);line-height:1.4">
-            Klicke Start + Ende der Baustelle auf die Karte (Längsrichtung der Straße).
-          </div>
-        </div>
-
-        <!-- Step 2: Choose side -->
-        <div class="pgrp" id="sideSelector" style="display:none">
-          <div class="pgrp-t">② Sperrseite</div>
-          <div style="display:flex;gap:6px">
-            <button class="pbtn side-btn on" data-side="left" onclick="RegelplanEngine.setSide('left')" style="flex:1;height:32px">← Links</button>
-            <button class="pbtn side-btn" data-side="right" onclick="RegelplanEngine.setSide('right')" style="flex:1;height:32px">Rechts →</button>
-          </div>
-          <div style="font-size:10px;color:var(--tx3);margin-top:4px">
-            In Zeichenrichtung gesehen.
-          </div>
-        </div>
-
-        <!-- Step 3: Choose Regelplan -->
-        <div class="pgrp">
-          <div class="pgrp-t">③ Regelplan wählen</div>
-          <div id="rpList"></div>
-        </div>
-
-        <!-- Group properties (shown after generation) -->
-        <div class="pgrp" id="groupProps" style="display:none"></div>
-
-        <!-- Single object properties -->
-        <div class="pgrp" id="propP" style="display:none">
-          <div class="pgrp-t">Ausgewähltes Objekt</div>
-          <div class="prow">
-            <span class="plbl">Rotation</span>
-            <input class="pinp" type="range" min="0" max="360" value="0" id="pRot"
-              oninput="ObjectManager.updateSelected('rotation',this.value);document.getElementById('pRotV').textContent=this.value+'°'">
-            <span class="pval" id="pRotV">0°</span>
-          </div>
-          <div class="prow">
-            <span class="plbl">Größe</span>
-            <input class="pinp" type="range" min="20" max="120" value="50" id="pSz"
-              oninput="ObjectManager.updateSelected('size',this.value);document.getElementById('pSzV').textContent=this.value">
-            <span class="pval" id="pSzV">50</span>
-          </div>
-          <div class="pbtns">
-            <button class="pbtn" onclick="ObjectManager.duplicateSelected()">Duplizieren</button>
-            <button class="pbtn dng" onclick="ObjectManager.deleteSelected()">Löschen</button>
-          </div>
-        </div>
-
-        <!-- Project info -->
-        <div class="pgrp">
-          <div class="pgrp-t">Projekt</div>
-          <div class="prow"><span class="plbl">Name</span><input class="pinp" type="text" id="pName" placeholder="Projektname"></div>
-          <div class="prow"><span class="plbl">Firma</span><input class="pinp" type="text" id="pFirma" value="QFM GmbH"></div>
-          <div class="prow"><span class="plbl">Datum</span><input class="pinp" type="date" id="pDate"></div>
-          <div class="prow"><span class="plbl">Bearbeiter</span><input class="pinp" type="text" id="pBearb" placeholder="Name"></div>
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-logo">
+        <div class="sb-logo-icon">🚧</div>
+        <div>
+          <div class="sb-logo-text">VZP EDITOR</div>
+          <div class="sb-logo-sub">Regelplan-Templates + Maßketten Demo</div>
         </div>
       </div>
     </div>
+
+    <!-- Adresssuche -->
+    <div class="sb-section">
+      <div class="sb-label">📍 Adresssuche</div>
+      <div class="ctrl-row">
+        <input class="ctrl-input" type="text" id="adressInput" placeholder="Straße, Berlin..." value="Schönhauser Allee, Berlin">
+        <button class="btn btn-primary" onclick="searchAddress()" style="padding:6px 10px">🔍</button>
+      </div>
+    </div>
+
+    <!-- Regelplan auswählen -->
+    <div class="sb-section" style="flex:1; overflow-y:auto">
+      <div class="sb-label">📋 Regelplan wählen</div>
+      <div class="rp-grid" id="rpGrid"></div>
+    </div>
+
+    <!-- Parameter -->
+    <div class="sb-section">
+      <div class="sb-label">⚙️ Parameter</div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Seite</span>
+        <select class="ctrl-input" id="seiteSelect">
+          <option value="rechts">Rechts (Fahrtrichtung)</option>
+          <option value="links">Links (Fahrtrichtung)</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Tempo</span>
+        <select class="ctrl-input" id="speedSelect">
+          <option value="50">50 km/h (innerorts)</option>
+          <option value="30">30 km/h (Zone 30)</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">FB-Breite</span>
+        <input class="ctrl-input" type="number" id="fbBreite" value="6.5" step="0.5" min="3" max="15"> 
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">GW-Breite</span>
+        <input class="ctrl-input" type="number" id="gwBreite" value="2.5" step="0.25" min="1" max="5">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-accent" id="drawBtn" onclick="startDrawing()">✏️ Linie zeichnen</button>
+        <button class="btn btn-ghost" onclick="clearAll()">🗑 Löschen</button>
+      </div>
+    </div>
+
+    <!-- Validierung -->
+    <div class="sb-section" id="validierungSection" style="display:none">
+      <div class="sb-label">📏 RSA 21 Maßprüfung</div>
+      <div id="validierungContent"></div>
+    </div>
   </div>
 
-  <!-- STATUS BAR -->
-  <div class="sbar">
-    <span><span class="sdot"></span>Bereit</span>
-    <span id="stCoord">52.5200° N, 13.4050° E</span>
-    <span id="stZoom">1:5K (Z15)</span>
-    <span id="stObj">Objekte: 0</span>
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- Drawing Hint -->
+    <div class="draw-hint" id="drawHint">
+      ✏️ Klicke auf die Karte um die Absperrlinie zu zeichnen · <kbd>Doppelklick</kbd> zum Beenden · <kbd>ESC</kbd> zum Abbrechen
+    </div>
+
+    <!-- Layer Toggles -->
+    <div class="mk-layer-toggle">
+      <button class="mk-btn active" id="toggleRegelplan" onclick="toggleLayer('regelplan')">📐 Regelplan</button>
+      <button class="mk-btn active" id="toggleMassketten" onclick="toggleLayer('massketten')">📏 Maßketten</button>
+      <button class="mk-btn" id="toggleALKIS" onclick="toggleLayer('alkis')">🗺️ ALKIS</button>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span><span class="status-dot"></span>Bereit</span>
+      <span id="stCoord">52.5200° N, 13.4050° E</span>
+      <span id="stZoom">Zoom: 17</span>
+      <span class="status-mode" id="stMode">Auswahl</span>
+      <span id="stScale">1:500</span>
+    </div>
   </div>
+</div>
 
-  <!-- CONTEXT MENU -->
-  <div class="ctx" id="ctx">
-    <div class="ctx-i" onclick="UI.ctxAction('dup')">Duplizieren <span class="k">Ctrl+D</span></div>
-    <div class="ctx-i" onclick="UI.ctxAction('front')">Vordergrund</div>
-    <div class="ctx-i" onclick="UI.ctxAction('back')">Hintergrund</div>
-    <div class="ctx-s"></div>
-    <div class="ctx-i" onclick="UI.ctxAction('del')" style="color:var(--danger)">Löschen <span class="k">Del</span></div>
-  </div>
+<!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/regelplan-templates.js"></script>
+<script src="js/massketten.js"></script>
 
-  <!-- TOAST -->
-  <div class="toast" id="toast"></div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// VZP Editor Demo — Integration der neuen Module
+// ═══════════════════════════════════════════════════════════════
 
-  <!-- SCRIPTS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+let map;
+let drawMode = false;
+let drawPoints = [];
+let drawPolyline = null;
+let tempLine = null;
+let activeRegelplan = 'BI2';
+let overlayResult = null;
+let masskettenResult = null;
+let drawnLine = null;
+let alkisLayer = null;
+let showRegelplan = true;
+let showMassketten = true;
 
-  <!-- App modules -->
-  <script src="js/vz-catalog.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/draw-tools.js"></script>
-  <script src="js/objects.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/regelplan-engine.js"></script>
-  <script src="js/pdf-export.js"></script>
+// ── Map Init ────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', {
+    center: [52.5310, 13.4130], // Schönhauser Allee
+    zoom: 17,
+    zoomControl: true,
+  });
 
-  <script>
-    // Global helper for layer switcher
-    function swLayer(btn) {
-      document.querySelectorAll('.lbtn').forEach(b => b.classList.remove('on'));
-      btn.classList.add('on');
-      MapModule.switchLayer(btn.dataset.l);
+  // OSM Basemap
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 20,
+  }).addTo(map);
+
+  // Berlin ALKIS WMS (optional)
+  alkisLayer = L.tileLayer.wms('https://gdi.berlin.de/services/wms/alkis', {
+    layers: 'adv_alkis_tatsaechliche_nutzung',
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.35,
+    maxZoom: 20,
+  });
+
+  // Maßstabsbalken
+  L.control.scale({ imperial: false, maxWidth: 200 }).addTo(map);
+
+  // Events
+  map.on('mousemove', onMouseMove);
+  map.on('click', onMapClick);
+  map.on('dblclick', onMapDblClick);
+  map.on('zoomend', updateScaleDisplay);
+
+  updateScaleDisplay();
+}
+
+// ── Adresssuche ─────────────────────────────────────────────
+async function searchAddress() {
+  const q = document.getElementById('adressInput').value.trim();
+  if (!q) return;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=de`);
+    const data = await res.json();
+    if (data.length > 0) {
+      map.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 18);
     }
+  } catch (e) {
+    console.error('Suche fehlgeschlagen:', e);
+  }
+}
 
-    // Boot
-    document.addEventListener('DOMContentLoaded', () => {
-      MapModule.init();
-      MapModule.postInit();
-      UI.init();
-    });
-  </script>
+document.getElementById('adressInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchAddress();
+});
+
+// ── Regelplan Grid ──────────────────────────────────────────
+function renderRPGrid() {
+  const grid = document.getElementById('rpGrid');
+  grid.innerHTML = '';
+
+  Object.values(RegelplanTemplates.REGELPLÄNE).forEach(rp => {
+    const vzList = rp.verkehrszeichen ? rp.verkehrszeichen.map(v => 'VZ ' + v.vz).filter((v,i,a) => a.indexOf(v) === i).join(', ') : '';
+    const card = document.createElement('div');
+    card.className = 'rp-card' + (rp.id === activeRegelplan ? ' active' : '');
+    card.innerHTML = `
+      <div class="rp-name">${rp.name} — ${rp.titel}</div>
+      <div class="rp-desc">${rp.beschreibung}</div>
+      <div class="rp-vz">${vzList}</div>
+    `;
+    card.onclick = () => {
+      activeRegelplan = rp.id;
+      renderRPGrid();
+      if (drawnLine) applyRegelplan();
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ── Drawing ─────────────────────────────────────────────────
+function startDrawing() {
+  clearAll();
+  drawMode = true;
+  drawPoints = [];
+  document.getElementById('drawHint').classList.add('active');
+  document.getElementById('stMode').textContent = 'Zeichnen';
+  document.getElementById('drawBtn').textContent = '⏹ Abbrechen';
+  document.getElementById('drawBtn').onclick = cancelDrawing;
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+function cancelDrawing() {
+  drawMode = false;
+  drawPoints = [];
+  if (tempLine) { map.removeLayer(tempLine); tempLine = null; }
+  if (drawPolyline) { map.removeLayer(drawPolyline); drawPolyline = null; }
+  document.getElementById('drawHint').classList.remove('active');
+  document.getElementById('stMode').textContent = 'Auswahl';
+  document.getElementById('drawBtn').textContent = '✏️ Linie zeichnen';
+  document.getElementById('drawBtn').onclick = startDrawing;
+  map.getContainer().style.cursor = '';
+}
+
+function onMapClick(e) {
+  if (!drawMode) return;
+
+  drawPoints.push([e.latlng.lat, e.latlng.lng]);
+
+  // Update Polyline
+  if (drawPolyline) map.removeLayer(drawPolyline);
+  if (drawPoints.length >= 2) {
+    drawPolyline = L.polyline(drawPoints, {
+      color: '#FF6D00', weight: 3, dashArray: '8,4', opacity: 0.8
+    }).addTo(map);
+  }
+
+  // Punkte markieren
+  L.circleMarker(e.latlng, {
+    radius: 4, color: '#FF6D00', fillColor: '#FFF', fillOpacity: 1, weight: 2
+  }).addTo(map);
+}
+
+function onMapDblClick(e) {
+  if (!drawMode || drawPoints.length < 2) return;
+  e.originalEvent.preventDefault();
+
+  drawMode = false;
+  drawnLine = [...drawPoints];
+  document.getElementById('drawHint').classList.remove('active');
+  document.getElementById('stMode').textContent = 'Regelplan';
+  document.getElementById('drawBtn').textContent = '✏️ Neu zeichnen';
+  document.getElementById('drawBtn').onclick = startDrawing;
+  map.getContainer().style.cursor = '';
+
+  if (tempLine) { map.removeLayer(tempLine); tempLine = null; }
+
+  // Finale Linie
+  if (drawPolyline) map.removeLayer(drawPolyline);
+  drawPolyline = L.polyline(drawnLine, {
+    color: '#FF6D00', weight: 3, opacity: 0.9
+  }).addTo(map);
+
+  applyRegelplan();
+}
+
+function onMouseMove(e) {
+  // Koordinaten anzeigen
+  document.getElementById('stCoord').textContent =
+    `${e.latlng.lat.toFixed(4)}° N, ${e.latlng.lng.toFixed(4)}° E`;
+
+  // Temporäre Linie beim Zeichnen
+  if (drawMode && drawPoints.length > 0) {
+    const lastPt = drawPoints[drawPoints.length - 1];
+    if (tempLine) map.removeLayer(tempLine);
+    tempLine = L.polyline([lastPt, [e.latlng.lat, e.latlng.lng]], {
+      color: '#90CAF9', weight: 2, dashArray: '4,4', opacity: 0.6
+    }).addTo(map);
+  }
+}
+
+// ── Regelplan anwenden ──────────────────────────────────────
+function applyRegelplan() {
+  if (!drawnLine || drawnLine.length < 2) return;
+
+  // Alte Overlays entfernen
+  if (overlayResult) overlayResult.remove();
+  if (masskettenResult) masskettenResult.remove();
+
+  const seite = document.getElementById('seiteSelect').value;
+  const speed = parseInt(document.getElementById('speedSelect').value);
+  const fbBreite = parseFloat(document.getElementById('fbBreite').value);
+  const gwBreite = parseFloat(document.getElementById('gwBreite').value);
+
+  const options = { speed, fahrbahnBreite: fbBreite, gehwegBreite: gwBreite };
+
+  // 1. Regelplan SVG-Overlay
+  if (showRegelplan) {
+    overlayResult = RegelplanTemplates.generateOverlay(
+      map, drawnLine, activeRegelplan, seite, options
+    );
+  }
+
+  // 2. Maßketten-Overlay
+  if (showMassketten) {
+    Massketten.injectStyles();
+    masskettenResult = Massketten.generateMassketten(
+      map, drawnLine, activeRegelplan, seite, {
+        ...options,
+        arbeitsstelleBreite: 2.0,
+      }
+    );
+
+    // Validierungspanel
+    if (masskettenResult && masskettenResult.validierung) {
+      const section = document.getElementById('validierungSection');
+      const content = document.getElementById('validierungContent');
+      section.style.display = 'block';
+      content.innerHTML = '';
+
+      masskettenResult.validierung.forEach(v => {
+        const row = document.createElement('div');
+        row.className = 'ctrl-row';
+        row.style.fontSize = '10px';
+
+        const statusColors = { OK: 'var(--success)', WARNUNG: '#FF9800', FEHLER: 'var(--danger)' };
+        const statusIcons = { OK: '✓', WARNUNG: '⚠', FEHLER: '✗' };
+
+        row.innerHTML = `
+          <span style="flex:1; color: var(--text2)">${v.label}</span>
+          <span style="font-weight:700; color: ${statusColors[v.status]}; min-width:55px; text-align:right">${v.ist < 10 ? v.ist.toFixed(2) : v.ist.toFixed(1)} ${v.einheit}</span>
+          <span style="color: var(--text2); font-size:9px; min-width:70px">(≥${v.min < 10 ? v.min.toFixed(2) : v.min.toFixed(0)} ${v.einheit})</span>
+          <span style="color: ${statusColors[v.status]}; font-size:12px; min-width:16px; text-align:center">${statusIcons[v.status]}</span>
+        `;
+        content.appendChild(row);
+      });
+    }
+  }
+}
+
+// ── Layer Toggles ───────────────────────────────────────────
+function toggleLayer(layer) {
+  if (layer === 'regelplan') {
+    showRegelplan = !showRegelplan;
+    document.getElementById('toggleRegelplan').classList.toggle('active', showRegelplan);
+    if (overlayResult) { overlayResult.remove(); overlayResult = null; }
+    if (showRegelplan && drawnLine) applyRegelplan();
+  } else if (layer === 'massketten') {
+    showMassketten = !showMassketten;
+    document.getElementById('toggleMassketten').classList.toggle('active', showMassketten);
+    if (masskettenResult) { masskettenResult.remove(); masskettenResult = null; }
+    if (showMassketten && drawnLine) applyRegelplan();
+  } else if (layer === 'alkis') {
+    const btn = document.getElementById('toggleALKIS');
+    if (map.hasLayer(alkisLayer)) {
+      map.removeLayer(alkisLayer);
+      btn.classList.remove('active');
+    } else {
+      alkisLayer.addTo(map);
+      btn.classList.add('active');
+    }
+  }
+}
+
+// ── Clear ───────────────────────────────────────────────────
+function clearAll() {
+  cancelDrawing();
+  if (overlayResult) { overlayResult.remove(); overlayResult = null; }
+  if (masskettenResult) { masskettenResult.remove(); masskettenResult = null; }
+  if (drawPolyline) { map.removeLayer(drawPolyline); drawPolyline = null; }
+  drawnLine = null;
+  drawPoints = [];
+  document.getElementById('validierungSection').style.display = 'none';
+
+  // Remove all circle markers
+  map.eachLayer(l => {
+    if (l instanceof L.CircleMarker) map.removeLayer(l);
+  });
+}
+
+// ── Scale Display ───────────────────────────────────────────
+function updateScaleDisplay() {
+  const zoom = map.getZoom();
+  document.getElementById('stZoom').textContent = `Zoom: ${zoom}`;
+
+  // Maßstab berechnen (bei 96 DPI)
+  const metersPerPixel = 40075016.686 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, zoom + 8);
+  const scale = Math.round(metersPerPixel * 96 / 0.0254);
+  document.getElementById('stScale').textContent = `1:${scale.toLocaleString('de-DE')}`;
+}
+
+// ── Parameter-Änderungen ────────────────────────────────────
+['seiteSelect', 'speedSelect', 'fbBreite', 'gwBreite'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    if (drawnLine) applyRegelplan();
+  });
+});
+
+// ── Keyboard Shortcuts ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && drawMode) cancelDrawing();
+  if (e.key === 'd' && !drawMode) startDrawing();
+  if (e.key === 'm') toggleLayer('massketten');
+  if (e.key === 'r') toggleLayer('regelplan');
+});
+
+// ── Init ────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initMap();
+  renderRPGrid();
+});
+</script>
 
 </body>
 </html>
