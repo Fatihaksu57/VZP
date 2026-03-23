@@ -129,8 +129,9 @@ const RegelplanEngine = (() => {
 
     // ── Image overlay for the barrier zone ──
     const widthM = plan.widthM;
-    const lengthPx = lengthM / mpp();
-    const widthPx = widthM / mpp();
+    const metersPerPx = mpp();
+    const lengthPx = Math.max(20, Math.round(lengthM / metersPerPx));
+    const widthPx = Math.max(10, Math.round(widthM / metersPerPx));
 
     // Center of the image: midpoint of line, offset to work side
     const midLat = (p1.lat + p2.lat) / 2;
@@ -139,26 +140,22 @@ const RegelplanEngine = (() => {
     const centerOffset = (widthM * 0.3) * sideMul;
     const center = offsetPoint(mid, bearing + 90, centerOffset);
 
-    // CSS rotation: bearing is degrees from North clockwise
-    // The image is drawn vertically (top=start, bottom=end)
-    // rotate(0) on screen = pointing right, so we need bearing - 90 for "up = bearing direction"
-    // Actually: if bearing = 0 (north), the image needs no rotation (it's already vertical on screen)
-    // CSS rotate is clockwise from the default (which is "up" for a vertical image)
-    // So: cssDeg = bearing (north=0 means no rotation needed)
+    // The image is drawn vertically (top = start of construction, bottom = end).
+    // On screen, "up" is north. CSS rotate(0) keeps the image vertical.
+    // bearing = 0° means line goes north (image already correct).
+    // bearing = 90° means line goes east → rotate image 90° clockwise.
     const cssDeg = bearing;
 
     // Flip image if work side is left
     const flipX = workSide === 'left' ? 'scaleX(-1)' : '';
 
+    // Use a wrapper div to ensure proper sizing
     const overlayIcon = L.divIcon({
-      html: `<img src="${plan.image}" class="rp-img" style="
-        width: ${widthPx}px;
-        height: ${lengthPx}px;
-        transform: rotate(${cssDeg}deg) ${flipX};
-        transform-origin: center center;
-      ">`,
-      iconSize: [widthPx, lengthPx],
-      iconAnchor: [widthPx / 2, lengthPx / 2],
+      html: `<div style="width:${widthPx}px;height:${lengthPx}px;transform:rotate(${cssDeg}deg) ${flipX};transform-origin:center center;">
+        <img src="${plan.image}" style="width:100%;height:100%;display:block;object-fit:fill;" draggable="false" onerror="this.style.border='2px solid red';this.alt='Bild nicht gefunden: ${plan.image}'">
+      </div>`,
+      iconSize: [Math.max(widthPx, lengthPx), Math.max(widthPx, lengthPx)],
+      iconAnchor: [Math.max(widthPx, lengthPx) / 2, Math.max(widthPx, lengthPx) / 2],
       className: 'rp-overlay-container',
     });
 
@@ -220,19 +217,16 @@ const RegelplanEngine = (() => {
       const plan = PLANS[rp.planId];
       if (!plan) return;
 
-      const lengthPx = rp.lengthM / mpp();
-      const widthPx = rp.widthM / mpp();
+      const lengthPx = Math.max(20, Math.round(rp.lengthM / mpp()));
+      const widthPx = Math.max(10, Math.round(rp.widthM / mpp()));
       const flipX = g.workSide === 'left' ? 'scaleX(-1)' : '';
 
       g.overlayMarker.setIcon(L.divIcon({
-        html: `<img src="${plan.image}" class="rp-img" style="
-          width: ${widthPx}px;
-          height: ${lengthPx}px;
-          transform: rotate(${rp.bearing}deg) ${flipX};
-          transform-origin: center center;
-        ">`,
-        iconSize: [widthPx, lengthPx],
-        iconAnchor: [widthPx / 2, lengthPx / 2],
+        html: `<div style="width:${widthPx}px;height:${lengthPx}px;transform:rotate(${rp.bearing}deg) ${flipX};transform-origin:center center;">
+          <img src="${plan.image}" style="width:100%;height:100%;display:block;object-fit:fill;" draggable="false">
+        </div>`,
+        iconSize: [Math.max(widthPx, lengthPx), Math.max(widthPx, lengthPx)],
+        iconAnchor: [Math.max(widthPx, lengthPx) / 2, Math.max(widthPx, lengthPx) / 2],
         className: 'rp-overlay-container',
       }));
     });
