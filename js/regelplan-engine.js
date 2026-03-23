@@ -1,17 +1,15 @@
 // ═══════════════════════════════════════════════════
-// VZP Editor — Regelplan Engine v5
-// Image overlay: RSA 21 diagrams placed on map
+// VZP Editor — Regelplan Engine
+// Uses L.imageOverlay for barrier zone images
 // ═══════════════════════════════════════════════════
 
 const RegelplanEngine = (() => {
 
-  // ─── PLAN CONFIG ───
   const PLANS = {
     'BII1': {
       name: 'B II/1', title: 'Radwegsperrung, geringe Einengung',
       image: 'assets/rp_BII1.png',
       widthM: 5,
-      aspectRatio: 121/800,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [],
     },
@@ -19,7 +17,6 @@ const RegelplanEngine = (() => {
       name: 'B II/2', title: 'Radwegsperrung mit Umleitung',
       image: 'assets/rp_BII2.png',
       widthM: 5.5,
-      aspectRatio: 121/850,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [{ vz: '240', offsetM: 3 }],
     },
@@ -27,7 +24,6 @@ const RegelplanEngine = (() => {
       name: 'B II/3', title: 'Nicht benutzungspfl. Radweg',
       image: 'assets/rp_BII3.png',
       widthM: 5,
-      aspectRatio: 121/750,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [{ vz: '125', offsetM: 60 }],
     },
@@ -35,7 +31,6 @@ const RegelplanEngine = (() => {
       name: 'B II/4', title: 'Gehwegsperrung, Notweg Fahrbahn',
       image: 'assets/rp_BII4.png',
       widthM: 6,
-      aspectRatio: 107/900,
       vzBefore: [{ vz: '125', offsetM: 40 }],
       vzAfter: [{ vz: '125', offsetM: 40 }],
     },
@@ -43,13 +38,11 @@ const RegelplanEngine = (() => {
       name: 'B II/5', title: 'Halbseitig + Gehweg, LSA',
       image: 'assets/rp_BII5.png',
       widthM: 6,
-      aspectRatio: 121/900,
       vzBefore: [{ vz: '125', offsetM: 60 }],
       vzAfter: [{ vz: '125', offsetM: 85 }],
     },
   };
 
-  // ─── STATE ───
   let constructionLine = null, workSide = 'right', activeRegelplan = null;
   let groups = [], isDrawingLine = false, linePreview = null, linePoints = [];
 
@@ -104,12 +97,6 @@ const RegelplanEngine = (() => {
     document.querySelector(`.side-btn[data-side="${side}"]`)?.classList.add('on');
   }
 
-  // ─── METERS TO PIXELS ───
-  function mpp() {
-    const map = MapModule.getMap();
-    return 156543.03392 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom());
-  }
-
   // ─── GENERATE ───
   function generate(planId) {
     if (!constructionLine || constructionLine.length < 2) {
@@ -127,45 +114,70 @@ const RegelplanEngine = (() => {
     const groupId = 'rp_' + Date.now();
     const layers = [];
 
-    // ── Image overlay for the barrier zone ──
     const widthM = plan.widthM;
-    const metersPerPx = mpp();
-    const lengthPx = Math.max(20, Math.round(lengthM / metersPerPx));
-    const widthPx = Math.max(10, Math.round(widthM / metersPerPx));
 
-    // Center of the image: midpoint of line, offset to work side
+    // Calculate the 4 corners of the image overlay
+    // The image is vertical: top=start, bottom=end
+    // Width extends to the work side
+    const perpAngle = bearing + 90;
+
+    // Offset from the construction line to the work side
+    const offsetCenter = widthM * 0.5 * sideMul;
+
+    // 4 corners: startLeft, startRight, endRight, endLeft
+    // "Left" = road side (negative lateral), "Right" = work side (positive lateral)
+    const startRoad = offsetPoint(p1, perpAngle, offsetCenter - widthM * sideMul);
+    const startWork = offsetPoint(p1, perpAngle, offsetCenter);
+    const endRoad = offsetPoint(p2, perpAngle, offsetCenter - widthM * sideMul);
+    const endWork = offsetPoint(p2, perpAngle, offsetCenter);
+
+    // L.imageOverlay needs axis-aligned bounds, but our image may be rotated.
+    // For non-north-aligned lines, we need a different approach.
+    // 
+    // Solution: Use a Leaflet custom pane with a positioned+rotated <img> element.
+    // We place a regular marker at the center, but use a HUGE iconSize and overflow:visible.
+
     const midLat = (p1.lat + p2.lat) / 2;
     const midLng = (p1.lng + p2.lng) / 2;
-    const mid = L.latLng(midLat, midLng);
-    const centerOffset = (widthM * 0.3) * sideMul;
-    const center = offsetPoint(mid, bearing + 90, centerOffset);
+    const center = offsetPoint(L.latLng(midLat, midLng), perpAngle, offsetCenter * 0.5);
 
-    // The image is drawn vertically (top = start of construction, bottom = end).
-    // On screen, "up" is north. CSS rotate(0) keeps the image vertical.
-    // bearing = 0° means line goes north (image already correct).
-    // bearing = 90° means line goes east → rotate image 90° clockwise.
-    const cssDeg = bearing;
+    // Convert real-world meters to screen pixels
+    const metersPerPx = getMPP(map);
+    const lengthPx = Math.round(lengthM / metersPerPx);
+    const widthPx = Math.round(widthM / metersPerPx);
 
-    // Flip image if work side is left
-    const flipX = workSide === 'left' ? 'scaleX(-1)' : '';
+    // The trick: make iconSize very large (diagonal of the rotated rect)
+    // so Leaflet doesn't clip the rotated image
+    const diagPx = Math.ceil(Math.sqrt(lengthPx * lengthPx + widthPx * widthPx));
 
-    // Use a wrapper div to ensure proper sizing
-    const overlayIcon = L.divIcon({
-      html: `<div style="width:${widthPx}px;height:${lengthPx}px;transform:rotate(${cssDeg}deg) ${flipX};transform-origin:center center;">
-        <img src="${plan.image}" style="width:100%;height:100%;display:block;object-fit:fill;" draggable="false" onerror="this.style.border='2px solid red';this.alt='Bild nicht gefunden: ${plan.image}'">
-      </div>`,
-      iconSize: [Math.max(widthPx, lengthPx), Math.max(widthPx, lengthPx)],
-      iconAnchor: [Math.max(widthPx, lengthPx) / 2, Math.max(widthPx, lengthPx) / 2],
-      className: 'rp-overlay-container',
+    const flipStyle = workSide === 'left' ? 'scaleX(-1)' : '';
+
+    const icon = L.divIcon({
+      className: '',  // No default leaflet styles
+      iconSize: [diagPx, diagPx],
+      iconAnchor: [diagPx / 2, diagPx / 2],
+      html: `<div style="
+        position: absolute;
+        left: ${(diagPx - widthPx) / 2}px;
+        top: ${(diagPx - lengthPx) / 2}px;
+        width: ${widthPx}px;
+        height: ${lengthPx}px;
+        transform: rotate(${bearing}deg) ${flipStyle};
+        transform-origin: center center;
+        pointer-events: auto;
+        cursor: move;
+      "><img src="${plan.image}" style="
+        width: 100%;
+        height: 100%;
+        display: block;
+      " draggable="false"></div>`,
     });
 
-    const overlayMarker = L.marker(center, { icon: overlayIcon, draggable: true }).addTo(map);
+    const overlayMarker = L.marker(center, { icon, draggable: true, zIndexOffset: -100 }).addTo(map);
     overlayMarker._rp = { groupId, planId, widthM, lengthM, bearing, center };
     layers.push(overlayMarker);
 
-    // ── VZ signs before/after ──
-    const perpAngle = bearing + 90;
-
+    // ── VZ signs before/after as individual markers ──
     plan.vzBefore.forEach(cfg => {
       const pos = offsetPoint(p1, bearing + 180, cfg.offsetM);
       const posL = offsetPoint(pos, perpAngle, -3 * sideMul);
@@ -180,7 +192,6 @@ const RegelplanEngine = (() => {
       if (m) layers.push(m);
     });
 
-    // Clean up preview
     if (linePreview) { map.removeLayer(linePreview); linePreview = null; }
 
     const group = {
@@ -191,10 +202,9 @@ const RegelplanEngine = (() => {
     groups.push(group);
 
     document.getElementById('stObj').textContent = 'Objekte: ' + layers.length;
-    UI.toast(`${plan.name} platziert`);
+    UI.toast(`${plan.name} platziert — verschiebbar per Drag`);
     showGroupProperties(group);
 
-    // Rescale on zoom
     map.off('zoomend.rpScale');
     map.on('zoomend.rpScale', rescaleAll);
   }
@@ -203,31 +213,52 @@ const RegelplanEngine = (() => {
     const entry = VZ_CATALOG.find(v => v.id === vzId);
     if (!entry) return null;
     const icon = L.divIcon({
+      className: 'vz-m',
       html: `<img class="vz-icon" src="assets/vz/${entry.file}" style="width:18px;height:auto" draggable="false">`,
-      iconSize: [18, 18], iconAnchor: [9, 9], className: 'vz-m',
+      iconSize: [18, 18], iconAnchor: [9, 9],
     });
     return L.marker(pos, { icon, draggable: true }).addTo(map);
   }
 
+  function getMPP(map) {
+    return 156543.03392 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom());
+  }
+
   // ─── RESCALE ───
   function rescaleAll() {
+    const map = MapModule.getMap();
+    const metersPerPx = getMPP(map);
+
     groups.forEach(g => {
       if (!g.overlayMarker?._rp) return;
       const rp = g.overlayMarker._rp;
       const plan = PLANS[rp.planId];
       if (!plan) return;
 
-      const lengthPx = Math.max(20, Math.round(rp.lengthM / mpp()));
-      const widthPx = Math.max(10, Math.round(rp.widthM / mpp()));
-      const flipX = g.workSide === 'left' ? 'scaleX(-1)' : '';
+      const lengthPx = Math.round(rp.lengthM / metersPerPx);
+      const widthPx = Math.round(rp.widthM / metersPerPx);
+      const diagPx = Math.ceil(Math.sqrt(lengthPx * lengthPx + widthPx * widthPx));
+      const flipStyle = g.workSide === 'left' ? 'scaleX(-1)' : '';
 
       g.overlayMarker.setIcon(L.divIcon({
-        html: `<div style="width:${widthPx}px;height:${lengthPx}px;transform:rotate(${rp.bearing}deg) ${flipX};transform-origin:center center;">
-          <img src="${plan.image}" style="width:100%;height:100%;display:block;object-fit:fill;" draggable="false">
-        </div>`,
-        iconSize: [Math.max(widthPx, lengthPx), Math.max(widthPx, lengthPx)],
-        iconAnchor: [Math.max(widthPx, lengthPx) / 2, Math.max(widthPx, lengthPx) / 2],
-        className: 'rp-overlay-container',
+        className: '',
+        iconSize: [diagPx, diagPx],
+        iconAnchor: [diagPx / 2, diagPx / 2],
+        html: `<div style="
+          position: absolute;
+          left: ${(diagPx - widthPx) / 2}px;
+          top: ${(diagPx - lengthPx) / 2}px;
+          width: ${widthPx}px;
+          height: ${lengthPx}px;
+          transform: rotate(${rp.bearing}deg) ${flipStyle};
+          transform-origin: center center;
+          pointer-events: auto;
+          cursor: move;
+        "><img src="${plan.image}" style="
+          width: 100%;
+          height: 100%;
+          display: block;
+        " draggable="false"></div>`,
       }));
     });
   }
@@ -240,7 +271,7 @@ const RegelplanEngine = (() => {
     el.innerHTML = `
       <div class="pgrp-t">${g.name}</div>
       <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">
-        ${g.lengthM.toFixed(1)}m lang, ${g.widthM}m breit — verschiebbar per Drag
+        ${g.lengthM.toFixed(1)}m × ${g.widthM}m — verschiebbar
       </div>
       <div class="prow">
         <span class="plbl">Breite</span>
