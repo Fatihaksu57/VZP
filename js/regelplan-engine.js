@@ -1,359 +1,377 @@
-// ═══════════════════════════════════════════════════
-// VZP Editor — Regelplan Engine (SVG Edition)
-// Uses original SVG elements from PowerPoint
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// VZP Editor — Baugrube Module
+// ═══════════════════════════════════════════════════════════════
+// Rechteckige Baugrube mit:
+//   - 4 Absperrschranken (rot-weiß) als Umrandung
+//   - 4 Warnleuchten an den Ecken
+//   - VZ 123 an den Zufahrtsseiten
+//   - Optional VZ 208/308 wenn Fahrbahn betroffen
+//   - Platzierung: Klick + Maße ODER Rechteck aufziehen
+//   - Resize per Ecken-Drag
+// ═══════════════════════════════════════════════════════════════
 
-const RegelplanEngine = (() => {
+const Baugrube = (() => {
 
-  // SVG element paths (from PPTX)
-  const S = {
-    bakeL:       'assets/svg/bake_links_leuchte.svg',
-    bakeR:       'assets/svg/bake_rechts_leuchte.svg',
-    bakeL_plain: 'assets/svg/bake_links.svg',
-    bakeR_plain: 'assets/svg/bake_rechts.svg',
-    schranke:    'assets/svg/schranke_leuchte_v2.svg',
-    schrankeP:   'assets/svg/schranke.svg',
-  };
+  const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  // Plan configs
-  const PLANS = {
-    'BII1': { name: 'B II/1', title: 'Radwegsperrung, geringe Einengung', widthM: 5,
-      vzBefore: [{ vz: '125', offsetM: 60 }], vzAfter: [] },
-    'BII2': { name: 'B II/2', title: 'Radwegsperrung mit Umleitung', widthM: 5.5,
-      vzBefore: [{ vz: '125', offsetM: 60 }], vzAfter: [{ vz: '240', offsetM: 3 }] },
-    'BII3': { name: 'B II/3', title: 'Nicht benutzungspfl. Radweg', widthM: 5,
-      vzBefore: [{ vz: '125', offsetM: 60 }], vzAfter: [{ vz: '125', offsetM: 60 }] },
-    'BII4': { name: 'B II/4', title: 'Gehwegsperrung, Notweg Fahrbahn', widthM: 6, diagonal: true,
-      vzBefore: [{ vz: '125', offsetM: 40 }], vzAfter: [{ vz: '125', offsetM: 40 }] },
-    'BII5': { name: 'B II/5', title: 'Halbseitig + Gehweg, LSA', widthM: 6,
-      vzBefore: [{ vz: '125', offsetM: 60 }], vzAfter: [{ vz: '125', offsetM: 85 }] },
-  };
-
-  let constructionLine = null, workSide = 'right', activeRegelplan = null;
-  let groups = [], isDrawingLine = false, linePreview = null, linePoints = [];
-
-  // ─── DRAWING ───
-  function startDrawLine() {
-    isDrawingLine = true; linePoints = [];
-    if (linePreview) { MapModule.getMap().removeLayer(linePreview); linePreview = null; }
-    document.body.classList.add('mode-draw');
-    UI.toast('Klicke Start + Ende der Baustelle');
-  }
-  function addLinePoint(latlng) {
-    if (!isDrawingLine) return false;
-    linePoints.push(latlng);
-    const map = MapModule.getMap();
-    if (linePreview) map.removeLayer(linePreview);
-    linePreview = L.polyline(linePoints, { color: '#f97316', weight: 4, dashArray: '10,6' }).addTo(map);
-    if (linePoints.length >= 2) { finishLine(); return true; }
-    return true;
-  }
-  function onMouseMoveWhileDrawing(latlng) {
-    if (!isDrawingLine || !linePoints.length) return;
-    const map = MapModule.getMap();
-    if (linePreview) map.removeLayer(linePreview);
-    linePreview = L.polyline([...linePoints, latlng], { color: '#f97316', weight: 4, dashArray: '10,6', opacity: 0.7 }).addTo(map);
-  }
-  function finishLine() {
-    isDrawingLine = false;
-    constructionLine = [...linePoints];
-    document.body.classList.remove('mode-draw');
-    UI.toast(`${constructionLine[0].distanceTo(constructionLine[1]).toFixed(1)}m — Seite + Regelplan wählen`);
-    const el = document.getElementById('sideSelector');
-    if (el) el.style.display = 'block';
-  }
-  function cancelLine() {
-    isDrawingLine = false; linePoints = [];
-    if (linePreview) { MapModule.getMap().removeLayer(linePreview); linePreview = null; }
-    document.body.classList.remove('mode-draw');
-  }
-  function isDrawing() { return isDrawingLine; }
-  function setSide(side) {
-    workSide = side;
-    document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('on'));
-    document.querySelector(`.side-btn[data-side="${side}"]`)?.classList.add('on');
+  function createSVG(tag, attrs) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
   }
 
-  function getMPP(map) {
-    return 156543.03392 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, map.getZoom());
-  }
+  // ─── Baugrube-Daten ───────────────────────────────────────
+  // Gespeichert als LatLng-Bounds (NW + SE Ecke)
+  // Intern wird alles in Pixeln gerendert
 
-  // ─── BUILD ABSPERRBEREICH HTML ───
-  // Returns HTML string with absolutely positioned SVG images
-  // w = width in px, h = height in px
-  function buildBarrierHTML(planId, w, h) {
-    const plan = PLANS[planId];
+  function createBaugrube(map, bounds, options = {}) {
+    const {
+      fahrbahnBetroffen = false,
+      speed = 50,
+      label = 'Baugrube',
+    } = options;
 
-    // Element sizes relative to width
-    const bakeW = Math.round(w * 0.18);
-    const bakeH = Math.round(bakeW * 2.7);
-    const schrankeW = w;
-    const schrankeH = Math.round(w * 0.08);
-    const bfW = Math.round(w * 0.42);
-    const svW = Math.round(w * 0.12);
-
-    // Column positions
-    const xBake = 0;
-    const xSL = bakeW + 2;                    // Schrankengitter links
-    const xBF = xSL + svW;                    // Baufeld
-    const xSR = xBF + bfW;                    // Schrankengitter rechts
-    const capH = Math.round(bakeH * 1.2);     // Height of top/bottom cap
-
-    let html = '';
-
-    // Baufeld (gray background)
-    html += `<div style="position:absolute;left:${xBF}px;top:${capH}px;width:${bfW}px;height:${h - capH * 2}px;background:rgba(195,195,195,0.45);"></div>`;
-
-    if (plan.diagonal) {
-      // ── B II/4: Diagonal Querabsperrung ──
-
-      // TOP: 3 diagonal bakes + schranke
-      for (let i = 0; i < 3; i++) {
-        const bx = xBake + i * (bakeW + 2);
-        const by = 2 + i * Math.round(bakeH * 0.5);
-        html += svgImg(S.bakeL, bx, by, bakeW, bakeH);
-      }
-      html += svgImg(S.schranke, xSR, 2, w - xSR, schrankeH);
-
-      // MIDDLE: repeated segments
-      const segH = Math.round(bakeH * 1.4);
-      const startY = capH;
-      const endY = h - capH;
-      for (let y = startY; y < endY; y += segH) {
-        html += svgImg(S.bakeL, xBake, y, bakeW, bakeH);
-        const sH = Math.min(segH - 4, h - capH * 2);
-        html += svgImg(S.schrankeP, xSR, y, svW, sH);
-      }
-
-      // BOTTOM: 3 diagonal bakes reversed + schranke
-      for (let i = 0; i < 3; i++) {
-        const bx = xBake + i * (bakeW + 2);
-        const by = h - bakeH - 2 - i * Math.round(bakeH * 0.5);
-        html += svgImg(S.bakeR, bx, by, bakeW, bakeH);
-      }
-      html += svgImg(S.schranke, xSR, h - schrankeH - 2, w - xSR, schrankeH);
-
-    } else {
-      // ── Standard B II/1,2,3,5 layout ──
-
-      // TOP: Querabsperrung
-      html += svgImg(S.schranke, xSL, 2, xSR - xSL + svW, schrankeH);
-      html += svgImg(S.bakeL, xBake, 0, bakeW, bakeH);
-
-      // MIDDLE: repeated segments
-      const segH = Math.round(bakeH * 1.4);
-      const startY = capH;
-      const endY = h - capH;
-      for (let y = startY; y < endY; y += segH) {
-        html += svgImg(S.bakeL, xBake, y, bakeW, bakeH);
-        const sH = Math.min(segH - 4, h);
-        html += svgImg(S.schrankeP, xSL, y, svW, sH);
-        html += svgImg(S.schrankeP, xSR, y, svW, sH);
-      }
-
-      // BOTTOM: Querabsperrung
-      html += svgImg(S.schranke, xSL, h - schrankeH - 2, xSR - xSL + svW, schrankeH);
-      html += svgImg(S.bakeL, xBake, h - bakeH, bakeW, bakeH);
-    }
-
-    return html;
-  }
-
-  function svgImg(src, x, y, w, h) {
-    return `<img src="${src}" style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;" draggable="false">`;
-  }
-
-  // ─── GENERATE ───
-  function generate(planId) {
-    if (!constructionLine || constructionLine.length < 2) {
-      UI.toast('Erst Baustellenlinie zeichnen!'); return;
-    }
-    const plan = PLANS[planId];
-    if (!plan) { UI.toast('Regelplan nicht gefunden'); return; }
-    activeRegelplan = planId;
-
-    const map = MapModule.getMap();
-    const p1 = constructionLine[0], p2 = constructionLine[1];
-    const lengthM = p1.distanceTo(p2);
-    const bearing = getBearing(p1, p2);
-    const sideMul = workSide === 'right' ? 1 : -1;
-    const groupId = 'rp_' + Date.now();
-    const layers = [];
-    const widthM = plan.widthM;
-
-    const metersPerPx = getMPP(map);
-    const lengthPx = Math.max(40, Math.round(lengthM / metersPerPx));
-    const widthPx = Math.max(20, Math.round(widthM / metersPerPx));
-
-    // Build barrier HTML
-    const barrierHTML = buildBarrierHTML(planId, widthPx, lengthPx);
-
-    // Position on map
-    const midLat = (p1.lat + p2.lat) / 2;
-    const midLng = (p1.lng + p2.lng) / 2;
-    const perpAngle = bearing + 90;
-    const center = offsetPoint(L.latLng(midLat, midLng), perpAngle, (widthM * 0.3) * sideMul);
-
-    const diagPx = Math.ceil(Math.sqrt(lengthPx * lengthPx + widthPx * widthPx));
-    const flipStyle = workSide === 'left' ? 'scaleX(-1)' : '';
-
-    const icon = L.divIcon({
-      className: '',
-      iconSize: [diagPx, diagPx],
-      iconAnchor: [diagPx / 2, diagPx / 2],
-      html: `<div style="
-        position:absolute;
-        left:${(diagPx - widthPx) / 2}px;
-        top:${(diagPx - lengthPx) / 2}px;
-        width:${widthPx}px;
-        height:${lengthPx}px;
-        transform:rotate(${bearing}deg) ${flipStyle};
-        transform-origin:center center;
-        pointer-events:auto;cursor:move;
-      ">${barrierHTML}</div>`,
-    });
-
-    const overlayMarker = L.marker(center, { icon, draggable: true, zIndexOffset: -100 }).addTo(map);
-    overlayMarker._rp = { groupId, planId, widthM, lengthM, bearing };
-    layers.push(overlayMarker);
-
-    // VZ signs
-    plan.vzBefore.forEach(cfg => {
-      const pos = offsetPoint(p1, bearing + 180, cfg.offsetM);
-      const m = placeVZ(cfg.vz, offsetPoint(pos, perpAngle, -3 * sideMul), map);
-      if (m) layers.push(m);
-    });
-    plan.vzAfter.forEach(cfg => {
-      const pos = offsetPoint(p2, bearing, cfg.offsetM);
-      const m = placeVZ(cfg.vz, offsetPoint(pos, perpAngle, -3 * sideMul), map);
-      if (m) layers.push(m);
-    });
-
-    if (linePreview) { map.removeLayer(linePreview); linePreview = null; }
-
-    const group = {
-      id: groupId, regelplan: planId, name: `${plan.name} — ${plan.title}`,
-      layers, overlayMarker, constructionLine: [...constructionLine],
-      workSide, bearing, widthM, lengthM,
+    const state = {
+      bounds: L.latLngBounds(bounds),
+      fahrbahnBetroffen,
+      speed,
+      label,
     };
-    groups.push(group);
 
-    document.getElementById('stObj').textContent = 'Objekte: ' + layers.length;
-    UI.toast(`${plan.name} platziert`);
-    showGroupProperties(group);
+    // Layers-Gruppe
+    const layerGroup = L.layerGroup().addTo(map);
+    let svgOverlay = null;
 
-    map.off('zoomend.rpScale');
-    map.on('zoomend.rpScale', () => rescaleAll());
-  }
+    function render() {
+      // Clear previous
+      layerGroup.clearLayers();
+      if (svgOverlay) { map.removeLayer(svgOverlay); svgOverlay = null; }
 
-  function placeVZ(vzId, pos, map) {
-    const entry = VZ_CATALOG.find(v => v.id === vzId);
-    if (!entry) return null;
-    return L.marker(pos, {
-      icon: L.divIcon({
-        className: 'vz-m',
-        html: `<img class="vz-icon" src="assets/vz/${entry.file}" style="width:18px;height:auto" draggable="false">`,
-        iconSize: [18, 18], iconAnchor: [9, 9],
-      }),
-      draggable: true,
-    }).addTo(map);
-  }
+      const b = state.bounds;
+      const nw = map.latLngToLayerPoint(b.getNorthWest());
+      const ne = map.latLngToLayerPoint(b.getNorthEast());
+      const se = map.latLngToLayerPoint(b.getSouthEast());
+      const sw = map.latLngToLayerPoint(b.getSouthWest());
 
-  // ─── RESCALE ───
-  function rescaleAll() {
-    const map = MapModule.getMap();
-    const metersPerPx = getMPP(map);
+      const w = ne.x - nw.x; // Pixel-Breite
+      const h = sw.y - nw.y; // Pixel-Höhe
 
-    groups.forEach(g => {
-      if (!g.overlayMarker?._rp) return;
-      const rp = g.overlayMarker._rp;
-      const plan = PLANS[rp.planId];
-      if (!plan) return;
+      if (w < 5 || h < 5) return;
 
-      const lengthPx = Math.max(40, Math.round(rp.lengthM / metersPerPx));
-      const widthPx = Math.max(20, Math.round(g.widthM / metersPerPx));
-      const barrierHTML = buildBarrierHTML(rp.planId, widthPx, lengthPx);
-      const diagPx = Math.ceil(Math.sqrt(lengthPx * lengthPx + widthPx * widthPx));
-      const flipStyle = g.workSide === 'left' ? 'scaleX(-1)' : '';
+      // Reale Maße in Metern
+      const widthM = b.getNorthWest().distanceTo(b.getNorthEast());
+      const heightM = b.getNorthWest().distanceTo(b.getSouthWest());
 
-      g.overlayMarker.setIcon(L.divIcon({
-        className: '',
-        iconSize: [diagPx, diagPx],
-        iconAnchor: [diagPx / 2, diagPx / 2],
-        html: `<div style="
-          position:absolute;
-          left:${(diagPx - widthPx) / 2}px;
-          top:${(diagPx - lengthPx) / 2}px;
-          width:${widthPx}px;
-          height:${lengthPx}px;
-          transform:rotate(${rp.bearing}deg) ${flipStyle};
-          transform-origin:center center;
-          pointer-events:auto;cursor:move;
-        ">${barrierHTML}</div>`,
+      // SVG Overlay
+      svgOverlay = L.svg({ interactive: true });
+      svgOverlay.addTo(map);
+      const svgRoot = svgOverlay._rootGroup || svgOverlay._container.querySelector('g');
+
+      const g = createSVG('g', { class: 'baugrube-overlay' });
+
+      // ── 1. Arbeitsstelle (schraffierte Fläche) ──
+      const patternId = 'bg-hatch-' + Math.random().toString(36).slice(2, 8);
+      const defs = createSVG('defs', {});
+      const pattern = createSVG('pattern', {
+        id: patternId, width: 6, height: 6,
+        patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)'
+      });
+      pattern.appendChild(createSVG('line', {
+        x1: 0, y1: 0, x2: 0, y2: 6,
+        stroke: '#BF360C', 'stroke-width': 1.5, opacity: 0.35
       }));
+      defs.appendChild(pattern);
+      g.appendChild(defs);
+
+      // Fläche
+      g.appendChild(createSVG('rect', {
+        x: nw.x, y: nw.y, width: w, height: h,
+        fill: `url(#${patternId})`, stroke: '#BF360C', 'stroke-width': 1,
+        'stroke-dasharray': '6,3', rx: 2, opacity: 0.7
+      }));
+
+      // Label
+      g.appendChild(createSVG('text', {
+        x: nw.x + w / 2, y: nw.y + h / 2 - 4,
+        'text-anchor': 'middle', 'font-size': 8,
+        fill: '#BF360C', 'font-family': 'sans-serif', 'font-weight': 'bold', opacity: 0.5
+      })).textContent = state.label;
+
+      // Maße
+      g.appendChild(createSVG('text', {
+        x: nw.x + w / 2, y: nw.y + h / 2 + 6,
+        'text-anchor': 'middle', 'font-size': 7,
+        fill: '#BF360C', 'font-family': 'monospace', opacity: 0.5
+      })).textContent = `${widthM.toFixed(1)}m × ${heightM.toFixed(1)}m`;
+
+      // ── 2. Absperrschranken (4 Seiten) ──
+      const schrankeH = 6;
+      const margin = 4; // Pixel Abstand zur Grube
+
+      // Oben (Nord)
+      renderSchranke(g, nw.x - margin, nw.y - margin - schrankeH, w + margin * 2, schrankeH, 0);
+      // Unten (Süd)
+      renderSchranke(g, sw.x - margin, sw.y + margin, w + margin * 2, schrankeH, 0);
+      // Links (West) — vertikal
+      renderSchranke(g, nw.x - margin - schrankeH, nw.y - margin, schrankeH, h + margin * 2, 90);
+      // Rechts (Ost) — vertikal
+      renderSchranke(g, ne.x + margin, ne.y - margin, schrankeH, h + margin * 2, 90);
+
+      // ── 3. Warnleuchten an den 4 Ecken ──
+      const wlSize = 7;
+      const wlOffset = margin + 2;
+      [
+        [nw.x - wlOffset, nw.y - wlOffset],
+        [ne.x + wlOffset, ne.y - wlOffset],
+        [se.x + wlOffset, se.y + wlOffset],
+        [sw.x - wlOffset, sw.y + wlOffset],
+      ].forEach(([cx, cy]) => {
+        // Äußerer Glow
+        g.appendChild(createSVG('circle', {
+          cx, cy, r: wlSize / 2 + 2,
+          fill: 'rgba(255,215,0,0.15)', stroke: 'none'
+        }));
+        // Leuchte
+        g.appendChild(createSVG('circle', {
+          cx, cy, r: wlSize / 2,
+          fill: '#FFD700', stroke: '#CC9900', 'stroke-width': 0.6,
+        }));
+        g.appendChild(createSVG('circle', {
+          cx, cy, r: 2,
+          fill: '#FFF8DC', opacity: 0.8
+        }));
+      });
+
+      // ── 4. Verkehrszeichen ──
+      const vzSize = 18;
+      const vzOffset = margin + schrankeH + 16;
+
+      // VZ 123 an den 4 Zufahrtsseiten
+      const vzPositions = [
+        { x: nw.x + w / 2, y: nw.y - vzOffset, seite: 'nord' },       // Oben
+        { x: nw.x + w / 2, y: sw.y + vzOffset, seite: 'sued' },       // Unten
+        { x: nw.x - vzOffset, y: nw.y + h / 2, seite: 'west' },       // Links
+        { x: ne.x + vzOffset, y: ne.y + h / 2, seite: 'ost' },        // Rechts
+      ];
+
+      vzPositions.forEach(pos => {
+        // VZ 123 Dreieck
+        const vzG = createSVG('g', { class: 'baugrube-vz' });
+        const s = vzSize;
+        vzG.appendChild(createSVG('polygon', {
+          points: `${pos.x},${pos.y - s / 2} ${pos.x + s / 2},${pos.y + s / 2 - 2} ${pos.x - s / 2},${pos.y + s / 2 - 2}`,
+          fill: '#FFF', stroke: '#CC0000', 'stroke-width': 1.5
+        }));
+        // Schaufelmann Symbol (vereinfacht)
+        vzG.appendChild(createSVG('circle', {
+          cx: pos.x, cy: pos.y - 1, r: 2,
+          fill: '#111'
+        }));
+        vzG.appendChild(createSVG('line', {
+          x1: pos.x, y1: pos.y + 1, x2: pos.x, y2: pos.y + 5,
+          stroke: '#111', 'stroke-width': 1.2, 'stroke-linecap': 'round'
+        }));
+        // Label
+        vzG.appendChild(createSVG('text', {
+          x: pos.x, y: pos.y + s / 2 + 8,
+          'text-anchor': 'middle', 'font-size': 6,
+          fill: '#555', 'font-family': 'monospace', 'font-weight': 'bold'
+        })).textContent = 'VZ 123';
+
+        g.appendChild(vzG);
+      });
+
+      // VZ 208/308 wenn Fahrbahn betroffen
+      if (state.fahrbahnBetroffen) {
+        // VZ 208 (Vorrang Gegenverkehr) - oben links
+        renderVZRund(g, nw.x - vzOffset - 20, nw.y - vzOffset, '208', '#CC0000', '#FFF');
+        // VZ 308 (Vorrang) - unten rechts
+        renderVZRund(g, ne.x + vzOffset + 20, sw.y + vzOffset, '308', '#0054A6', '#FFF');
+      }
+
+      svgRoot.appendChild(g);
+    }
+
+    function renderSchranke(parentG, x, y, length, height, rotation) {
+      const g = createSVG('g', { class: 'baugrube-schranke' });
+
+      if (rotation === 90) {
+        // Vertikale Schranke
+        g.appendChild(createSVG('rect', {
+          x, y, width: height, height: length,
+          fill: '#FFF', stroke: '#999', 'stroke-width': 0.5, rx: 1
+        }));
+        // Rote Streifen
+        const stripeH = 6;
+        for (let i = 0; i < length; i += stripeH * 2) {
+          g.appendChild(createSVG('rect', {
+            x, y: y + i, width: height, height: Math.min(stripeH, length - i),
+            fill: '#CC0000', opacity: 0.85
+          }));
+        }
+        g.appendChild(createSVG('rect', {
+          x, y, width: height, height: length,
+          fill: 'none', stroke: '#888', 'stroke-width': 0.6, rx: 1
+        }));
+      } else {
+        // Horizontale Schranke
+        g.appendChild(createSVG('rect', {
+          x, y, width: length, height,
+          fill: '#FFF', stroke: '#999', 'stroke-width': 0.5, rx: 1
+        }));
+        const stripeW = 6;
+        for (let i = 0; i < length; i += stripeW * 2) {
+          g.appendChild(createSVG('rect', {
+            x: x + i, y, width: Math.min(stripeW, length - i), height,
+            fill: '#CC0000', opacity: 0.85
+          }));
+        }
+        g.appendChild(createSVG('rect', {
+          x, y, width: length, height,
+          fill: 'none', stroke: '#888', 'stroke-width': 0.6, rx: 1
+        }));
+      }
+
+      parentG.appendChild(g);
+    }
+
+    function renderVZRund(parentG, cx, cy, nummer, bgColor, textColor) {
+      const r = 9;
+      parentG.appendChild(createSVG('circle', {
+        cx, cy, r,
+        fill: bgColor === '#FFF' ? '#FFF' : bgColor,
+        stroke: bgColor === '#FFF' ? '#CC0000' : bgColor,
+        'stroke-width': 1.5
+      }));
+      parentG.appendChild(createSVG('text', {
+        x: cx, y: cy + 3, 'text-anchor': 'middle',
+        'font-size': 7, fill: textColor,
+        'font-family': 'sans-serif', 'font-weight': 'bold'
+      })).textContent = nummer;
+      parentG.appendChild(createSVG('text', {
+        x: cx, y: cy + r + 9, 'text-anchor': 'middle',
+        'font-size': 5.5, fill: '#555',
+        'font-family': 'monospace', 'font-weight': 'bold'
+      })).textContent = `VZ ${nummer}`;
+    }
+
+    // Initial render
+    render();
+
+    // Re-render on zoom
+    map.on('zoomend', render);
+    map.on('moveend', render);
+
+    return {
+      state,
+      render,
+      getBounds: () => state.bounds,
+      setBounds: (newBounds) => {
+        state.bounds = L.latLngBounds(newBounds);
+        render();
+      },
+      setFahrbahnBetroffen: (val) => {
+        state.fahrbahnBetroffen = val;
+        render();
+      },
+      remove: () => {
+        map.off('zoomend', render);
+        map.off('moveend', render);
+        layerGroup.clearLayers();
+        if (svgOverlay) map.removeLayer(svgOverlay);
+      },
+      getMeters: () => {
+        const b = state.bounds;
+        return {
+          width: b.getNorthWest().distanceTo(b.getNorthEast()),
+          height: b.getNorthWest().distanceTo(b.getSouthWest()),
+        };
+      },
+    };
+  }
+
+  // ─── Baugrube per Maße platzieren ─────────────────────────
+  // Klick auf Karte → Dialog mit Breite/Länge → Baugrube zentriert auf Klickpunkt
+  function placeByDimensions(map, center, widthM, heightM, options = {}) {
+    // Meter in LatLng-Offset umrechnen
+    const latOffset = (heightM / 2) / 111320;
+    const lngOffset = (widthM / 2) / (111320 * Math.cos(center.lat * Math.PI / 180));
+
+    const bounds = [
+      [center.lat + latOffset, center.lng - lngOffset], // NW
+      [center.lat - latOffset, center.lng + lngOffset], // SE
+    ];
+
+    return createBaugrube(map, bounds, options);
+  }
+
+  // ─── Baugrube per Rechteck aufziehen ──────────────────────
+  // Gibt ein Promise zurück, das resolved wenn der User 2 Ecken geklickt hat
+  function placeByRectangle(map, options = {}) {
+    return new Promise((resolve) => {
+      let corner1 = null;
+      let previewRect = null;
+      let moveHandler = null;
+
+      map.getContainer().style.cursor = 'crosshair';
+
+      function onClick(e) {
+        if (!corner1) {
+          // Erste Ecke
+          corner1 = e.latlng;
+          L.circleMarker(corner1, {
+            radius: 5, color: '#FF6D00', fillColor: '#FFF', fillOpacity: 1, weight: 2
+          }).addTo(map);
+
+          // Preview-Rechteck
+          moveHandler = (ev) => {
+            if (previewRect) map.removeLayer(previewRect);
+            previewRect = L.rectangle([corner1, ev.latlng], {
+              color: '#FF6D00', weight: 2, dashArray: '6,3',
+              fillColor: '#FF6D00', fillOpacity: 0.08
+            }).addTo(map);
+          };
+          map.on('mousemove', moveHandler);
+        } else {
+          // Zweite Ecke → Baugrube erstellen
+          const corner2 = e.latlng;
+          map.off('click', onClick);
+          map.off('mousemove', moveHandler);
+          if (previewRect) map.removeLayer(previewRect);
+          map.getContainer().style.cursor = '';
+
+          // Ecken sortieren
+          const bounds = [
+            [Math.max(corner1.lat, corner2.lat), Math.min(corner1.lng, corner2.lng)],
+            [Math.min(corner1.lat, corner2.lat), Math.max(corner1.lng, corner2.lng)],
+          ];
+
+          const bg = createBaugrube(map, bounds, options);
+          resolve(bg);
+        }
+      }
+
+      map.on('click', onClick);
+
+      // ESC zum Abbrechen
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          map.off('click', onClick);
+          if (moveHandler) map.off('mousemove', moveHandler);
+          if (previewRect) map.removeLayer(previewRect);
+          map.getContainer().style.cursor = '';
+          document.removeEventListener('keydown', escHandler);
+          resolve(null);
+        }
+      };
+      document.addEventListener('keydown', escHandler);
     });
   }
 
-  // ─── GROUP MANAGEMENT ───
-  function showGroupProperties(g) {
-    const el = document.getElementById('groupProps');
-    if (!el) return;
-    el.style.display = 'block';
-    el.innerHTML = `
-      <div class="pgrp-t">${g.name}</div>
-      <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">${g.lengthM.toFixed(1)}m × ${g.widthM}m</div>
-      <div class="prow"><span class="plbl">Breite</span>
-        <input class="pinp" type="range" min="3" max="12" step="0.5" value="${g.widthM}"
-          oninput="RegelplanEngine.setWidth(this.value);document.getElementById('rpWV').textContent=this.value+'m'">
-        <span class="pval" id="rpWV">${g.widthM}m</span></div>
-      <div class="pbtns" style="margin-top:8px">
-        <button class="pbtn" onclick="RegelplanEngine.regenerate()">Neu</button>
-        <button class="pbtn dng" onclick="RegelplanEngine.removeGroup('${g.id}')">Löschen</button></div>`;
-  }
-  function setWidth(w) {
-    w = parseFloat(w);
-    if (!groups.length) return;
-    const g = groups[groups.length - 1];
-    g.widthM = w;
-    g.overlayMarker._rp.widthM = w;
-    rescaleAll();
-  }
-  function removeGroup(id) {
-    const map = MapModule.getMap();
-    const i = groups.findIndex(g => g.id === id);
-    if (i === -1) return;
-    groups[i].layers.forEach(l => map.removeLayer(l));
-    groups.splice(i, 1);
-    document.getElementById('groupProps').style.display = 'none';
-    UI.toast('Gelöscht');
-    document.getElementById('stObj').textContent = 'Objekte: ' + groups.reduce((n, g) => n + g.layers.length, 0);
-  }
-  function regenerate() {
-    if (!activeRegelplan || !constructionLine) return;
-    if (groups.length) removeGroup(groups[groups.length - 1].id);
-    generate(activeRegelplan);
-  }
-
-  // ─── GEO ───
-  function getBearing(a, b) {
-    const dl = (b.lng - a.lng) * Math.PI / 180;
-    const la = a.lat * Math.PI / 180, lb = b.lat * Math.PI / 180;
-    return (Math.atan2(Math.sin(dl) * Math.cos(lb),
-      Math.cos(la) * Math.sin(lb) - Math.sin(la) * Math.cos(lb) * Math.cos(dl)
-    ) * 180 / Math.PI + 360) % 360;
-  }
-  function offsetPoint(ll, deg, m) {
-    const R = 6378137, d = m / R, b = deg * Math.PI / 180;
-    const la = ll.lat * Math.PI / 180, lo = ll.lng * Math.PI / 180;
-    const la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(b));
-    const lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la), Math.cos(d) - Math.sin(la) * Math.sin(la2));
-    return L.latLng(la2 * 180 / Math.PI, lo2 * 180 / Math.PI);
-  }
-  function setScale500() { MapModule.getMap().setZoom(20); UI.toast('Maßstab ≈ 1:500'); }
-
+  // ─── Public API ───────────────────────────────────────────
   return {
-    startDrawLine, addLinePoint, onMouseMoveWhileDrawing, cancelLine, isDrawing,
-    setSide, generate, regenerate, removeGroup, setWidth, setScale500,
-    getGroups: () => groups,
+    create: createBaugrube,
+    placeByDimensions,
+    placeByRectangle,
   };
 })();
