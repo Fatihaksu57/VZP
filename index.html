@@ -3,325 +3,144 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VZP Editor — Regelplan-Templates + Maßketten Demo</title>
+<title>VZP Editor — Regelplan + Baugrube + Drag Handles</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0a0a0f;
-    --bg2: #12121a;
-    --bg3: #1a1a25;
-    --border: rgba(255,255,255,0.08);
-    --accent: #1565C0;
-    --accent2: #FF6D00;
-    --text: #E0E0E0;
-    --text2: #78909C;
-    --danger: #E53935;
-    --success: #43A047;
-    --radius: 8px;
-  }
-
-  html, body { height: 100%; font-family: 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); }
-
-  /* ── Layout ── */
-  .app {
-    display: flex;
-    height: 100vh;
-  }
-
-  /* ── Sidebar ── */
-  .sidebar {
-    width: 320px;
-    min-width: 320px;
-    background: var(--bg2);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  .sb-header {
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(135deg, rgba(21,101,192,0.08), rgba(255,109,0,0.05));
-  }
-  .sb-logo {
-    display: flex; align-items: center; gap: 10px;
-  }
-  .sb-logo-icon {
-    width: 36px; height: 36px; border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-  }
-  .sb-logo-text { font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
-  .sb-logo-sub { font-size: 9px; color: var(--text2); margin-top: 2px; }
-
-  .sb-section {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .sb-label {
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--text2); margin-bottom: 10px;
-  }
-
-  /* ── Regelplan Cards ── */
-  .rp-grid { display: flex; flex-direction: column; gap: 6px; }
-  .rp-card {
-    padding: 10px 12px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .rp-card:hover { border-color: var(--accent); background: rgba(21,101,192,0.06); }
-  .rp-card.active { border-color: var(--accent); background: rgba(21,101,192,0.12); box-shadow: 0 0 0 1px var(--accent); }
-  .rp-name { font-size: 12px; font-weight: 700; color: var(--accent); }
-  .rp-desc { font-size: 10px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
-  .rp-vz { font-size: 9px; color: #546E7A; margin-top: 4px; }
-
-  /* ── Controls ── */
-  .ctrl-row {
-    display: flex; align-items: center; gap: 8px;
-    margin-bottom: 8px;
-  }
-  .ctrl-label { font-size: 10px; color: var(--text2); min-width: 80px; }
-  .ctrl-input {
-    flex: 1;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 11px;
-  }
-  .ctrl-input:focus { outline: none; border-color: var(--accent); }
-  select.ctrl-input { cursor: pointer; }
-
-  /* ── Buttons ── */
-  .btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: var(--radius);
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #1976D2; }
-  .btn-accent { background: var(--accent2); color: #fff; }
-  .btn-accent:hover { background: #E65100; }
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text2);
-  }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--text); }
-  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
-
-  /* ── Map ── */
-  .map-wrap {
-    flex: 1;
-    position: relative;
-  }
-  #map { width: 100%; height: 100%; background: #0d1117; }
-
-  /* ── Status Bar ── */
-  .status-bar {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 28px;
-    background: rgba(10,10,15,0.92);
-    backdrop-filter: blur(8px);
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 20px;
-    font-size: 10px;
-    color: var(--text2);
-    z-index: 600;
-  }
-  .status-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--success);
-    display: inline-block;
-    margin-right: 4px;
-  }
-  .status-mode {
-    padding: 2px 8px;
-    background: rgba(21,101,192,0.2);
-    border-radius: 4px;
-    color: #90CAF9;
-    font-weight: 600;
-  }
-
-  /* ── Drawing Hint ── */
-  .draw-hint {
-    position: absolute;
-    top: 12px; left: 50%; transform: translateX(-50%);
-    z-index: 700;
-    background: rgba(10,10,15,0.92);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-size: 11px;
-    color: #90CAF9;
-    display: none;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 20px rgba(21,101,192,0.2);
-  }
-  .draw-hint.active { display: flex; }
-  .draw-hint kbd {
-    background: rgba(21,101,192,0.2);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 10px;
-  }
-
-  /* ── Massketten Toggle ── */
-  .mk-layer-toggle {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 700;
-    display: flex;
-    gap: 6px;
-  }
-  .mk-btn {
-    background: rgba(10,10,15,0.88);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--border);
-    color: var(--text2);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .mk-btn:hover { border-color: var(--accent); color: var(--text); }
-  .mk-btn.active { background: rgba(21,101,192,0.2); border-color: var(--accent); color: #90CAF9; }
-
-  /* ── Leaflet overrides ── */
-  .leaflet-control-zoom { border: 1px solid var(--border) !important; }
-  .leaflet-control-zoom a {
-    background: var(--bg2) !important;
-    color: var(--text) !important;
-    border-color: var(--border) !important;
-  }
-  .leaflet-control-scale-line {
-    background: rgba(10,10,15,0.8) !important;
-    color: var(--text) !important;
-    border-color: var(--accent) !important;
-  }
-
-  /* ── VZ marker styling ── */
-  .vz-m { background: none !important; border: none !important; }
-
-  /* ── Warnleuchten-Glow ── */
-  .warnleuchte-glow {
-    filter: drop-shadow(0 0 3px rgba(255,215,0,0.6));
-  }
-
-  /* ── Absperrschranke clip ── */
-  .absperrschranke { overflow: hidden; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a25;--border:rgba(255,255,255,0.08);--accent:#1565C0;--accent2:#FF6D00;--text:#E0E0E0;--text2:#78909C;--danger:#E53935;--success:#43A047;--warn:#FF9800;--radius:8px}
+  html,body{height:100%;font-family:'JetBrains Mono',monospace;background:var(--bg);color:var(--text)}
+  .app{display:flex;height:100vh}
+  .sidebar{width:330px;min-width:330px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+  .sb-header{padding:14px 16px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(21,101,192,0.08),rgba(255,109,0,0.05))}
+  .sb-logo{display:flex;align-items:center;gap:10px}
+  .sb-logo-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px}
+  .sb-logo-text{font-size:14px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+  .sb-logo-sub{font-size:9px;color:var(--text2);margin-top:2px}
+  .sb-section{padding:12px 16px;border-bottom:1px solid var(--border)}
+  .sb-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
+  .tabs{display:flex;gap:2px;margin-bottom:10px}
+  .tab{flex:1;padding:7px 6px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit;color:var(--text2);transition:all .2s}
+  .tab:hover{border-color:var(--accent);color:var(--text)}
+  .tab.active{background:rgba(21,101,192,.15);border-color:var(--accent);color:#90CAF9;font-weight:600}
+  .rp-grid{display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto}
+  .rp-card{padding:9px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .2s}
+  .rp-card:hover{border-color:var(--accent);background:rgba(21,101,192,.06)}
+  .rp-card.active{border-color:var(--accent);background:rgba(21,101,192,.12);box-shadow:0 0 0 1px var(--accent)}
+  .rp-name{font-size:11px;font-weight:700;color:var(--accent)}
+  .rp-desc{font-size:9.5px;color:var(--text2);margin-top:2px;line-height:1.3}
+  .rp-vz{font-size:8.5px;color:#546E7A;margin-top:3px}
+  .ctrl-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .ctrl-label{font-size:10px;color:var(--text2);min-width:75px}
+  .ctrl-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--text);font-family:inherit;font-size:11px}
+  .ctrl-input:focus{outline:none;border-color:var(--accent)}
+  select.ctrl-input{cursor:pointer}
+  .btn{padding:7px 14px;border:none;border-radius:var(--radius);font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+  .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#1976D2}
+  .btn-accent{background:var(--accent2);color:#fff}.btn-accent:hover{background:#E65100}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}.btn-ghost:hover{border-color:var(--accent);color:var(--text)}
+  .btn-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .chk-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .chk-row input[type=checkbox]{accent-color:var(--accent)}
+  .chk-row label{font-size:10px;color:var(--text2);cursor:pointer}
+  .map-wrap{flex:1;position:relative}
+  #map{width:100%;height:100%;background:#0d1117}
+  .status-bar{position:absolute;bottom:0;left:0;right:0;height:28px;background:rgba(10,10,15,.92);backdrop-filter:blur(8px);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:18px;font-size:10px;color:var(--text2);z-index:600}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;margin-right:4px}
+  .status-mode{padding:2px 8px;background:rgba(21,101,192,.2);border-radius:4px;color:#90CAF9;font-weight:600}
+  .draw-hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:700;background:rgba(10,10,15,.92);backdrop-filter:blur(12px);border:1px solid var(--accent);border-radius:10px;padding:9px 18px;font-size:11px;color:#90CAF9;display:none;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(21,101,192,.2)}
+  .draw-hint.active{display:flex}
+  .draw-hint kbd{background:rgba(21,101,192,.2);padding:2px 6px;border-radius:3px;font-size:10px}
+  .mk-layer-toggle{position:absolute;top:12px;right:12px;z-index:700;display:flex;gap:5px;flex-wrap:wrap}
+  .mk-btn{background:rgba(10,10,15,.88);backdrop-filter:blur(8px);border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:6px;font-size:9.5px;font-family:inherit;cursor:pointer;transition:all .2s}
+  .mk-btn:hover{border-color:var(--accent);color:var(--text)}
+  .mk-btn.active{background:rgba(21,101,192,.2);border-color:var(--accent);color:#90CAF9}
+  .bg-dialog{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;background:var(--bg2);border:1px solid var(--accent);border-radius:12px;padding:20px;min-width:280px;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none}
+  .bg-dialog.active{display:block}
+  .bg-dialog h3{font-size:13px;color:var(--accent);margin-bottom:14px}
+  .bg-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:999;display:none}
+  .bg-overlay.active{display:block}
+  .leaflet-control-zoom{border:1px solid var(--border)!important}
+  .leaflet-control-zoom a{background:var(--bg2)!important;color:var(--text)!important;border-color:var(--border)!important}
+  .leaflet-control-scale-line{background:rgba(10,10,15,.8)!important;color:var(--text)!important;border-color:var(--accent)!important}
+  .vz-m{background:none!important;border:none!important}
 </style>
 </head>
 <body>
-
 <div class="app">
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sb-header">
       <div class="sb-logo">
         <div class="sb-logo-icon">🚧</div>
-        <div>
-          <div class="sb-logo-text">VZP EDITOR</div>
-          <div class="sb-logo-sub">Regelplan-Templates + Maßketten Demo</div>
-        </div>
+        <div><div class="sb-logo-text">VZP EDITOR</div><div class="sb-logo-sub">Regelplan · Baugrube · Drag & Resize</div></div>
       </div>
     </div>
-
-    <!-- Adresssuche -->
     <div class="sb-section">
       <div class="sb-label">📍 Adresssuche</div>
       <div class="ctrl-row">
         <input class="ctrl-input" type="text" id="adressInput" placeholder="Straße, Berlin..." value="Schönhauser Allee, Berlin">
-        <button class="btn btn-primary" onclick="searchAddress()" style="padding:6px 10px">🔍</button>
+        <button class="btn btn-primary" onclick="searchAddress()" style="padding:5px 9px">🔍</button>
       </div>
     </div>
-
-    <!-- Regelplan auswählen -->
-    <div class="sb-section" style="flex:1; overflow-y:auto">
+    <div class="sb-section">
+      <div class="sb-label">🛠 Platzierungsmodus</div>
+      <div class="tabs">
+        <div class="tab active" id="tabRegelplan" onclick="setMode('regelplan')">📐 Regelplan</div>
+        <div class="tab" id="tabBaugrube" onclick="setMode('baugrube')">🕳️ Baugrube</div>
+      </div>
+      <div id="regelplanControls">
+        <div class="btn-row">
+          <button class="btn btn-accent" id="drawBtn" onclick="startDrawing()">✏️ Linie zeichnen</button>
+          <button class="btn btn-ghost" onclick="clearAll()">🗑 Löschen</button>
+        </div>
+      </div>
+      <div id="baugrubeControls" style="display:none">
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="btn btn-accent" onclick="startBaugrubeRect()">▭ Rechteck aufziehen</button>
+          <button class="btn btn-primary" onclick="showBaugrubeDialog()">📐 Per Maße</button>
+        </div>
+        <div class="chk-row">
+          <input type="checkbox" id="bgFahrbahn" onchange="updateBaugrubeOption()">
+          <label for="bgFahrbahn">Fahrbahn betroffen (+ VZ 208/308)</label>
+        </div>
+        <div class="btn-row"><button class="btn btn-ghost" onclick="clearBaugrube()">🗑 Baugrube löschen</button></div>
+      </div>
+    </div>
+    <div class="sb-section" id="rpSection" style="flex:1;overflow:hidden">
       <div class="sb-label">📋 Regelplan wählen</div>
       <div class="rp-grid" id="rpGrid"></div>
     </div>
-
-    <!-- Parameter -->
     <div class="sb-section">
       <div class="sb-label">⚙️ Parameter</div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Seite</span>
-        <select class="ctrl-input" id="seiteSelect">
-          <option value="rechts">Rechts (Fahrtrichtung)</option>
-          <option value="links">Links (Fahrtrichtung)</option>
-        </select>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Tempo</span>
-        <select class="ctrl-input" id="speedSelect">
-          <option value="50">50 km/h (innerorts)</option>
-          <option value="30">30 km/h (Zone 30)</option>
-        </select>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">FB-Breite</span>
-        <input class="ctrl-input" type="number" id="fbBreite" value="6.5" step="0.5" min="3" max="15"> 
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">GW-Breite</span>
-        <input class="ctrl-input" type="number" id="gwBreite" value="2.5" step="0.25" min="1" max="5">
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-accent" id="drawBtn" onclick="startDrawing()">✏️ Linie zeichnen</button>
-        <button class="btn btn-ghost" onclick="clearAll()">🗑 Löschen</button>
-      </div>
+      <div class="ctrl-row"><span class="ctrl-label">Seite</span><select class="ctrl-input" id="seiteSelect"><option value="rechts">Rechts (Fahrtricht.)</option><option value="links">Links (Fahrtricht.)</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">Tempo</span><select class="ctrl-input" id="speedSelect"><option value="50">50 km/h (innerorts)</option><option value="30">30 km/h (Zone 30)</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">FB-Breite</span><input class="ctrl-input" type="number" id="fbBreite" value="6.5" step="0.5" min="3" max="15"></div>
+      <div class="ctrl-row"><span class="ctrl-label">GW-Breite</span><input class="ctrl-input" type="number" id="gwBreite" value="2.5" step="0.25" min="1" max="5"></div>
     </div>
-
-    <!-- Validierung -->
     <div class="sb-section" id="validierungSection" style="display:none">
       <div class="sb-label">📏 RSA 21 Maßprüfung</div>
       <div id="validierungContent"></div>
     </div>
   </div>
-
-  <!-- MAP -->
   <div class="map-wrap">
     <div id="map"></div>
-
-    <!-- Drawing Hint -->
-    <div class="draw-hint" id="drawHint">
-      ✏️ Klicke auf die Karte um die Absperrlinie zu zeichnen · <kbd>Doppelklick</kbd> zum Beenden · <kbd>ESC</kbd> zum Abbrechen
-    </div>
-
-    <!-- Layer Toggles -->
+    <div class="draw-hint" id="drawHint"></div>
     <div class="mk-layer-toggle">
       <button class="mk-btn active" id="toggleRegelplan" onclick="toggleLayer('regelplan')">📐 Regelplan</button>
       <button class="mk-btn active" id="toggleMassketten" onclick="toggleLayer('massketten')">📏 Maßketten</button>
       <button class="mk-btn" id="toggleALKIS" onclick="toggleLayer('alkis')">🗺️ ALKIS</button>
     </div>
-
-    <!-- Status Bar -->
+    <div class="bg-overlay" id="bgOverlay" onclick="hideBaugrubeDialog()"></div>
+    <div class="bg-dialog" id="bgDialog">
+      <h3>🕳️ Baugrube per Maße platzieren</h3>
+      <div class="ctrl-row"><span class="ctrl-label">Breite (m)</span><input class="ctrl-input" type="number" id="bgWidth" value="3" step="0.5" min="1" max="20"></div>
+      <div class="ctrl-row"><span class="ctrl-label">Länge (m)</span><input class="ctrl-input" type="number" id="bgHeight" value="4" step="0.5" min="1" max="30"></div>
+      <p style="font-size:9px;color:var(--text2);margin:8px 0">Klicke danach auf die Karte für den Mittelpunkt.</p>
+      <div class="btn-row">
+        <button class="btn btn-accent" onclick="startBaugrubeByDimensions()">📍 Auf Karte platzieren</button>
+        <button class="btn btn-ghost" onclick="hideBaugrubeDialog()">Abbrechen</button>
+      </div>
+    </div>
     <div class="status-bar">
       <span><span class="status-dot"></span>Bereit</span>
       <span id="stCoord">52.5200° N, 13.4050° E</span>
@@ -332,318 +151,283 @@
   </div>
 </div>
 
-<!-- SCRIPTS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/regelplan-templates.js"></script>
 <script src="js/massketten.js"></script>
+<script src="js/baugrube.js"></script>
+<script src="js/drag-handles.js"></script>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-// VZP Editor Demo — Integration der neuen Module
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let map, currentMode = 'regelplan';
+let drawMode = false, drawPoints = [], drawPolyline = null, tempLine = null;
+let activeRegelplan = 'BI2', overlayResult = null, masskettenResult = null;
+let drawnLine = null, lineHandles = null;
+let activeBaugrube = null, baugrubeHandles = null, baugrubePlaceMode = null;
+let baugrubeDimW = 3, baugrubeDimH = 4;
+let alkisLayer = null, showRegelplan = true, showMassketten = true;
 
-let map;
-let drawMode = false;
-let drawPoints = [];
-let drawPolyline = null;
-let tempLine = null;
-let activeRegelplan = 'BI2';
-let overlayResult = null;
-let masskettenResult = null;
-let drawnLine = null;
-let alkisLayer = null;
-let showRegelplan = true;
-let showMassketten = true;
-
-// ── Map Init ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════
 function initMap() {
-  map = L.map('map', {
-    center: [52.5310, 13.4130], // Schönhauser Allee
-    zoom: 17,
-    zoomControl: true,
-  });
-
-  // OSM Basemap
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap',
-    maxZoom: 20,
-  }).addTo(map);
-
-  // Berlin ALKIS WMS (optional)
-  alkisLayer = L.tileLayer.wms('https://gdi.berlin.de/services/wms/alkis', {
-    layers: 'adv_alkis_tatsaechliche_nutzung',
-    format: 'image/png',
-    transparent: true,
-    opacity: 0.35,
-    maxZoom: 20,
-  });
-
-  // Maßstabsbalken
+  map = L.map('map', { center: [52.5310, 13.4130], zoom: 17, doubleClickZoom: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 20 }).addTo(map);
+  alkisLayer = L.tileLayer.wms('https://gdi.berlin.de/services/wms/alkis', { layers: 'adv_alkis_tatsaechliche_nutzung', format: 'image/png', transparent: true, opacity: 0.35, maxZoom: 20 });
   L.control.scale({ imperial: false, maxWidth: 200 }).addTo(map);
-
-  // Events
   map.on('mousemove', onMouseMove);
   map.on('click', onMapClick);
   map.on('dblclick', onMapDblClick);
-  map.on('zoomend', updateScaleDisplay);
-
+  map.on('zoomend', () => { updateScaleDisplay(); if (drawnLine && overlayResult) applyRegelplan(); });
+  DragHandles.injectStyles();
+  Massketten.injectStyles();
   updateScaleDisplay();
 }
 
-// ── Adresssuche ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// MODE
+// ═══════════════════════════════════════════════
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('tabRegelplan').classList.toggle('active', m === 'regelplan');
+  document.getElementById('tabBaugrube').classList.toggle('active', m === 'baugrube');
+  document.getElementById('regelplanControls').style.display = m === 'regelplan' ? '' : 'none';
+  document.getElementById('baugrubeControls').style.display = m === 'baugrube' ? '' : 'none';
+  document.getElementById('rpSection').style.display = m === 'regelplan' ? '' : 'none';
+  if (m === 'regelplan') cancelBaugrubeMode();
+  if (m === 'baugrube') cancelDrawing();
+}
+
+// ═══════════════════════════════════════════════
+// ADDRESS
+// ═══════════════════════════════════════════════
 async function searchAddress() {
   const q = document.getElementById('adressInput').value.trim();
   if (!q) return;
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=de`);
-    const data = await res.json();
-    if (data.length > 0) {
-      map.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 18);
-    }
-  } catch (e) {
-    console.error('Suche fehlgeschlagen:', e);
-  }
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=de`);
+    const d = await r.json();
+    if (d.length) map.setView([parseFloat(d[0].lat), parseFloat(d[0].lon)], 18);
+  } catch(e) { console.error(e); }
 }
+document.getElementById('adressInput').addEventListener('keydown', e => { if (e.key === 'Enter') searchAddress(); });
 
-document.getElementById('adressInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') searchAddress();
-});
-
-// ── Regelplan Grid ──────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// REGELPLAN GRID
+// ═══════════════════════════════════════════════
 function renderRPGrid() {
-  const grid = document.getElementById('rpGrid');
-  grid.innerHTML = '';
-
+  const g = document.getElementById('rpGrid');
+  g.innerHTML = '';
   Object.values(RegelplanTemplates.REGELPLÄNE).forEach(rp => {
-    const vzList = rp.verkehrszeichen ? rp.verkehrszeichen.map(v => 'VZ ' + v.vz).filter((v,i,a) => a.indexOf(v) === i).join(', ') : '';
-    const card = document.createElement('div');
-    card.className = 'rp-card' + (rp.id === activeRegelplan ? ' active' : '');
-    card.innerHTML = `
-      <div class="rp-name">${rp.name} — ${rp.titel}</div>
-      <div class="rp-desc">${rp.beschreibung}</div>
-      <div class="rp-vz">${vzList}</div>
-    `;
-    card.onclick = () => {
-      activeRegelplan = rp.id;
-      renderRPGrid();
-      if (drawnLine) applyRegelplan();
-    };
-    grid.appendChild(card);
+    const vz = rp.verkehrszeichen ? [...new Set(rp.verkehrszeichen.map(v => 'VZ ' + v.vz))].join(', ') : '';
+    const c = document.createElement('div');
+    c.className = 'rp-card' + (rp.id === activeRegelplan ? ' active' : '');
+    c.innerHTML = `<div class="rp-name">${rp.name} — ${rp.titel}</div><div class="rp-desc">${rp.beschreibung}</div><div class="rp-vz">${vz}</div>`;
+    c.onclick = () => { activeRegelplan = rp.id; renderRPGrid(); if (drawnLine) applyRegelplan(); };
+    g.appendChild(c);
   });
 }
 
-// ── Drawing ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// DRAWING
+// ═══════════════════════════════════════════════
 function startDrawing() {
-  clearAll();
-  drawMode = true;
-  drawPoints = [];
-  document.getElementById('drawHint').classList.add('active');
-  document.getElementById('stMode').textContent = 'Zeichnen';
+  clearRegelplan();
+  drawMode = true; drawPoints = [];
+  showHint('✏️ Klicke auf die Karte · <kbd>Doppelklick</kbd> beenden · <kbd>ESC</kbd> abbrechen');
+  setStatus('Zeichnen');
   document.getElementById('drawBtn').textContent = '⏹ Abbrechen';
   document.getElementById('drawBtn').onclick = cancelDrawing;
   map.getContainer().style.cursor = 'crosshair';
 }
 
 function cancelDrawing() {
-  drawMode = false;
-  drawPoints = [];
+  drawMode = false; drawPoints = [];
   if (tempLine) { map.removeLayer(tempLine); tempLine = null; }
   if (drawPolyline) { map.removeLayer(drawPolyline); drawPolyline = null; }
-  document.getElementById('drawHint').classList.remove('active');
-  document.getElementById('stMode').textContent = 'Auswahl';
+  hideHint(); setStatus('Auswahl');
   document.getElementById('drawBtn').textContent = '✏️ Linie zeichnen';
   document.getElementById('drawBtn').onclick = startDrawing;
   map.getContainer().style.cursor = '';
 }
 
 function onMapClick(e) {
+  if (baugrubePlaceMode === 'dimensions') { placeBaugrubeAtPoint(e.latlng); return; }
   if (!drawMode) return;
-
   drawPoints.push([e.latlng.lat, e.latlng.lng]);
-
-  // Update Polyline
   if (drawPolyline) map.removeLayer(drawPolyline);
-  if (drawPoints.length >= 2) {
-    drawPolyline = L.polyline(drawPoints, {
-      color: '#FF6D00', weight: 3, dashArray: '8,4', opacity: 0.8
-    }).addTo(map);
-  }
-
-  // Punkte markieren
-  L.circleMarker(e.latlng, {
-    radius: 4, color: '#FF6D00', fillColor: '#FFF', fillOpacity: 1, weight: 2
-  }).addTo(map);
+  if (drawPoints.length >= 2) drawPolyline = L.polyline(drawPoints, { color: '#FF6D00', weight: 3, dashArray: '8,4', opacity: 0.8 }).addTo(map);
+  L.circleMarker(e.latlng, { radius: 3, color: '#FF6D00', fillColor: '#FFF', fillOpacity: 1, weight: 2 }).addTo(map);
 }
 
 function onMapDblClick(e) {
   if (!drawMode || drawPoints.length < 2) return;
   e.originalEvent.preventDefault();
-
   drawMode = false;
   drawnLine = [...drawPoints];
-  document.getElementById('drawHint').classList.remove('active');
-  document.getElementById('stMode').textContent = 'Regelplan';
+  hideHint(); setStatus('Regelplan');
   document.getElementById('drawBtn').textContent = '✏️ Neu zeichnen';
   document.getElementById('drawBtn').onclick = startDrawing;
   map.getContainer().style.cursor = '';
-
   if (tempLine) { map.removeLayer(tempLine); tempLine = null; }
-
-  // Finale Linie
   if (drawPolyline) map.removeLayer(drawPolyline);
-  drawPolyline = L.polyline(drawnLine, {
-    color: '#FF6D00', weight: 3, opacity: 0.9
-  }).addTo(map);
-
+  drawPolyline = L.polyline(drawnLine, { color: '#FF6D00', weight: 3, opacity: 0.9 }).addTo(map);
   applyRegelplan();
+  createLineHandlesUI();
 }
 
 function onMouseMove(e) {
-  // Koordinaten anzeigen
-  document.getElementById('stCoord').textContent =
-    `${e.latlng.lat.toFixed(4)}° N, ${e.latlng.lng.toFixed(4)}° E`;
-
-  // Temporäre Linie beim Zeichnen
+  document.getElementById('stCoord').textContent = `${e.latlng.lat.toFixed(4)}° N, ${e.latlng.lng.toFixed(4)}° E`;
   if (drawMode && drawPoints.length > 0) {
-    const lastPt = drawPoints[drawPoints.length - 1];
     if (tempLine) map.removeLayer(tempLine);
-    tempLine = L.polyline([lastPt, [e.latlng.lat, e.latlng.lng]], {
-      color: '#90CAF9', weight: 2, dashArray: '4,4', opacity: 0.6
-    }).addTo(map);
+    tempLine = L.polyline([drawPoints[drawPoints.length - 1], [e.latlng.lat, e.latlng.lng]], { color: '#90CAF9', weight: 2, dashArray: '4,4', opacity: 0.6 }).addTo(map);
   }
 }
 
-// ── Regelplan anwenden ──────────────────────────────────────
+// ═══════════════════════════════════════════════
+// REGELPLAN APPLY + HANDLES
+// ═══════════════════════════════════════════════
 function applyRegelplan() {
   if (!drawnLine || drawnLine.length < 2) return;
-
-  // Alte Overlays entfernen
   if (overlayResult) overlayResult.remove();
   if (masskettenResult) masskettenResult.remove();
-
   const seite = document.getElementById('seiteSelect').value;
   const speed = parseInt(document.getElementById('speedSelect').value);
-  const fbBreite = parseFloat(document.getElementById('fbBreite').value);
-  const gwBreite = parseFloat(document.getElementById('gwBreite').value);
-
-  const options = { speed, fahrbahnBreite: fbBreite, gehwegBreite: gwBreite };
-
-  // 1. Regelplan SVG-Overlay
-  if (showRegelplan) {
-    overlayResult = RegelplanTemplates.generateOverlay(
-      map, drawnLine, activeRegelplan, seite, options
-    );
-  }
-
-  // 2. Maßketten-Overlay
-  if (showMassketten) {
-    Massketten.injectStyles();
-    masskettenResult = Massketten.generateMassketten(
-      map, drawnLine, activeRegelplan, seite, {
-        ...options,
-        arbeitsstelleBreite: 2.0,
-      }
-    );
-
-    // Validierungspanel
-    if (masskettenResult && masskettenResult.validierung) {
-      const section = document.getElementById('validierungSection');
-      const content = document.getElementById('validierungContent');
-      section.style.display = 'block';
-      content.innerHTML = '';
-
-      masskettenResult.validierung.forEach(v => {
-        const row = document.createElement('div');
-        row.className = 'ctrl-row';
-        row.style.fontSize = '10px';
-
-        const statusColors = { OK: 'var(--success)', WARNUNG: '#FF9800', FEHLER: 'var(--danger)' };
-        const statusIcons = { OK: '✓', WARNUNG: '⚠', FEHLER: '✗' };
-
-        row.innerHTML = `
-          <span style="flex:1; color: var(--text2)">${v.label}</span>
-          <span style="font-weight:700; color: ${statusColors[v.status]}; min-width:55px; text-align:right">${v.ist < 10 ? v.ist.toFixed(2) : v.ist.toFixed(1)} ${v.einheit}</span>
-          <span style="color: var(--text2); font-size:9px; min-width:70px">(≥${v.min < 10 ? v.min.toFixed(2) : v.min.toFixed(0)} ${v.einheit})</span>
-          <span style="color: ${statusColors[v.status]}; font-size:12px; min-width:16px; text-align:center">${statusIcons[v.status]}</span>
-        `;
-        content.appendChild(row);
-      });
-    }
-  }
+  const fb = parseFloat(document.getElementById('fbBreite').value);
+  const gw = parseFloat(document.getElementById('gwBreite').value);
+  const opts = { speed, fahrbahnBreite: fb, gehwegBreite: gw };
+  if (showRegelplan) overlayResult = RegelplanTemplates.generateOverlay(map, drawnLine, activeRegelplan, seite, opts);
+  if (showMassketten) { masskettenResult = Massketten.generateMassketten(map, drawnLine, activeRegelplan, seite, { ...opts, arbeitsstelleBreite: 2.0 }); renderValidierung(); }
+  if (drawPolyline) map.removeLayer(drawPolyline);
+  drawPolyline = L.polyline(drawnLine, { color: '#FF6D00', weight: 3, opacity: 0.9 }).addTo(map);
 }
 
-// ── Layer Toggles ───────────────────────────────────────────
-function toggleLayer(layer) {
-  if (layer === 'regelplan') {
-    showRegelplan = !showRegelplan;
-    document.getElementById('toggleRegelplan').classList.toggle('active', showRegelplan);
-    if (overlayResult) { overlayResult.remove(); overlayResult = null; }
-    if (showRegelplan && drawnLine) applyRegelplan();
-  } else if (layer === 'massketten') {
-    showMassketten = !showMassketten;
-    document.getElementById('toggleMassketten').classList.toggle('active', showMassketten);
-    if (masskettenResult) { masskettenResult.remove(); masskettenResult = null; }
-    if (showMassketten && drawnLine) applyRegelplan();
-  } else if (layer === 'alkis') {
-    const btn = document.getElementById('toggleALKIS');
-    if (map.hasLayer(alkisLayer)) {
-      map.removeLayer(alkisLayer);
-      btn.classList.remove('active');
-    } else {
-      alkisLayer.addTo(map);
-      btn.classList.add('active');
-    }
-  }
+function createLineHandlesUI() {
+  if (lineHandles) lineHandles.remove();
+  if (!drawnLine || drawnLine.length < 2) return;
+  lineHandles = DragHandles.createLineHandles(map, drawnLine, (nl) => {
+    drawnLine = nl.map(ll => [ll[0], ll[1]]);
+    applyRegelplan();
+  });
 }
 
-// ── Clear ───────────────────────────────────────────────────
-function clearAll() {
+function renderValidierung() {
+  if (!masskettenResult?.validierung) { document.getElementById('validierungSection').style.display = 'none'; return; }
+  const s = document.getElementById('validierungSection'); s.style.display = 'block';
+  const c = document.getElementById('validierungContent'); c.innerHTML = '';
+  const col = { OK: 'var(--success)', WARNUNG: 'var(--warn)', FEHLER: 'var(--danger)' };
+  const ico = { OK: '✓', WARNUNG: '⚠', FEHLER: '✗' };
+  masskettenResult.validierung.forEach(v => {
+    const r = document.createElement('div'); r.className = 'ctrl-row'; r.style.fontSize = '10px';
+    r.innerHTML = `<span style="flex:1;color:var(--text2)">${v.label}</span><span style="font-weight:700;color:${col[v.status]};min-width:50px;text-align:right">${v.ist<10?v.ist.toFixed(2):v.ist.toFixed(1)} m</span><span style="color:var(--text2);font-size:9px;min-width:60px">(≥${v.min<10?v.min.toFixed(2):v.min.toFixed(0)} m)</span><span style="color:${col[v.status]};font-size:12px;min-width:16px;text-align:center">${ico[v.status]}</span>`;
+    c.appendChild(r);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// BAUGRUBE
+// ═══════════════════════════════════════════════
+function startBaugrubeRect() {
+  cancelBaugrubeMode(); clearBaugrube();
+  showHint('▭ Klicke 2 Ecken für die Baugrube · <kbd>ESC</kbd> abbrechen');
+  setStatus('Baugrube');
+  Baugrube.placeByRectangle(map, { fahrbahnBetroffen: document.getElementById('bgFahrbahn').checked }).then(bg => {
+    hideHint(); setStatus('Auswahl');
+    if (bg) { activeBaugrube = bg; createBGHandles(); }
+  });
+}
+
+function showBaugrubeDialog() { document.getElementById('bgOverlay').classList.add('active'); document.getElementById('bgDialog').classList.add('active'); }
+function hideBaugrubeDialog() { document.getElementById('bgOverlay').classList.remove('active'); document.getElementById('bgDialog').classList.remove('active'); baugrubePlaceMode = null; hideHint(); map.getContainer().style.cursor = ''; }
+
+function startBaugrubeByDimensions() {
+  baugrubeDimW = parseFloat(document.getElementById('bgWidth').value) || 3;
+  baugrubeDimH = parseFloat(document.getElementById('bgHeight').value) || 4;
+  hideBaugrubeDialog(); clearBaugrube();
+  baugrubePlaceMode = 'dimensions';
+  showHint('📍 Klicke auf die Karte für den Mittelpunkt · <kbd>ESC</kbd> abbrechen');
+  setStatus('Baugrube'); map.getContainer().style.cursor = 'crosshair';
+}
+
+function placeBaugrubeAtPoint(ll) {
+  baugrubePlaceMode = null; hideHint(); setStatus('Auswahl'); map.getContainer().style.cursor = '';
+  activeBaugrube = Baugrube.placeByDimensions(map, ll, baugrubeDimW, baugrubeDimH, { fahrbahnBetroffen: document.getElementById('bgFahrbahn').checked });
+  createBGHandles();
+}
+
+function createBGHandles() {
+  if (baugrubeHandles) baugrubeHandles.remove();
+  if (!activeBaugrube) return;
+  const b = activeBaugrube.getBounds();
+  baugrubeHandles = DragHandles.createBaugrubeHandles(map, [[b.getSouthWest().lat, b.getSouthWest().lng], [b.getNorthEast().lat, b.getNorthEast().lng]], (nb) => { activeBaugrube.setBounds(nb); });
+}
+
+function updateBaugrubeOption() { if (activeBaugrube) activeBaugrube.setFahrbahnBetroffen(document.getElementById('bgFahrbahn').checked); }
+function clearBaugrube() { if (activeBaugrube) { activeBaugrube.remove(); activeBaugrube = null; } if (baugrubeHandles) { baugrubeHandles.remove(); baugrubeHandles = null; } }
+function cancelBaugrubeMode() { baugrubePlaceMode = null; hideHint(); map.getContainer().style.cursor = ''; }
+
+// ═══════════════════════════════════════════════
+// LAYERS
+// ═══════════════════════════════════════════════
+function toggleLayer(l) {
+  if (l === 'regelplan') { showRegelplan = !showRegelplan; document.getElementById('toggleRegelplan').classList.toggle('active', showRegelplan); if (overlayResult) { overlayResult.remove(); overlayResult = null; } if (showRegelplan && drawnLine) applyRegelplan(); }
+  else if (l === 'massketten') { showMassketten = !showMassketten; document.getElementById('toggleMassketten').classList.toggle('active', showMassketten); if (masskettenResult) { masskettenResult.remove(); masskettenResult = null; } if (showMassketten && drawnLine) applyRegelplan(); if (!showMassketten) document.getElementById('validierungSection').style.display = 'none'; }
+  else if (l === 'alkis') { const b = document.getElementById('toggleALKIS'); if (map.hasLayer(alkisLayer)) { map.removeLayer(alkisLayer); b.classList.remove('active'); } else { alkisLayer.addTo(map); b.classList.add('active'); } }
+}
+
+// ═══════════════════════════════════════════════
+// CLEAR
+// ═══════════════════════════════════════════════
+function clearRegelplan() {
   cancelDrawing();
   if (overlayResult) { overlayResult.remove(); overlayResult = null; }
   if (masskettenResult) { masskettenResult.remove(); masskettenResult = null; }
   if (drawPolyline) { map.removeLayer(drawPolyline); drawPolyline = null; }
-  drawnLine = null;
-  drawPoints = [];
+  if (lineHandles) { lineHandles.remove(); lineHandles = null; }
+  drawnLine = null; drawPoints = [];
   document.getElementById('validierungSection').style.display = 'none';
-
-  // Remove all circle markers
-  map.eachLayer(l => {
-    if (l instanceof L.CircleMarker) map.removeLayer(l);
-  });
+  map.eachLayer(l => { if (l instanceof L.CircleMarker && !l._handleType && !l._cornerId) map.removeLayer(l); });
 }
+function clearAll() { clearRegelplan(); clearBaugrube(); }
 
-// ── Scale Display ───────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function showHint(html) { const h = document.getElementById('drawHint'); h.innerHTML = html; h.classList.add('active'); }
+function hideHint() { document.getElementById('drawHint').classList.remove('active'); }
+function setStatus(t) { document.getElementById('stMode').textContent = t; }
 function updateScaleDisplay() {
-  const zoom = map.getZoom();
-  document.getElementById('stZoom').textContent = `Zoom: ${zoom}`;
-
-  // Maßstab berechnen (bei 96 DPI)
-  const metersPerPixel = 40075016.686 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, zoom + 8);
-  const scale = Math.round(metersPerPixel * 96 / 0.0254);
-  document.getElementById('stScale').textContent = `1:${scale.toLocaleString('de-DE')}`;
+  const z = map.getZoom(); document.getElementById('stZoom').textContent = `Zoom: ${z}`;
+  const mpp = 40075016.686 * Math.cos(map.getCenter().lat * Math.PI / 180) / Math.pow(2, z + 8);
+  document.getElementById('stScale').textContent = `1:${Math.round(mpp * 96 / 0.0254).toLocaleString('de-DE')}`;
 }
 
-// ── Parameter-Änderungen ────────────────────────────────────
+// ═══════════════════════════════════════════════
+// PARAM CHANGES
+// ═══════════════════════════════════════════════
 ['seiteSelect', 'speedSelect', 'fbBreite', 'gwBreite'].forEach(id => {
-  document.getElementById(id).addEventListener('change', () => {
-    if (drawnLine) applyRegelplan();
-  });
+  document.getElementById(id).addEventListener('change', () => { if (drawnLine) applyRegelplan(); });
 });
 
-// ── Keyboard Shortcuts ──────────────────────────────────────
+// ═══════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && drawMode) cancelDrawing();
-  if (e.key === 'd' && !drawMode) startDrawing();
+  if (e.key === 'Escape') { if (drawMode) cancelDrawing(); if (baugrubePlaceMode) cancelBaugrubeMode(); }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'd') startDrawing();
+  if (e.key === 'b') setMode('baugrube');
+  if (e.key === 'l') setMode('regelplan');
   if (e.key === 'm') toggleLayer('massketten');
-  if (e.key === 'r') toggleLayer('regelplan');
+  if (e.key === 'Delete') clearAll();
 });
 
-// ── Init ────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  initMap();
-  renderRPGrid();
-});
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => { initMap(); renderRPGrid(); });
 </script>
-
 </body>
 </html>
