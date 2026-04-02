@@ -1,0 +1,133 @@
+name: Deploy to vzp.app
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy files to Cloudflare KV
+        env:
+          DEPLOY_TOKEN: ${{ secrets.VZP_DEPLOY_TOKEN }}
+        run: |
+          set -e
+          
+          API_URL="https://vzp-deploy.fatih-m-a.workers.dev/api/deploy"
+          UA="VZP-Deploy/1.0"
+          BATCH_SIZE=10
+          TOTAL=0
+          
+          echo "🚀 VZP Deploy gestartet"
+          
+          # Collect all deployable files
+          FILES=$(find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.svg" -o -name "*.md" \) \
+            ! -path "./.git/*" ! -path "./.github/*" ! -path "./node_modules/*" | sed 's|^\./||' | sort)
+          
+          TOTAL_FILES=$(echo "$FILES" | wc -l)
+          echo "📦 $TOTAL_FILES Dateien gefunden"
+          
+          # Deploy in batches
+          BATCH=""
+          COUNT=0
+          
+          for f in $FILES; do
+            CONTENT=$(python3 -c "
+          import json
+          with open('$f', 'r', errors='replace') as fh:
+              print(json.dumps(fh.read()))
+          ")
+            
+            if [ -n "$BATCH" ]; then BATCH="$BATCH,"; fi
+            BATCH="$BATCH{\"path\":\"$f\",\"content\":$CONTENT}"
+            COUNT=$((COUNT + 1))
+            
+            if [ $COUNT -ge $BATCH_SIZE ]; then
+              echo "{\"files\":[$BATCH]}" > /tmp/batch.json
+              RESULT=$(curl -s -X POST "$API_URL" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $DEPLOY_TOKEN" \
+                -H "User-Agent: $UA" \
+                -d @/tmp/batch.json)
+              
+              if echo "$RESULT" | grep -q '"success":true'; then
+                DEP=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deployed',0))")
+                TOTAL=$((TOTAL + DEP))
+                echo "  ✅ Batch: $DEP deployed"
+              else
+                echo "  ❌ Batch fehler: $RESULT"
+              fi
+              
+              BATCH=""
+              COUNT=0
+            fi
+          done
+          
+          # Deploy remaining files
+          if [ $COUNT -gt 0 ]; then
+            echo "{\"files\":[$BATCH]}" > /tmp/batch.json
+            RESULT=$(curl -s -X POST "$API_URL" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $DEPLOY_TOKEN" \
+              -H "User-Agent: $UA" \
+              -d @/tmp/batch.json)
+            
+            if echo "$RESULT" | grep -q '"success":true'; then
+              DEP=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deployed',0))")
+              TOTAL=$((TOTAL + DEP))
+              echo "  ✅ Batch: $DEP deployed"
+            else
+              echo "  ❌ Batch fehler: $RESULT"
+            fi
+          fi
+          
+          echo ""
+          echo "🎉 Deploy fertig: $TOTAL Dateien → https://vzp.app"
+
+      - name: Deploy binary assets (PNG/JPG)
+        env:
+          DEPLOY_TOKEN: ${{ secrets.VZP_DEPLOY_TOKEN }}
+        run: |
+          API_URL="https://vzp-deploy.fatih-m-a.workers.dev/api/deploy"
+          UA="VZP-Deploy/1.0"
+          
+          # Binary files need base64 encoding
+          BINS=$(find . -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \) \
+            ! -path "./.git/*" | sed 's|^\./||' | sort)
+          
+          BIN_COUNT=$(echo "$BINS" | grep -c . || true)
+          if [ "$BIN_COUNT" -eq 0 ]; then
+            echo "Keine binären Assets zu deployen"
+            exit 0
+          fi
+          
+          echo "🖼 $BIN_COUNT binäre Assets"
+          
+          for f in $BINS; do
+            MIME="image/png"
+            if echo "$f" | grep -qE '\.jpe?g$'; then MIME="image/jpeg"; fi
+            
+            B64=$(base64 -w0 "$f")
+            CONTENT="data:$MIME;base64,$B64"
+            
+            python3 -c "
+          import json
+          with open('/tmp/bin_deploy.json','w') as out:
+              json.dump({'files':[{'path':'$f','content':'$CONTENT'}]}, out)
+          "
+            
+            RESULT=$(curl -s -X POST "$API_URL" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $DEPLOY_TOKEN" \
+              -H "User-Agent: $UA" \
+              -d @/tmp/bin_deploy.json)
+            
+            if echo "$RESULT" | grep -q '"success":true'; then
+              echo "  ✅ $f"
+            else
+              echo "  ⚠️ $f (möglicherweise zu groß)"
+            fi
+          done
