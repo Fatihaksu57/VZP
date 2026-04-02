@@ -10,124 +10,82 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy files to Cloudflare KV
+      - name: Deploy text files to Cloudflare KV
         env:
           DEPLOY_TOKEN: ${{ secrets.VZP_DEPLOY_TOKEN }}
         run: |
           set -e
-          
           API_URL="https://vzp-deploy.fatih-m-a.workers.dev/api/deploy"
           UA="VZP-Deploy/1.0"
-          BATCH_SIZE=10
           TOTAL=0
           
-          echo "🚀 VZP Deploy gestartet"
+          echo "🚀 VZP Deploy"
           
-          # Collect all deployable files
           FILES=$(find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.svg" -o -name "*.md" \) \
             ! -path "./.git/*" ! -path "./.github/*" ! -path "./node_modules/*" | sed 's|^\./||' | sort)
           
-          TOTAL_FILES=$(echo "$FILES" | wc -l)
-          echo "📦 $TOTAL_FILES Dateien gefunden"
+          echo "📦 $(echo "$FILES" | wc -l) Text-Dateien"
           
-          # Deploy in batches
           BATCH=""
           COUNT=0
           
           for f in $FILES; do
-            CONTENT=$(python3 -c "
-          import json
-          with open('$f', 'r', errors='replace') as fh:
-              print(json.dumps(fh.read()))
-          ")
-            
-            if [ -n "$BATCH" ]; then BATCH="$BATCH,"; fi
+            CONTENT=$(python3 -c "import json; print(json.dumps(open('$f','r',errors='replace').read()))")
+            [ -n "$BATCH" ] && BATCH="$BATCH,"
             BATCH="$BATCH{\"path\":\"$f\",\"content\":$CONTENT}"
             COUNT=$((COUNT + 1))
             
-            if [ $COUNT -ge $BATCH_SIZE ]; then
+            if [ $COUNT -ge 10 ]; then
               echo "{\"files\":[$BATCH]}" > /tmp/batch.json
-              RESULT=$(curl -s -X POST "$API_URL" \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer $DEPLOY_TOKEN" \
-                -H "User-Agent: $UA" \
-                -d @/tmp/batch.json)
-              
-              if echo "$RESULT" | grep -q '"success":true'; then
-                DEP=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deployed',0))")
-                TOTAL=$((TOTAL + DEP))
-                echo "  ✅ Batch: $DEP deployed"
-              else
-                echo "  ❌ Batch fehler: $RESULT"
-              fi
-              
+              RESULT=$(curl -s -X POST "$API_URL" -H "Content-Type: application/json" -H "Authorization: Bearer $DEPLOY_TOKEN" -H "User-Agent: $UA" -d @/tmp/batch.json)
+              echo "$RESULT" | grep -q '"success":true' && echo "  ✅ Batch $COUNT deployed" || echo "  ❌ $RESULT"
+              TOTAL=$((TOTAL + COUNT))
               BATCH=""
               COUNT=0
             fi
           done
           
-          # Deploy remaining files
           if [ $COUNT -gt 0 ]; then
             echo "{\"files\":[$BATCH]}" > /tmp/batch.json
-            RESULT=$(curl -s -X POST "$API_URL" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $DEPLOY_TOKEN" \
-              -H "User-Agent: $UA" \
-              -d @/tmp/batch.json)
-            
-            if echo "$RESULT" | grep -q '"success":true'; then
-              DEP=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deployed',0))")
-              TOTAL=$((TOTAL + DEP))
-              echo "  ✅ Batch: $DEP deployed"
-            else
-              echo "  ❌ Batch fehler: $RESULT"
-            fi
+            RESULT=$(curl -s -X POST "$API_URL" -H "Content-Type: application/json" -H "Authorization: Bearer $DEPLOY_TOKEN" -H "User-Agent: $UA" -d @/tmp/batch.json)
+            echo "$RESULT" | grep -q '"success":true' && echo "  ✅ Batch $COUNT deployed" || echo "  ❌ $RESULT"
+            TOTAL=$((TOTAL + COUNT))
           fi
           
-          echo ""
-          echo "🎉 Deploy fertig: $TOTAL Dateien → https://vzp.app"
+          echo "🎉 $TOTAL Text-Dateien deployed"
 
       - name: Deploy binary assets (PNG/JPG)
         env:
           DEPLOY_TOKEN: ${{ secrets.VZP_DEPLOY_TOKEN }}
         run: |
+          set -e
           API_URL="https://vzp-deploy.fatih-m-a.workers.dev/api/deploy"
           UA="VZP-Deploy/1.0"
           
-          # Binary files need base64 encoding
           BINS=$(find . -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" \) \
             ! -path "./.git/*" | sed 's|^\./||' | sort)
           
           BIN_COUNT=$(echo "$BINS" | grep -c . || true)
-          if [ "$BIN_COUNT" -eq 0 ]; then
-            echo "Keine binären Assets zu deployen"
-            exit 0
-          fi
+          [ "$BIN_COUNT" -eq 0 ] && { echo "Keine binären Assets"; exit 0; }
           
           echo "🖼 $BIN_COUNT binäre Assets"
           
           for f in $BINS; do
             MIME="image/png"
-            if echo "$f" | grep -qE '\.jpe?g$'; then MIME="image/jpeg"; fi
+            echo "$f" | grep -qiE '\.jpe?g$' && MIME="image/jpeg"
             
-            B64=$(base64 -w0 "$f")
-            CONTENT="data:$MIME;base64,$B64"
-            
+            # Write payload via python to avoid "argument list too long"
             python3 -c "
-          import json
+          import json, base64
+          with open('$f','rb') as img:
+              b64 = base64.b64encode(img.read()).decode()
+          payload = {'files':[{'path':'$f','content':f'data:$MIME;base64,{b64}'}]}
           with open('/tmp/bin_deploy.json','w') as out:
-              json.dump({'files':[{'path':'$f','content':'$CONTENT'}]}, out)
+              json.dump(payload, out)
           "
             
-            RESULT=$(curl -s -X POST "$API_URL" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $DEPLOY_TOKEN" \
-              -H "User-Agent: $UA" \
-              -d @/tmp/bin_deploy.json)
-            
-            if echo "$RESULT" | grep -q '"success":true'; then
-              echo "  ✅ $f"
-            else
-              echo "  ⚠️ $f (möglicherweise zu groß)"
-            fi
+            RESULT=$(curl -s -X POST "$API_URL" -H "Content-Type: application/json" -H "Authorization: Bearer $DEPLOY_TOKEN" -H "User-Agent: $UA" -d @/tmp/bin_deploy.json)
+            echo "$RESULT" | grep -q '"success":true' && echo "  ✅ $f" || echo "  ⚠️ $f"
           done
+          
+          echo "🎉 Binary deploy done"
