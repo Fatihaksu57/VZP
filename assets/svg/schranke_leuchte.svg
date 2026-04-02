@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120">
+  <!-- 3 Warnleuchten oben -->
+  <circle cx="30" cy="12" r="10" fill="#FFD600" stroke="#F9A825" stroke-width="2"/>
+  <line x1="30" y1="0" x2="30" y2="4" stroke="#F9A825" stroke-width="1.5"/>
+  <line x1="20" y1="5" x2="23" y2="8" stroke="#F9A825" stroke-width="1.5"/>
+  <line x1="40" y1="5" x2="37" y2="8" stroke="#F9A825" stroke-width="1.5"/>
+  <circle cx="90" cy="12" r="10" fill="#FFD600" stroke="#F9A825" stroke-width="2"/>
+  <line x1="90" y1="0" x2="90" y2="4" stroke="#F9A825" stroke-width="1.5"/>
+  <line x1="80" y1="5" x2="83" y2="8" stroke="#F9A825" stroke-width="1.5"/>
+  <line x1="100" y1="5" x2="97" y2="8" stroke="#F9A825" stroke-width="1.5"/>
+  <circle cx="150" cy="12" r="10" fill="#FFD600" stroke="#F9A825" stroke-width="2"/>
+  <line x1="150" y1="0" x2="150" y2="4" stroke="#F9A825" stroke-width="1.5"/>
+  <line x1="140" y1="5" x2="143" y2="8" stroke="#F9A825" stroke-width="1.5"/>
+  <line x1="160" y1="5" x2="157" y2="8" stroke="#F9A825" stroke-width="1.5"/>
+  <!-- Obere Schranke -->
+  <rect x="2" y="24" width="176" height="10" fill="#fff" stroke="#222" stroke-width="1.5"/>
+  <!-- Untere Schranke mit rot-weiß -->
+  <rect x="2" y="44" width="176" height="36" fill="#fff" stroke="#222" stroke-width="1.5"/>
+  <rect x="4" y="46" width="22" height="32" fill="#d32f2f"/>
+  <rect x="36" y="46" width="22" height="32" fill="#d32f2f"/>
+  <rect x="68" y="46" width="22" height="32" fill="#d32f2f"/>
+  <rect x="100" y="46" width="22" height="32" fill="#d32f2f"/>
+  <rect x="132" y="46" width="22" height="32" fill="#d32f2f"/>
+  <rect x="154" y="46" width="22" height="32" fill="#d32f2f"/>
+  <!-- Pfosten -->
+  <rect x="8" y="24" width="6" height="96" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <rect x="58" y="24" width="6" height="96" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <rect x="116" y="24" width="6" height="96" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <rect x="166" y="24" width="6" height="96" fill="#ccc" stroke="#222" stroke-width="1"/>
+</svg>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>VZP Deploy</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a; color: #e0e0e0;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px; min-height: 100vh;
+    -webkit-text-size-adjust: 100%;
+  }
+  .header {
+    padding: 16px; border-bottom: 1px solid #222;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { font-size: 18px; font-weight: 800; color: #4ade80; letter-spacing: 2px; }
+  .sub { font-size: 10px; color: #555; margin-top: 2px; letter-spacing: 1px; }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #555;
+    transition: all 0.3s;
+  }
+  .dot.ok { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+  .dot.err { background: #ef4444; }
+  .tabs { display: flex; border-bottom: 1px solid #222; }
+  .tab {
+    flex: 1; padding: 12px 0; background: #1a1a1a; color: #888;
+    border: none; border-bottom: 2px solid transparent;
+    font-size: 13px; font-weight: 400; cursor: pointer;
+    font-family: inherit; letter-spacing: 0.5px;
+  }
+  .tab.active { background: #0a0a0a; color: #4ade80; font-weight: 700; border-bottom-color: #4ade80; }
+  .content { padding: 16px; max-height: calc(100vh - 110px); overflow-y: auto; }
+  label { font-size: 10px; color: #666; letter-spacing: 1.5px; font-weight: 600; display: block; margin-bottom: 6px; }
+  input, textarea {
+    width: 100%; padding: 10px 12px; background: #111; border: 1px solid #333;
+    border-radius: 8px; color: #e0e0e0; font-family: inherit; font-size: 13px;
+    outline: none;
+  }
+  textarea { min-height: 200px; resize: vertical; font-size: 12px; }
+  .btn {
+    width: 100%; padding: 10px; margin-top: 10px; background: transparent;
+    border: 1px solid #4ade80; border-radius: 8px; color: #4ade80;
+    cursor: pointer; font-family: inherit; font-size: 12px;
+    font-weight: 600; letter-spacing: 1px;
+  }
+  .btn:active { opacity: 0.7; }
+  .btn.blue { border-color: #3b82f6; color: #3b82f6; }
+  .btn.red { border-color: #ef4444; color: #ef4444; }
+  .btn.deploy {
+    font-size: 15px; padding: 14px; font-weight: 800; letter-spacing: 2px; margin-top: 12px;
+  }
+  .btn:disabled { border-color: #333; color: #555; cursor: not-allowed; }
+  .file-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 12px; background: #111; border-radius: 6px;
+    margin-bottom: 6px; border: 1px solid #222;
+  }
+  .file-path { color: #4ade80; font-size: 12px; }
+  .file-size { color: #555; font-size: 10px; }
+  .rm { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; padding: 4px 8px; }
+  .log-entry {
+    padding: 6px 10px; font-size: 11px; border-radius: 4px; margin-bottom: 3px;
+    border-left: 2px solid #333;
+  }
+  .log-entry.success { background: #051a0a; color: #4ade80; border-left-color: #4ade80; }
+  .log-entry.error { background: #1a0505; color: #ef4444; border-left-color: #ef4444; }
+  .log-entry.info { background: #111; color: #888; }
+  .log-time { color: #444; margin-right: 6px; }
+  .remote-file {
+    padding: 10px 12px; background: #111; border-radius: 6px;
+    margin-bottom: 4px; cursor: pointer; border: 1px solid #222;
+    font-size: 12px; color: #ccc;
+  }
+  .remote-file:active { border-color: #4ade80; }
+  .remote-prefix { color: #4ade80; }
+  .info-box {
+    margin-top: 24px; padding: 12px; background: #111; border-radius: 8px;
+    border: 1px solid #222; font-size: 11px; color: #666; line-height: 1.6;
+  }
+  .info-title { color: #4ade80; margin-bottom: 8px; font-weight: 700; }
+  pre {
+    padding: 12px; background: #111; border-radius: 8px; border: 1px solid #222;
+    overflow: auto; font-size: 11px; line-height: 1.5; color: #ccc;
+    white-space: pre-wrap; word-break: break-all; max-height: 60vh;
+  }
+  .back { background: none; border: none; color: #4ade80; cursor: pointer; font-family: inherit; font-size: 12px; margin-bottom: 12px; padding: 0; }
+  .mt { margin-top: 12px; }
+  .mt2 { margin-top: 20px; }
+  .gap { display: flex; gap: 8px; margin-top: 12px; }
+  .gap .btn { flex: 1; }
+  .hidden { display: none; }
+  .token-wrap { position: relative; }
+  .token-toggle {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: #4ade80; cursor: pointer;
+    font-size: 11px; font-family: inherit;
+  }
+  .empty { color: #555; text-align: center; padding: 40px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">▲ VZP.APP</div>
+    <div class="sub">DEPLOY ENGINE</div>
+  </div>
+  <div class="dot" id="statusDot"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('deploy')">DEPLOY</button>
+  <button class="tab" onclick="showTab('browse')">DATEIEN</button>
+  <button class="tab" onclick="showTab('config')">CONFIG</button>
+</div>
+
+<div class="content" id="content"></div>
+
+<script>
+let state = {
+  url: localStorage.getItem('vzp_url') || location.origin,
+  token: localStorage.getItem('vzp_token') || '',
+  files: [],
+  log: [],
+  remote: [],
+  readContent: null,
+  connected: null,
+  tab: 'deploy',
+  showToken: false,
+  loading: false,
+  manualPath: '',
+  manualContent: '',
+};
+
+function save() {
+  localStorage.setItem('vzp_url', state.url);
+  localStorage.setItem('vzp_token', state.token);
+}
+
+function addLog(msg, type = 'info') {
+  state.log.unshift({ msg, type, time: new Date().toLocaleTimeString() });
+  if (state.log.length > 50) state.log.length = 50;
+}
+
+function showTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['deploy','browse','config'][i] === tab);
+  });
+  if (tab === 'browse') loadRemote();
+  render();
+}
+
+function updateDot() {
+  const d = document.getElementById('statusDot');
+  d.className = 'dot' + (state.connected === true ? ' ok' : state.connected === false ? ' err' : '');
+}
+
+async function api(path, opts = {}) {
+  const url = new URL(path, state.url);
+  if (!opts.method || opts.method === 'GET') {
+    url.searchParams.set('token', state.token);
+  }
+  const headers = opts.headers || {};
+  if (opts.method === 'POST') {
+    headers['Content-Type'] = 'application/json';
+    headers['Authorization'] = 'Bearer ' + state.token;
+  }
+  const res = await fetch(url.toString(), { ...opts, headers });
+  return res.json();
+}
+
+async function testConnection() {
+  if (!state.token) { addLog('Token fehlt', 'error'); render(); return; }
+  state.loading = true; render();
+  try {
+    const data = await api('/api/list');
+    if (data.files !== undefined) {
+      state.connected = true;
+      addLog(`Verbunden! ${data.count} Dateien auf ${state.url}`, 'success');
+    } else {
+      state.connected = false;
+      addLog(`Fehler: ${data.error || 'Unbekannt'}`, 'error');
+    }
+  } catch (e) {
+    state.connected = false;
+    addLog(`Verbindung fehlgeschlagen: ${e.message}`, 'error');
+  }
+  state.loading = false; save(); updateDot(); render();
+}
+
+function addFile() {
+  const path = state.manualPath.replace(/^\//, '');
+  if (!path || !state.manualContent) return;
+  const idx = state.files.findIndex(f => f.path === path);
+  if (idx >= 0) state.files[idx] = { path, content: state.manualContent };
+  else state.files.push({ path, content: state.manualContent });
+  addLog(`${path} hinzugefügt`, 'info');
+  state.manualContent = '';
+  render();
+}
+
+function removeFile(path) {
+  state.files = state.files.filter(f => f.path !== path);
+  render();
+}
+
+async function deploy() {
+  if (!state.token) { addLog('Token fehlt!', 'error'); render(); return; }
+  if (!state.files.length) { addLog('Keine Dateien', 'error'); render(); return; }
+  state.loading = true; render();
+  addLog(`Deploying ${state.files.length} Dateien...`, 'info');
+  try {
+    const data = await api('/api/deploy', {
+      method: 'POST',
+      body: JSON.stringify({ files: state.files }),
+    });
+    if (data.success) {
+      addLog(`${data.deployed} Dateien deployed!`, 'success');
+      state.files = [];
+    } else {
+      addLog(`Fehler: ${data.error}`, 'error');
+    }
+  } catch (e) {
+    addLog(`Deploy fehlgeschlagen: ${e.message}`, 'error');
+  }
+  state.loading = false; render();
+}
+
+async function loadRemote() {
+  if (!state.token) return;
+  state.loading = true; render();
+  try {
+    const data = await api('/api/list');
+    state.remote = data.files || [];
+    addLog(`${data.count} Dateien geladen`, 'info');
+  } catch (e) {
+    addLog(`Laden fehlgeschlagen: ${e.message}`, 'error');
+  }
+  state.loading = false; render();
+}
+
+async function readFile(path) {
+  state.loading = true; render();
+  try {
+    const url = new URL('/api/read', state.url);
+    url.searchParams.set('token', state.token);
+    url.searchParams.set('path', path);
+    const res = await fetch(url.toString());
+    const data = await res.json();
+    state.readContent = data;
+  } catch (e) {
+    addLog(`Lesen fehlgeschlagen: ${e.message}`, 'error');
+  }
+  state.loading = false; render();
+}
+
+async function deleteRemote(path) {
+  state.loading = true; render();
+  try {
+    const data = await api('/api/delete', {
+      method: 'POST',
+      body: JSON.stringify({ paths: [path] }),
+    });
+    if (data.success) {
+      addLog(`${path} gelöscht`, 'success');
+      state.remote = state.remote.filter(f => f !== path);
+      state.readContent = null;
+    }
+  } catch (e) {
+    addLog(`Löschen fehlgeschlagen: ${e.message}`, 'error');
+  }
+  state.loading = false; render();
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderLog() {
+  return state.log.slice(0, 10).map(l =>
+    `<div class="log-entry ${l.type}"><span class="log-time">${l.time}</span>${esc(l.msg)}</div>`
+  ).join('');
+}
+
+function render() {
+  const c = document.getElementById('content');
+
+  if (state.tab === 'config') {
+    c.innerHTML = `
+      <label>WORKER URL</label>
+      <input id="cfgUrl" value="${esc(state.url)}" placeholder="https://vzp.app">
+      <label class="mt">DEPLOY TOKEN</label>
+      <div class="token-wrap">
+        <input id="cfgToken" type="${state.showToken ? 'text' : 'password'}" value="${esc(state.token)}" placeholder="dein-token">
+        <button class="token-toggle" onclick="state.showToken=!state.showToken;render()">${state.showToken ? 'HIDE' : 'SHOW'}</button>
+      </div>
+      <button class="btn" onclick="readConfig();testConnection()" ${state.loading ? 'disabled' : ''}>
+        ${state.loading ? 'TESTE...' : 'VERBINDUNG TESTEN'}
+      </button>
+      <div class="info-box">
+        <div class="info-title">SETUP-INFO</div>
+        1. KV Namespace "VZP_FILES" anlegen<br>
+        2. Worker erstellen, Code einfügen<br>
+        3. KV binden: FILES → VZP_FILES<br>
+        4. Env Var: DEPLOY_TOKEN setzen<br>
+        5. Custom Domain: vzp.app
+      </div>
+      ${state.log.length ? '<div class="mt2"><label>LOG</label>' + renderLog() + '</div>' : ''}
+    `;
+    document.getElementById('cfgUrl').onchange = e => { state.url = e.target.value; save(); };
+    document.getElementById('cfgToken').onchange = e => { state.token = e.target.value; save(); };
+    return;
+  }
+
+  if (state.tab === 'deploy') {
+    c.innerHTML = `
+      <label>DATEIPFAD</label>
+      <input id="dPath" value="${esc(state.manualPath)}" placeholder="z.B. js/map.js oder index.html">
+      <label class="mt">INHALT</label>
+      <textarea id="dContent" placeholder="Code hier einfügen...">${esc(state.manualContent)}</textarea>
+      <button class="btn blue" onclick="readDeploy();addFile()">+ DATEI HINZUFÜGEN</button>
+      ${state.files.length ? `
+        <div class="mt2">
+          <label>${state.files.length} DATEI${state.files.length > 1 ? 'EN' : ''} ZUM DEPLOY</label>
+          ${state.files.map(f => `
+            <div class="file-item">
+              <div>
+                <div class="file-path">${esc(f.path)}</div>
+                <div class="file-size">${(f.content.length / 1024).toFixed(1)} KB</div>
+              </div>
+              <button class="rm" onclick="removeFile('${esc(f.path)}')">✕</button>
+            </div>
+          `).join('')}
+          <button class="btn deploy" onclick="deploy()" ${state.loading ? 'disabled' : ''}>
+            ${state.loading ? 'DEPLOYING...' : '▲ DEPLOY'}
+          </button>
+        </div>
+      ` : ''}
+      ${state.log.length ? '<div class="mt2"><label>LOG</label>' + renderLog() + '</div>' : ''}
+    `;
+    document.getElementById('dPath').oninput = e => state.manualPath = e.target.value;
+    document.getElementById('dContent').oninput = e => state.manualContent = e.target.value;
+    return;
+  }
+
+  if (state.tab === 'browse') {
+    if (state.readContent) {
+      const rc = state.readContent;
+      c.innerHTML = `
+        <button class="back" onclick="state.readContent=null;render()">← ZURÜCK</button>
+        <div class="file-item"><div class="file-path">${esc(rc.path)}</div></div>
+        ${rc.base64
+          ? `<div style="color:#888;font-size:11px;margin-top:12px">[Binärdatei — ${(rc.content.length * 0.75 / 1024).toFixed(1)} KB]</div>`
+          : `<pre>${esc(rc.content)}</pre>`
+        }
+        <div class="gap">
+          <button class="btn blue" onclick="editFromRead()">BEARBEITEN</button>
+          <button class="btn red" onclick="deleteRemote('${esc(rc.path)}')">LÖSCHEN</button>
+        </div>
+      `;
+    } else {
+      c.innerHTML = `
+        <button class="btn" onclick="loadRemote()" ${state.loading ? 'disabled' : ''}>
+          ${state.loading ? 'LADE...' : 'AKTUALISIEREN'}
+        </button>
+        <div class="mt">
+          ${state.remote.length === 0 && !state.loading ? '<div class="empty">Keine Dateien gefunden</div>' : ''}
+          ${state.remote.map(f => {
+            const parts = f.split('/');
+            const prefix = parts.slice(0, -1).join('/');
+            const name = parts.pop();
+            return `<div class="remote-file" onclick="readFile('${esc(f)}')">
+              ${prefix ? `<span class="remote-prefix">${esc(prefix)}/</span>` : ''}${esc(name)}
+            </div>`;
+          }).join('')}
+        </div>
+      `;
+    }
+    return;
+  }
+}
+
+function readConfig() {
+  state.url = document.getElementById('cfgUrl').value;
+  state.token = document.getElementById('cfgToken').value;
+  save();
+}
+
+function readDeploy() {
+  state.manualPath = document.getElementById('dPath').value;
+  state.manualContent = document.getElementById('dContent').value;
+}
+
+function editFromRead() {
+  state.manualPath = state.readContent.path;
+  state.manualContent = state.readContent.base64 ? '' : state.readContent.content;
+  state.readContent = null;
+  state.tab = 'deploy';
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+  render();
+}
+
+// Init
+render();
+updateDot();
+</script>
+</body>
+</html>

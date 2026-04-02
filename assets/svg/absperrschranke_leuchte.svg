@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 36">
+  <defs>
+    <pattern id="rw2" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="skewX(-30)">
+      <rect width="10" height="20" fill="#d32f2f"/>
+      <rect x="10" width="10" height="20" fill="#fff"/>
+    </pattern>
+  </defs>
+  <!-- 3 Warnleuchten oben -->
+  <circle cx="40" cy="7" r="6" fill="#FFD600" stroke="#F9A825" stroke-width="1.5"/>
+  <circle cx="100" cy="7" r="6" fill="#FFD600" stroke="#F9A825" stroke-width="1.5"/>
+  <circle cx="160" cy="7" r="6" fill="#FFD600" stroke="#F9A825" stroke-width="1.5"/>
+  <!-- Barrier bar -->
+  <rect x="1" y="16" width="198" height="18" rx="2" fill="url(#rw2)" stroke="#333" stroke-width="1.5"/>
+  <!-- End caps -->
+  <rect x="0" y="14" width="6" height="22" rx="1" fill="#666"/>
+  <rect x="194" y="14" width="6" height="22" rx="1" fill="#666"/>
+</svg>

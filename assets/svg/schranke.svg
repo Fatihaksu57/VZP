@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
+  <!-- Left panel -->
+  <rect x="2" y="2" width="24" height="96" rx="1" fill="#fff" stroke="#222" stroke-width="2"/>
+  <rect x="4" y="4" width="20" height="12" fill="#d32f2f"/>
+  <rect x="4" y="28" width="20" height="12" fill="#d32f2f"/>
+  <rect x="4" y="52" width="20" height="12" fill="#d32f2f"/>
+  <rect x="4" y="76" width="20" height="12" fill="#d32f2f"/>
+  <!-- Horizontal bars -->
+  <rect x="26" y="10" width="68" height="4" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <rect x="26" y="36" width="68" height="4" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <rect x="26" y="58" width="68" height="4" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <rect x="26" y="84" width="68" height="4" fill="#ccc" stroke="#222" stroke-width="1"/>
+  <!-- Right panel -->
+  <rect x="94" y="2" width="24" height="96" rx="1" fill="#fff" stroke="#222" stroke-width="2"/>
+  <rect x="96" y="4" width="20" height="12" fill="#d32f2f"/>
+  <rect x="96" y="28" width="20" height="12" fill="#d32f2f"/>
+  <rect x="96" y="52" width="20" height="12" fill="#d32f2f"/>
+  <rect x="96" y="76" width="20" height="12" fill="#d32f2f"/>
+</svg>

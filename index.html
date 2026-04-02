@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>VZP Editor — RSA 21</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0ece6;--sf:#ffffff;--sf2:#f7f5f1;--sf3:#eae6de;
+  --bd:rgba(0,0,0,.10);--bd2:rgba(0,0,0,.16);
+  --tx:#1a1814;--tx2:#5c564c;--tx3:#8c8478;
+  --orange:#e65100;--orange2:#ff6d00;
+  --orange-bg:rgba(230,81,0,.08);--orange-bg2:rgba(230,81,0,.15);
+  --yellow:#f9a825;--yellow-bg:rgba(249,168,37,.12);
+  --green:#2e7d32;--green-bg:rgba(46,125,50,.10);
+  --red:#c62828;--red-bg:rgba(198,40,40,.08);
+  --r:8px;--r2:12px;
+  --tab-h:60px;--safe-b:env(safe-area-inset-bottom,0px);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:0 4px 12px rgba(0,0,0,.10);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;touch-action:manipulation}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column}
+.map-area{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%;background:#e8e4dc}
+
+.header{height:48px;flex-shrink:0;background:var(--orange);color:#fff;display:flex;align-items:center;padding:0 12px;gap:8px;box-shadow:0 2px 8px rgba(230,81,0,.25);z-index:1000}
+.header-logo{font:700 15px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.header-logo .badge{font:600 9px 'IBM Plex Mono',monospace;background:rgba(255,255,255,.2);padding:2px 6px;border-radius:4px}
+.header-search{flex:1;height:32px;padding:0 10px 0 32px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;font:400 13px 'IBM Plex Sans',sans-serif;outline:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23ffffffaa' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center}
+.header-search::placeholder{color:rgba(255,255,255,.55)}
+.header-search:focus{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.3)}
+
+.map-controls{position:absolute;top:10px;right:10px;z-index:700;display:flex;flex-direction:column;gap:5px}
+.mc-btn{width:42px;height:42px;border-radius:var(--r);background:var(--sf);border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);color:var(--tx2)}
+.mc-btn:active{transform:scale(.92)}
+.mc-btn.active{border-color:var(--orange);color:var(--orange);background:var(--orange-bg)}
+
+.map-switcher{position:absolute;top:10px;left:10px;z-index:700;display:flex;gap:0;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-md);border:1.5px solid var(--bd2)}
+.ms-btn{padding:8px 10px;border:none;cursor:pointer;font:600 10px 'IBM Plex Sans',sans-serif;background:var(--sf);color:var(--tx2);transition:all .15s;white-space:nowrap}
+.ms-btn+.ms-btn{border-left:1px solid var(--bd)}
+.ms-btn.active{background:var(--orange);color:#fff}
+
+.instruction-banner{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:800;display:none;align-items:center;gap:8px;background:var(--sf);border:2px solid var(--orange);border-radius:var(--r2);padding:8px 14px;box-shadow:var(--shadow-lg);max-width:92vw}
+.instruction-banner.show{display:flex}
+.ib-step{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--orange);color:#fff;font:700 12px 'IBM Plex Sans',sans-serif;flex-shrink:0}
+.ib-text{font:500 13px 'IBM Plex Sans',sans-serif;color:var(--tx)}
+.ib-cancel{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd2);background:var(--sf2);color:var(--tx3);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+
+.status-bar{position:absolute;bottom:8px;left:8px;z-index:700;background:var(--sf);border:1px solid var(--bd);border-radius:20px;padding:4px 12px;font:500 10px 'IBM Plex Mono',monospace;color:var(--tx3);display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-sm)}
+.status-bar .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+
+.rp-preview{position:absolute;bottom:12px;right:12px;z-index:700;width:80px;background:var(--sf);border:2px solid var(--bd2);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-md);cursor:pointer;transition:all .2s}
+.rp-preview:active{transform:scale(.95)}
+.rp-preview.active{border-color:var(--orange)}
+.rp-preview img{width:100%;display:block;max-height:120px;object-fit:cover;object-position:center 40%}
+.rp-preview .rp-tag{padding:3px 6px;font:700 9px 'IBM Plex Mono',monospace;color:var(--orange);background:var(--orange-bg);text-align:center}
+
+.tab-bar{height:var(--tab-h);padding-bottom:var(--safe-b);background:var(--sf);border-top:2px solid var(--bd);display:flex;align-items:stretch;z-index:900;flex-shrink:0;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--tx3);font:600 10px 'IBM Plex Sans',sans-serif;cursor:pointer;transition:color .15s;position:relative}
+.tab-item .ti-icon{font-size:22px;line-height:1}
+.tab-item.active{color:var(--orange)}
+.tab-item.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:3px;background:var(--orange);border-radius:0 0 3px 3px}
+
+.panel{position:absolute;bottom:var(--tab-h);left:0;right:0;z-index:850;max-height:55vh;overflow-y:auto;background:var(--sf);border-top:2px solid var(--bd);padding:16px 16px calc(var(--safe-b)+8px);display:none;-webkit-overflow-scrolling:touch;box-shadow:0 -8px 32px rgba(0,0,0,.08)}
+.panel.open{display:block}
+.panel-header{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.panel-header h2{font:700 16px 'IBM Plex Sans',sans-serif;color:var(--tx);flex:1}
+.ph-close{width:30px;height:30px;border-radius:var(--r);border:1px solid var(--bd2);background:var(--sf2);color:var(--tx3);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+
+.section{margin-bottom:14px}
+.section-label{font:700 10px 'IBM Plex Mono',monospace;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+
+.rp-grid{display:flex;flex-direction:column;gap:6px}
+.rp-card{padding:10px 12px;background:var(--sf2);border:2px solid var(--bd);border-radius:var(--r);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px}
+.rp-card:active{transform:scale(.98)}
+.rp-card.selected{border-color:var(--orange);background:var(--orange-bg)}
+.rp-card .rp-thumb{width:40px;height:64px;border-radius:4px;overflow:hidden;border:1px solid var(--bd);flex-shrink:0;background:#fff}
+.rp-card .rp-thumb img{width:100%;height:100%;object-fit:cover;object-position:center 40%}
+.rp-card .rp-info{flex:1;min-width:0}
+.rp-card .rp-name{font:600 13px 'IBM Plex Sans',sans-serif;color:var(--tx)}
+.rp-card .rp-desc{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--tx2);margin-top:2px}
+
+.param-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.param-label{width:80px;font:500 12px 'IBM Plex Sans',sans-serif;color:var(--tx2);flex-shrink:0}
+.param-input{flex:1;height:38px;padding:0 12px;background:var(--sf2);border:1.5px solid var(--bd2);border-radius:var(--r);color:var(--tx);font:400 13px 'IBM Plex Sans',sans-serif;outline:none}
+.param-input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-bg)}
+select.param-input{cursor:pointer}
+
+.seg-control{display:flex;gap:0;border-radius:var(--r);overflow:hidden;border:1.5px solid var(--bd2);flex:1}
+.seg-btn{flex:1;height:38px;border:none;cursor:pointer;font:600 12px 'IBM Plex Sans',sans-serif;background:var(--sf2);color:var(--tx2);transition:all .15s;display:flex;align-items:center;justify-content:center}
+.seg-btn+.seg-btn{border-left:1.5px solid var(--bd2)}
+.seg-btn.active{background:var(--orange);color:#fff}
+
+.btn{height:42px;padding:0 20px;border:none;border-radius:var(--r);font:600 13px 'IBM Plex Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+.btn:active{transform:scale(.96)}
+.btn-primary{background:var(--orange);color:#fff;box-shadow:0 2px 8px rgba(230,81,0,.25)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1.5px solid rgba(198,40,40,.2)}
+.btn-secondary{background:var(--sf2);color:var(--tx2);border:1.5px solid var(--bd2)}
+.btn-block{width:100%;justify-content:center}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+.action-card{background:var(--yellow-bg);border:2px solid var(--yellow);border-radius:var(--r2);padding:14px;margin-bottom:12px}
+.action-card .ac-title{font:700 13px 'IBM Plex Sans',sans-serif;color:var(--tx);margin-bottom:4px}
+.action-card .ac-desc{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--tx2);margin-bottom:10px;line-height:1.5}
+
+.toast{position:fixed;top:56px;left:50%;transform:translateX(-50%) translateY(-100px);z-index:10000;padding:10px 20px;border-radius:var(--r);background:var(--tx);color:#fff;font:500 13px 'IBM Plex Sans',sans-serif;box-shadow:var(--shadow-lg);transition:transform .3s cubic-bezier(.4,0,.2,1);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+.rp-overlay-controls{position:absolute;bottom:70px;right:10px;z-index:750;background:var(--sf);border:1.5px solid var(--bd2);border-radius:var(--r);padding:8px 10px;box-shadow:var(--shadow-md);display:none;min-width:120px}
+.rp-overlay-controls.show{display:block}
+.rp-overlay-controls label{font:500 10px 'IBM Plex Mono',monospace;color:var(--tx3);display:block;margin-bottom:4px}
+.rp-overlay-controls input[type=range]{width:100%}
+
+.leaflet-control-zoom{border:1.5px solid var(--bd2)!important;border-radius:var(--r)!important;overflow:hidden;box-shadow:var(--shadow-sm)!important}
+.leaflet-control-zoom a{background:var(--sf)!important;color:var(--tx)!important;border-color:var(--bd)!important;font-weight:600!important}
+.leaflet-control-scale-line{background:var(--sf)!important;border-color:var(--tx3)!important;color:var(--tx2)!important;font:500 10px 'IBM Plex Mono',monospace!important}
+.leaflet-div-icon{background:none!important;border:none!important}
+
+@keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(230,81,0,.5)}70%{box-shadow:0 0 0 12px rgba(230,81,0,0)}100%{box-shadow:0 0 0 0 rgba(230,81,0,0)}}
+.placement-marker{width:16px;height:16px;border-radius:50%;background:var(--orange);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);animation:pulse-ring 1.5s infinite}
+.placement-marker-done{width:14px;height:14px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+
+@media(min-width:769px){
+  .app{flex-direction:row}.tab-bar{display:none}
+  .sidebar{width:340px;flex-shrink:0;background:var(--sf);border-right:2px solid var(--bd);overflow-y:auto;display:flex;flex-direction:column}
+  .sidebar .section{padding:0 16px}.sidebar .section:first-child{padding-top:16px}
+  .map-area{flex:1}.panel{display:none!important}
+}
+@media(max-width:768px){.sidebar{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-logo">🚧 VZP <span class="badge">RSA 21</span></div>
+    <input class="header-search" type="text" id="addressInput" placeholder="Adresse suchen…">
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="section" style="padding-top:16px">
+      <div class="section-label">Regelplan wählen</div>
+      <div class="rp-grid" id="rpGrid"></div>
+    </div>
+    <div class="section" style="margin-top:16px">
+      <div class="section-label">Parameter</div>
+      <div class="param-row"><span class="param-label">Seite</span>
+        <div class="seg-control"><button class="seg-btn active" data-val="rechts" onclick="setSide('rechts')">→ Rechts</button><button class="seg-btn" data-val="links" onclick="setSide('links')">← Links</button></div>
+      </div>
+      <div class="param-row"><span class="param-label">Breite (m)</span><input class="param-input" type="number" id="breiteInput" value="2.0" step="0.5" min="0.5" max="8" onchange="reapply()"></div>
+      <div class="param-row"><span class="param-label">Tempo</span>
+        <div class="seg-control"><button class="seg-btn active" data-val="50" onclick="setTempo(50)">50 km/h</button><button class="seg-btn" data-val="30" onclick="setTempo(30)">30 km/h</button></div>
+      </div>
+    </div>
+    <div class="section" style="margin-top:16px">
+      <div class="action-card">
+        <div class="ac-title">📍 Regelplan platzieren</div>
+        <div class="ac-desc">2 Punkte auf der Karte tippen: Start und Ende der Baustelle.</div>
+        <div class="btn-row"><button class="btn btn-primary" onclick="startPlacement()">Platzieren</button><button class="btn btn-danger" onclick="clearAll()" id="clearBtnD" style="display:none">Löschen</button></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-label">Anzeige</div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="toggleRPImageOverlay()">🖼 RSA-Bild</button>
+        <button class="btn btn-secondary" onclick="toggleLayer('mk')">📏 Maßketten</button>
+      </div>
+    </div>
+    <div class="section" style="margin-top:16px;padding-bottom:16px">
+      <div class="section-label">Export</div>
+      <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjekt" placeholder="z.B. Glasfaser Tiefbau"></div>
+      <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErsteller" value="QFM GmbH"></div>
+      <button class="btn btn-primary btn-block" onclick="exportPDF()">📄 PDF exportieren</button>
+    </div>
+  </div>
+
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="map-switcher">
+      <button class="ms-btn active" onclick="switchBaseMap('k5',this)">K5</button>
+      <button class="ms-btn" onclick="switchBaseMap('sb',this)">Straßen</button>
+      <button class="ms-btn" onclick="switchBaseMap('dop',this)">Luftbild</button>
+      <button class="ms-btn" onclick="switchBaseMap('osm',this)">OSM</button>
+    </div>
+    <div class="map-controls">
+      <button class="mc-btn active" id="mcRP" onclick="toggleLayer('rp')" title="Regelplan">📐</button>
+      <button class="mc-btn" id="mcMK" onclick="toggleLayer('mk')" title="Maßketten">📏</button>
+      <button class="mc-btn" id="mcImg" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
+    </div>
+    <div class="instruction-banner" id="instrBanner">
+      <span class="ib-step" id="instrStep">1</span>
+      <span class="ib-text" id="instrText">Tippe den Startpunkt der Baustelle</span>
+      <button class="ib-cancel" onclick="cancelPlacement()">✕</button>
+    </div>
+    <div class="rp-preview" id="rpPreview" onclick="toggleRPImageOverlay()">
+      <img id="rpPreviewImg" src="assets/rp_BII1_rsa21.png" alt="RP">
+      <div class="rp-tag" id="rpPreviewTag">B II/1</div>
+    </div>
+    <div class="rp-overlay-controls" id="rpOverlayCtrl">
+      <label>Deckkraft</label>
+      <input type="range" min="10" max="100" value="70" oninput="setRPOverlayOpacity(this.value/100)">
+    </div>
+    <div class="status-bar"><span class="dot"></span><span id="stCoord">—</span><span id="stZoom">Z17</span></div>
+  </div>
+
+  <div class="panel" id="panelRP">
+    <div class="panel-header"><h2>📐 Regelplan</h2><button class="ph-close" onclick="closePanel()">✕</button></div>
+    <div class="section"><div class="section-label">Plan wählen</div><div class="rp-grid" id="rpGridM"></div></div>
+    <div class="section">
+      <div class="section-label">Parameter</div>
+      <div class="param-row"><span class="param-label">Seite</span><div class="seg-control"><button class="seg-btn active" data-val="rechts" onclick="setSide('rechts')">→ Rechts</button><button class="seg-btn" data-val="links" onclick="setSide('links')">← Links</button></div></div>
+      <div class="param-row"><span class="param-label">Breite (m)</span><input class="param-input" type="number" id="breiteInputM" value="2.0" step="0.5" min="0.5" max="8" onchange="document.getElementById('breiteInput').value=this.value;reapply()"></div>
+    </div>
+    <div class="action-card">
+      <div class="ac-title">📍 Platzieren</div>
+      <div class="ac-desc">2 Punkte auf der Karte: Start & Ende.</div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="startPlacement()">Platzieren</button><button class="btn btn-danger" onclick="clearAll()" id="clearBtnM" style="display:none">Löschen</button></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelExport">
+    <div class="panel-header"><h2>📄 Export</h2><button class="ph-close" onclick="closePanel()">✕</button></div>
+    <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjektM" placeholder="z.B. Glasfaser Tiefbau"></div>
+    <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErstellerM" value="QFM GmbH"></div>
+    <button class="btn btn-primary btn-block" onclick="exportPDF()" style="margin-top:10px">📄 PDF exportieren</button>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-item active" onclick="switchTab('map',this)"><span class="ti-icon">🗺</span>Karte</button>
+    <button class="tab-item" onclick="switchTab('rp',this)"><span class="ti-icon">📐</span>Regelplan</button>
+    <button class="tab-item" onclick="switchTab('export',this)"><span class="ti-icon">📄</span>Export</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/leaflet-imageoverlay-rotated.js"></script>
+<script src="js/regelplan-templates.js"></script>
+<script src="js/massketten.js"></script>
+<script src="js/drag-handles.js"></script>
+<script src="js/regelplan-image-overlay.js"></script>
+<script src="js/pdf-export.js"></script>
+<script>
+// ═══ STATE ═══
+var map, activeRP='BII1', seite='rechts', tempo=50;
+var overlayResult=null, masskettenResult=null, drawnLine=null, lineHandles=null;
+var showRP=true, showMK=false, rpImageVisible=false;
+var placementMode=false, placementPoints=[], placementMarkers=[];
+var baseLayers={}, currentBaseMap='k5';
+
+var RP_DEFS={
+  BII1:{id:'BII1',name:'B II/1',title:'Radweg gesperrt',desc:'Paralleler Geh-/Radweg – Sperrung Radweg',img:'assets/rp_BII1_rsa21.png'},
+  BII2:{id:'BII2',name:'B II/2',title:'Radweg Umleitung',desc:'Geh-/Radweg – Sperrung mit Umleitung',img:'assets/rp_BII2_rsa21.png'},
+  BII3:{id:'BII3',name:'B II/3',title:'Ohne benutzungspfl. Radweg',desc:'Nicht benutzungspfl. Radweg – Sperrung',img:'assets/rp_BII3_rsa21.png'},
+  BII4:{id:'BII4',name:'B II/4',title:'Gehwegsperrung',desc:'Notweg auf Fahrbahn, 3 diag. Leitbaken',img:'assets/rp_BII4_rsa21.png'},
+  BII5:{id:'BII5',name:'B II/5',title:'Halbseitige Sperrung + LZA',desc:'Zweistreifig mit Lichtzeichenanlage',img:'assets/rp_BII5_rsa21.png'}
+};
+var RP_SVG_URLS={BII1:'assets/svg/rp_BII1.svg',BII2:'assets/svg/rp_BII2.svg',BII3:'assets/svg/rp_BII3.svg',BII4:'assets/svg/rp_BII4.svg',BII5:'assets/svg/rp_BII5.svg'};
+
+// ═══ INIT ═══
+document.addEventListener('DOMContentLoaded',function(){
+  initMap();
+  renderRPGrid();
+  document.getElementById('addressInput').addEventListener('keydown',function(e){if(e.key==='Enter')searchAddress(e.target.value)});
+});
+
+function initMap(){
+  map=L.map('map',{center:[52.4730,13.4430],zoom:17,doubleClickZoom:false,zoomControl:true,maxZoom:20});
+
+  // Geoportal Berlin: K5 Farbe (Gebäude, Straßennamen, Hausnummern)
+  baseLayers.k5=L.tileLayer.wms('https://gdi.berlin.de/services/wms/k5_farbe',{
+    layers:'k5_farbe',styles:'k5_farbe',
+    format:'image/png',transparent:false,version:'1.1.1',maxZoom:20,
+    crossOrigin:'anonymous',
+    attribution:'© Geoportal Berlin / K5'
+  });
+  // Geoportal Berlin: Straßenbefahrung (Fahrbahndetails)
+  baseLayers.sb=L.tileLayer.wms('https://gdi.berlin.de/services/wms/strassenbefahrung',{
+    layers:'cm_fahrbahn,cl_gehweg,ch_radweg,ce_gruenflaeche,ck_parkflaeche,bd_bordstein,be_fahrbahnmarkierunglinie,bp_fahrbahnmarkierung_flaeche',
+    format:'image/png',transparent:false,version:'1.1.1',maxZoom:20,
+    crossOrigin:'anonymous',
+    attribution:'© Geoportal Berlin / Straßenbefahrung'
+  });
+  // Geoportal Berlin: TrueDOP Luftbilder
+  baseLayers.dop=L.tileLayer.wms('https://gdi.berlin.de/services/wms/truedop_2024',{
+    layers:'truedop_2024',format:'image/png',transparent:false,version:'1.1.1',maxZoom:20,
+    crossOrigin:'anonymous',
+    attribution:'© Geoportal Berlin / TrueDOP 2024'
+  });
+  // OSM Fallback
+  baseLayers.osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:20,crossOrigin:'anonymous'});
+
+  baseLayers.k5.addTo(map);
+  L.control.scale({imperial:false,maxWidth:150}).addTo(map);
+
+  map.on('click',onMapClick);
+  map.on('mousemove',function(e){document.getElementById('stCoord').textContent=e.latlng.lat.toFixed(5)+'°N '+e.latlng.lng.toFixed(5)+'°E'});
+  map.on('zoomend',function(){document.getElementById('stZoom').textContent='Z'+map.getZoom()});
+
+  if(typeof DragHandles!=='undefined')DragHandles.injectStyles();
+  if(typeof RegelplanImageOverlay!=='undefined')RegelplanImageOverlay.init(map);
+  if(typeof Massketten!=='undefined')Massketten.injectStyles();
+}
+
+// ═══ BASE MAP ═══
+function switchBaseMap(key,btn){
+  if(currentBaseMap===key)return;
+  if(baseLayers[currentBaseMap])map.removeLayer(baseLayers[currentBaseMap]);
+  if(baseLayers[key])baseLayers[key].addTo(map);
+  currentBaseMap=key;
+  document.querySelectorAll('.ms-btn').forEach(function(b){b.classList.remove('active')});
+  if(btn)btn.classList.add('active');
+}
+
+// ═══ ADDRESS ═══
+function searchAddress(q){
+  if(!q||!q.trim())return;
+  fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(q)+'&limit=1&countrycodes=de')
+    .then(function(r){return r.json()})
+    .then(function(d){if(d.length){map.setView([parseFloat(d[0].lat),parseFloat(d[0].lon)],18);toast('📍 '+d[0].display_name.split(',').slice(0,2).join(', '))}else toast('Adresse nicht gefunden')})
+    .catch(function(e){console.error(e)});
+}
+
+// ═══ RP GRID ═══
+function renderRPGrid(){
+  ['rpGrid','rpGridM'].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;el.innerHTML='';
+    Object.values(RP_DEFS).forEach(function(rp){
+      var card=document.createElement('div');
+      card.className='rp-card'+(rp.id===activeRP?' selected':'');
+      card.innerHTML='<div class="rp-thumb"><img src="'+rp.img+'" alt="'+rp.name+'"></div><div class="rp-info"><div class="rp-name">'+rp.name+' — '+rp.title+'</div><div class="rp-desc">'+rp.desc+'</div></div>';
+      card.onclick=function(){selectRP(rp.id)};
+      el.appendChild(card);
+    });
+  });
+  updateRPPreview();
+}
+
+function selectRP(id){
+  activeRP=id;renderRPGrid();
+  if(drawnLine)reapply();
+  if(rpImageVisible)updateRPImageOverlay();
+  toast('✓ '+RP_DEFS[id].name+' gewählt');
+}
+
+function updateRPPreview(){
+  var rp=RP_DEFS[activeRP];
+  document.getElementById('rpPreviewImg').src=rp.img;
+  document.getElementById('rpPreviewTag').textContent=rp.name;
+}
+
+// ═══ PARAMS ═══
+function setSide(val){
+  seite=val;
+  document.querySelectorAll('[data-val="rechts"],[data-val="links"]').forEach(function(b){b.classList.toggle('active',b.dataset.val===val)});
+  if(drawnLine)reapply();
+}
+function setTempo(val){
+  tempo=val;
+  document.querySelectorAll('[data-val="50"],[data-val="30"]').forEach(function(b){
+    if(b.textContent.indexOf('km/h')>=0||b.textContent==='50'||b.textContent==='30')
+      b.classList.toggle('active',b.dataset.val===String(val));
+  });
+  if(drawnLine)reapply();
+}
+
+// ═══ 2-POINT PLACEMENT ═══
+function startPlacement(){
+  clearAll();placementMode=true;placementPoints=[];placementMarkers=[];closePanel();
+  document.getElementById('instrStep').textContent='1';
+  document.getElementById('instrText').textContent='Tippe den Startpunkt der Baustelle';
+  document.getElementById('instrBanner').classList.add('show');
+  map.getContainer().style.cursor='crosshair';
+}
+function cancelPlacement(){
+  placementMode=false;placementPoints=[];
+  placementMarkers.forEach(function(m){map.removeLayer(m)});placementMarkers=[];
+  document.getElementById('instrBanner').classList.remove('show');
+  map.getContainer().style.cursor='';
+}
+function onMapClick(e){
+  if(!placementMode)return;
+  var ll=[e.latlng.lat,e.latlng.lng];placementPoints.push(ll);
+  if(placementPoints.length===1){
+    placementMarkers.push(L.marker(ll,{icon:L.divIcon({html:'<div class="placement-marker"></div>',iconSize:[16,16],iconAnchor:[8,8],className:''})}).addTo(map));
+    document.getElementById('instrStep').textContent='2';
+    document.getElementById('instrText').textContent='Tippe den Endpunkt der Baustelle';
+  }else if(placementPoints.length===2){
+    placementMarkers.push(L.marker(ll,{icon:L.divIcon({html:'<div class="placement-marker-done"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(map));
+    placementMode=false;
+    document.getElementById('instrBanner').classList.remove('show');
+    map.getContainer().style.cursor='';
+    drawnLine=[].concat(placementPoints);
+    applyRegelplan();createLineHandles();showClearButtons();
+    toast('✓ '+RP_DEFS[activeRP].name+' platziert');
+  }
+}
+function showClearButtons(){['clearBtnD','clearBtnM'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=''})}
+function hideClearButtons(){['clearBtnD','clearBtnM'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none'})}
+
+// ═══ APPLY REGELPLAN ═══
+function applyRegelplan(){
+  if(!drawnLine||drawnLine.length<2)return;
+  if(overlayResult){overlayResult.remove();overlayResult=null}
+  if(masskettenResult){masskettenResult.remove();masskettenResult=null}
+  var breite=parseFloat(document.getElementById('breiteInput').value)||2.0;
+  var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
+  if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
+  if(showMK&&typeof Massketten!=='undefined')masskettenResult=Massketten.generateMassketten(map,drawnLine,activeRP,seite,opts);
+}
+function reapply(){if(drawnLine)applyRegelplan()}
+
+function createLineHandles(){
+  if(lineHandles)lineHandles.remove();
+  if(!drawnLine||drawnLine.length<2||typeof DragHandles==='undefined')return;
+  lineHandles=DragHandles.createLineHandles(map,drawnLine,function(nl){
+    drawnLine=nl.map(function(ll){return[ll[0],ll[1]]});
+    placementMarkers.forEach(function(m){map.removeLayer(m)});
+    placementMarkers=drawnLine.map(function(ll,i){
+      var cls=i===0?'placement-marker':'placement-marker-done',sz=i===0?16:14;
+      return L.marker(ll,{icon:L.divIcon({html:'<div class="'+cls+'"></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''})}).addTo(map);
+    });
+    applyRegelplan();
+  });
+}
+
+// ═══ LAYERS ═══
+function toggleLayer(l){
+  if(l==='rp'){
+    showRP=!showRP;document.getElementById('mcRP').classList.toggle('active',showRP);
+    if(overlayResult){overlayResult.remove();overlayResult=null}
+    if(showRP&&drawnLine)applyRegelplan();
+  }else if(l==='mk'){
+    showMK=!showMK;document.getElementById('mcMK').classList.toggle('active',showMK);
+    if(masskettenResult){masskettenResult.remove();masskettenResult=null}
+    if(showMK&&drawnLine)applyRegelplan();
+  }
+}
+
+// ═══ RP IMAGE OVERLAY ═══
+function toggleRPImageOverlay(){
+  if(typeof RegelplanImageOverlay==='undefined')return;
+  var url=RP_SVG_URLS[activeRP]||RP_SVG_URLS.BII1;
+  var active=RegelplanImageOverlay.toggle(url,activeRP,{line:drawnLine,width:80,opacity:0.7});
+  rpImageVisible=active;
+  document.getElementById('mcImg').classList.toggle('active',active);
+  document.getElementById('rpOverlayCtrl').classList.toggle('show',active);
+  document.getElementById('rpPreview').classList.toggle('active',active);
+}
+function updateRPImageOverlay(){
+  if(!rpImageVisible||typeof RegelplanImageOverlay==='undefined')return;
+  RegelplanImageOverlay.hide();
+  var url=RP_SVG_URLS[activeRP]||RP_SVG_URLS.BII1;
+  RegelplanImageOverlay.toggle(url,activeRP,{line:drawnLine,width:80,opacity:0.7});
+}
+function setRPOverlayOpacity(val){
+  if(typeof RegelplanImageOverlay!=='undefined'&&typeof RegelplanImageOverlay.setOpacity==='function')
+    RegelplanImageOverlay.setOpacity(val);
+}
+
+// ═══ CLEAR ═══
+function clearAll(){
+  cancelPlacement();
+  if(overlayResult){overlayResult.remove();overlayResult=null}
+  if(masskettenResult){masskettenResult.remove();masskettenResult=null}
+  if(lineHandles){lineHandles.remove();lineHandles=null}
+  placementMarkers.forEach(function(m){map.removeLayer(m)});
+  placementMarkers=[];drawnLine=null;hideClearButtons();
+  if(typeof RegelplanImageOverlay!=='undefined')RegelplanImageOverlay.hide();
+  rpImageVisible=false;
+  document.getElementById('mcImg').classList.remove('active');
+  document.getElementById('rpOverlayCtrl').classList.remove('show');
+  document.getElementById('rpPreview').classList.remove('active');
+}
+
+// ═══ EXPORT ═══
+function exportPDF(){
+  if(typeof PDFExport!=='undefined')PDFExport.exportPDF(map,activeRP);
+  else toast('PDF Export wird geladen…');
+}
+
+// ═══ TABS ═══
+function switchTab(tab,el){
+  document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('open')});
+  el.classList.add('active');
+  if(tab==='rp')document.getElementById('panelRP').classList.add('open');
+  else if(tab==='export')document.getElementById('panelExport').classList.add('open');
+}
+function closePanel(){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('open')});
+  document.querySelectorAll('.tab-item').forEach(function(t){t.classList.remove('active')});
+  document.querySelector('.tab-item').classList.add('active');
+}
+
+// ═══ TOAST ═══
+function toast(msg){
+  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._timer);t._timer=setTimeout(function(){t.classList.remove('show')},2500);
+}
+
+// ═══ KEYBOARD ═══
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')cancelPlacement();
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key==='p')startPlacement();
+  if(e.key==='Delete')clearAll();
+});
+</script>
+</body>
+</html>
+
