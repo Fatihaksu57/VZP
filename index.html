@@ -582,6 +582,12 @@ function applyRegelplan(){
   var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
   if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
   if(showMK&&typeof Massketten!=='undefined')masskettenResult=Massketten.generateMassketten(map,drawnLine,activeRP,seite,opts);
+  // RSA-Bild automatisch entlang Linie ausrichten wenn aktiv
+  if(rpImageVisible&&typeof RegelplanImageOverlay!=='undefined'&&RP_DEFS[activeRP]){
+    var ll2=drawnLine,lineLen2=0;
+    for(var ii=0;ii<ll2.length-1;ii++)lineLen2+=L.latLng(ll2[ii]).distanceTo(L.latLng(ll2[ii+1]));
+    RegelplanImageOverlay.realignToLine(ll2,Math.max(lineLen2+80,120));
+  }
   // Baustellenlänge + Restgehweg anzeigen
   var restBreite = (detectedGehwegBreite) ? Math.round((detectedGehwegBreite - breite)*100)/100 : null;
   updateBauInfo(restBreite);
@@ -618,12 +624,21 @@ function toggleLayer(l){
 // ═══ RP IMAGE OVERLAY ═══
 function toggleRPImageOverlay(){
   if(typeof RegelplanImageOverlay==='undefined')return;
-  var url=RP_SVG_URLS[activeRP]||RP_SVG_URLS.BII1;
-  var active=RegelplanImageOverlay.toggle(url,activeRP,{line:drawnLine,width:80,opacity:0.7});
+  var rpDef=RP_DEFS[activeRP];if(!rpDef)return;
+  // Linienlaenge berechnen fuer korrekte Overlay-Breite
+  var lineLen=100;
+  if(drawnLine&&drawnLine.length>=2){
+    lineLen=0;
+    for(var i=0;i<drawnLine.length-1;i++)lineLen+=L.latLng(drawnLine[i]).distanceTo(L.latLng(drawnLine[i+1]));
+    lineLen=Math.max(lineLen+80,120); // + Vor/Nachwarnung
+  }
+  // PNG-Bild verwenden (hoechste Qualitaet), Breite aus Linie
+  var active=RegelplanImageOverlay.toggle(rpDef.img,activeRP,{line:drawnLine,width:lineLen,opacity:0.75});
   rpImageVisible=active;
   document.getElementById('mcImg').classList.toggle('active',active);
   document.getElementById('rpOverlayCtrl').classList.toggle('show',active);
   document.getElementById('rpPreview').classList.toggle('active',active);
+  if(active)toast('🖼 RSA-Bild geladen — Handles ziehen zum Anpassen');
 }
 function updateRPImageOverlay(){
   if(!rpImageVisible||typeof RegelplanImageOverlay==='undefined')return;
