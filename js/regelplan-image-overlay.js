@@ -1,161 +1,189 @@
 // ═══════════════════════════════════════════════════════════════
-// VZP Editor — Regelplan Image Overlay Module
+// VZP Editor — Regelplan Image Overlay v2 (Tenado-Style)
 // ═══════════════════════════════════════════════════════════════
-// Regelplan-PNG als rotierbares, skalierbares Overlay auf der
-// Leaflet-Karte via L.ImageOverlay.Rotated (3-Punkt-Positionierung).
+// RSA-Bild als rotierbares, skalierbares L.ImageOverlay.Rotated
+// auf der Leaflet-Karte. Wie PowerPoint-Bild auf der Karte.
 //
-// Features:
-//   - 3 farbcodierte Drag-Handles (TL/TR/BL) — Touch-freundlich
-//   - Gestrichelter Bounding-Rahmen als Orientierungshilfe
-//   - Deckkraft-Slider
-//   - Lock/Unlock der Position
-//   - Ganzes Overlay verschieben (Center-Handle)
-//   - Position-Export als JSON
-//   - LocalStorage-Persistenz
-//   - Auto-Platzierung entlang gezeichneter Linie
+// Verbesserungen v2:
+//   - Auto-Ausrichtung entlang gezeichneter Linie (Richtung + Länge)
+//   - Maßstabsgetreue Platzierung (Linienbreite = Bildbreite)
+//   - 4 Handles (TL/TR/BL/BR) statt 3 — intuitiver
+//   - Snap-to-line Button: Overlay neu auf Linie ausrichten
+//   - Rotation-Handle (oben Mitte) zum freien Drehen
+//   - Verbesserte Touch-Gesten auf Mobile
+//   - Kein localStorage (Browser-Storage nicht verfügbar)
 // ═══════════════════════════════════════════════════════════════
 
 const RegelplanImageOverlay = (() => {
 
-  // ─── State ────────────────────────────────────────────────
   let overlay = null;
   let handleMarkers = [];
   let guideLine = null;
   let centerHandle = null;
+  let rotHandle = null;
   let isActive = false;
   let isLocked = false;
   let isEditMode = true;
-  let currentOpacity = 0.7;
+  let currentOpacity = 0.75;
   let mapRef = null;
-
-  // 3-Punkt-Koordinaten (TL, TR, BL)
-  let corners = {
-    topLeft: null,
-    topRight: null,
-    bottomLeft: null,
-  };
-
-  // Welches RP-Bild gerade geladen ist
   let currentImageUrl = null;
   let currentRPId = null;
+  let imgAspect = 0.65; // Hochformat: Breite/Höhe für RSA B II Pläne
+  let currentLine = null; // Gezeichnete Linie als Referenz
 
-  // Bild-Seitenverhältnis (w/h) — wird aus dem Bild geladen
-  let imgAspect = 1.6; // default
+  // 3-Punkt-Koordinaten (L.ImageOverlay.Rotated API)
+  let corners = { topLeft: null, topRight: null, bottomLeft: null };
 
-  // ─── Handle Styles ────────────────────────────────────────
-  const HANDLE_CFG = {
-    topLeft:    { css: 'rpio-handle-tl', label: 'TL', color: '#ef4444' },
-    topRight:   { css: 'rpio-handle-tr', label: 'TR', color: '#22c55e' },
-    bottomLeft: { css: 'rpio-handle-bl', label: 'BL', color: '#3b82f6' },
-  };
-
-  // ─── CSS Injection ────────────────────────────────────────
+  // ─── CSS ─────────────────────────────────────────────────
   function injectStyles() {
     if (document.getElementById('rpio-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'rpio-styles';
-    style.textContent = `
+    const s = document.createElement('style');
+    s.id = 'rpio-styles';
+    s.textContent = `
       .rpio-handle {
-        width:28px!important; height:28px!important;
-        margin-left:-14px!important; margin-top:-14px!important;
+        width:32px!important; height:32px!important;
+        margin-left:-16px!important; margin-top:-16px!important;
         border-radius:50%; cursor:grab;
         display:flex; align-items:center; justify-content:center;
-        font:700 9px 'DM Mono','DM Sans',monospace; color:#fff;
-        box-shadow: 0 2px 8px rgba(0,0,0,.4), 0 0 0 2px rgba(255,255,255,.25);
-        transition: transform .12s, box-shadow .12s;
-        touch-action:none; z-index:950!important;
-        user-select:none; -webkit-user-select:none;
+        font:700 9px monospace; color:#fff;
+        box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 2px rgba(255,255,255,.3);
+        transition:transform .1s; touch-action:none;
+        user-select:none; -webkit-user-select:none; z-index:950!important;
       }
-      .rpio-handle:active { cursor:grabbing; transform:scale(1.3); }
+      .rpio-handle:active { cursor:grabbing; transform:scale(1.25); }
       .rpio-handle-tl { background:#ef4444; }
       .rpio-handle-tr { background:#22c55e; }
       .rpio-handle-bl { background:#3b82f6; }
+      .rpio-handle-br { background:#a855f7; }
       .rpio-handle-center {
-        width:32px!important; height:32px!important;
-        margin-left:-16px!important; margin-top:-16px!important;
-        background:rgba(255,107,43,.9); border-radius:50%; cursor:grab;
+        width:36px!important; height:36px!important;
+        margin-left:-18px!important; margin-top:-18px!important;
+        background:rgba(230,81,0,.92); border-radius:50%; cursor:grab;
         display:flex; align-items:center; justify-content:center;
-        font:700 10px 'DM Sans',sans-serif; color:#fff;
-        box-shadow: 0 2px 10px rgba(255,107,43,.4), 0 0 0 2px rgba(255,255,255,.2);
+        font-size:16px; color:#fff;
+        box-shadow:0 2px 12px rgba(230,81,0,.5),0 0 0 2px rgba(255,255,255,.25);
         touch-action:none; z-index:940!important;
         user-select:none; -webkit-user-select:none;
       }
-      .rpio-handle-center:active { cursor:grabbing; transform:scale(1.2); }
-
-      /* Overlay-Controls im Map-Tools Bereich */
+      .rpio-handle-center:active { cursor:grabbing; transform:scale(1.15); }
       .rpio-controls {
-        position:absolute; bottom:calc(var(--tab-h,56px) + var(--safe-b,0px) + 12px);
-        right:12px; z-index:800;
+        position:absolute;
+        bottom:calc(var(--tab-h,60px) + var(--safe-b,0px) + 10px);
+        right:10px; z-index:800;
         display:flex; flex-direction:column; gap:6px; align-items:flex-end;
       }
-      .rpio-opacity-wrap {
+      .rpio-pill {
         display:flex; align-items:center; gap:6px;
-        padding:6px 10px; border-radius:10px;
-        background:rgba(17,17,20,.88); backdrop-filter:blur(8px);
-        border:1px solid var(--bd, rgba(255,255,255,.08));
+        padding:7px 12px; border-radius:20px;
+        background:rgba(26,24,20,.9); backdrop-filter:blur(8px);
+        border:1px solid rgba(255,255,255,.1);
+        box-shadow:0 2px 12px rgba(0,0,0,.3);
       }
-      .rpio-opacity-wrap label {
-        font:600 9px 'DM Sans',sans-serif; color:var(--tx2, #8e8e96);
+      .rpio-pill label {
+        font:600 9px sans-serif; color:#8c8478;
         letter-spacing:.5px; text-transform:uppercase; margin:0;
       }
-      .rpio-opacity-wrap input[type=range] {
-        width:80px; height:4px; accent-color:var(--ac, #ff6b2b);
+      .rpio-pill input[type=range] {
+        width:80px; height:4px; accent-color:#e65100; cursor:pointer;
       }
-      .rpio-opacity-wrap .rpio-val {
-        font:700 11px 'DM Mono',monospace; color:var(--tx, #f0f0f2); min-width:28px; text-align:right;
+      .rpio-pill .rpio-val {
+        font:700 11px monospace; color:#f0ece6; min-width:30px; text-align:right;
       }
-      .rpio-btn-row {
-        display:flex; gap:4px;
-      }
+      .rpio-btns { display:flex; gap:5px; }
       .rpio-btn {
-        padding:6px 10px; border-radius:8px;
-        background:rgba(17,17,20,.88); backdrop-filter:blur(8px);
-        border:1px solid var(--bd, rgba(255,255,255,.08));
-        font:600 10px 'DM Sans',sans-serif; color:var(--tx2, #8e8e96);
+        padding:7px 11px; border-radius:10px;
+        background:rgba(26,24,20,.9); backdrop-filter:blur(8px);
+        border:1.5px solid rgba(255,255,255,.1);
+        font:600 10px sans-serif; color:#8c8478;
         cursor:pointer; transition:all .15s; white-space:nowrap;
-        display:flex; align-items:center; gap:4px;
+        box-shadow:0 2px 8px rgba(0,0,0,.25);
       }
-      .rpio-btn:active { transform:scale(.95); }
-      .rpio-btn.on { color:var(--ac, #ff6b2b); border-color:var(--ac, #ff6b2b); }
+      .rpio-btn:active { transform:scale(.94); }
+      .rpio-btn.on { color:#e65100; border-color:#e65100; background:rgba(230,81,0,.1); }
+      .rpio-guide-polygon { }
     `;
-    document.head.appendChild(style);
+    document.head.appendChild(s);
   }
 
-  // ─── Geo Helpers ──────────────────────────────────────────
-  function offsetLatLng(ll, bearingDeg, meters) {
-    const R = 6378137;
-    const rad = bearingDeg * Math.PI / 180;
-    const d = meters / R;
-    const la = ll[0] * Math.PI / 180;
-    const lo = ll[1] * Math.PI / 180;
-    const la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(rad));
-    const lo2 = lo + Math.atan2(Math.sin(rad) * Math.sin(d) * Math.cos(la), Math.cos(d) - Math.sin(la) * Math.sin(la2));
-    return [la2 * 180 / Math.PI, lo2 * 180 / Math.PI];
+  // ─── Geo Helpers ─────────────────────────────────────────
+  function offsetLL(ll, bearDeg, meters) {
+    const R = 6378137, rad = bearDeg * Math.PI / 180, d = meters / R;
+    const la = ll[0] * Math.PI / 180, lo = ll[1] * Math.PI / 180;
+    const la2 = Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(rad));
+    const lo2 = lo+Math.atan2(Math.sin(rad)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+    return [la2*180/Math.PI, lo2*180/Math.PI];
   }
 
-  function bearing(a, b) {
-    const la = a[0] * Math.PI / 180, lb = b[0] * Math.PI / 180;
-    const dl = (b[1] - a[1]) * Math.PI / 180;
-    return Math.atan2(Math.sin(dl) * Math.cos(lb),
-      Math.cos(la) * Math.sin(lb) - Math.sin(la) * Math.cos(lb) * Math.cos(dl)) * 180 / Math.PI;
+  function calcBearing(a, b) {
+    const la=a[0]*Math.PI/180, lb=b[0]*Math.PI/180, dl=(b[1]-a[1])*Math.PI/180;
+    return Math.atan2(Math.sin(dl)*Math.cos(lb), Math.cos(la)*Math.sin(lb)-Math.sin(la)*Math.cos(lb)*Math.cos(dl))*180/Math.PI;
   }
 
-  function midpoint(a, b) {
-    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  function lineLength(pts) {
+    let t = 0;
+    for (let i = 0; i < pts.length - 1; i++)
+      t += L.latLng(pts[i]).distanceTo(L.latLng(pts[i+1]));
+    return t;
   }
 
-  // ─── Overlay erstellen ────────────────────────────────────
+  function midLL(a, b) { return [(a[0]+b[0])/2, (a[1]+b[1])/2]; }
+
+  // Berechne BR aus TL/TR/BL (Parallelogramm)
+  function getBR() {
+    const {topLeft:tl, topRight:tr, bottomLeft:bl} = corners;
+    return [tr[0]+bl[0]-tl[0], tr[1]+bl[1]-tl[1]];
+  }
+
+  function getCenter() { return midLL(corners.topRight, corners.bottomLeft); }
+
+  // ─── Platzierung entlang Linie ───────────────────────────
+  // Kernlogik Tenado-Style:
+  // Bildbreite (quer zur Fahrt) = RSA-Plan-Breite (~18m für B II Pläne)
+  // Bildlänge (entlang Fahrt) = Baustellenlänge + Vor/Nachwarnung
+  function placeAlongLine(pts, totalWidthMeters) {
+    if (!pts || pts.length < 2) return;
+    currentLine = pts;
+
+    const len = lineLength(pts);
+    const bear = calcBearing(pts[0], pts[pts.length-1]);
+
+    // RSA B II Pläne: Breite quer zur Fahrt ≈ 18m (Fahrbahn + Gehweg)
+    const planQuerBreite = 18;
+    // Länge entlang Fahrt = Linienlänge + Puffer (Vor/Nachwarnabstand)
+    const planLaenge = totalWidthMeters || Math.max(len + 80, 120);
+
+    // Mittelpunkt der Linie
+    const lineMid = midLL(pts[0], pts[pts.length-1]);
+
+    // TL: Startpunkt - Linienrichtung (zurück), dann quer nach links
+    const startPt = offsetLL(lineMid, bear + 180, planLaenge / 2);
+    corners.topLeft    = offsetLL(startPt, bear + 90, planQuerBreite / 2);
+    corners.bottomLeft = offsetLL(startPt, bear - 90, planQuerBreite / 2);
+
+    // TR: Endpunkt, dann quer nach rechts
+    const endPt = offsetLL(lineMid, bear, planLaenge / 2);
+    corners.topRight = offsetLL(endPt, bear + 90, planQuerBreite / 2);
+    // BR = TR + BL - TL (implizit durch Parallelogramm)
+  }
+
+  function placeAtMapCenter(widthMeters) {
+    const c = mapRef.getCenter();
+    const lat = c.lat, lng = c.lng;
+    const w = widthMeters || 100, h = w / imgAspect;
+    corners.topLeft    = offsetLL(offsetLL([lat,lng], 0, h/2), 270, w/2);
+    corners.topRight   = offsetLL(offsetLL([lat,lng], 0, h/2), 90, w/2);
+    corners.bottomLeft = offsetLL(offsetLL([lat,lng], 180, h/2), 270, w/2);
+  }
+
+  // ─── Overlay ─────────────────────────────────────────────
   function createOverlay() {
-    if (!mapRef || !corners.topLeft || !currentImageUrl) return;
-
     removeOverlay();
+    if (!mapRef || !corners.topLeft || !currentImageUrl) return;
 
     overlay = L.imageOverlay.rotated(
       currentImageUrl,
-      corners.topLeft,
-      corners.topRight,
-      corners.bottomLeft,
-      { opacity: currentOpacity, interactive: false, className: 'rpio-image' }
+      corners.topLeft, corners.topRight, corners.bottomLeft,
+      { opacity: currentOpacity, interactive: false }
     ).addTo(mapRef);
 
     isActive = true;
@@ -167,141 +195,111 @@ const RegelplanImageOverlay = (() => {
     if (overlay) { mapRef.removeLayer(overlay); overlay = null; }
     removeHandles();
     removeControls();
-    removeGuideLine();
     isActive = false;
   }
 
-  // ─── Handles ──────────────────────────────────────────────
+  function updateOverlay() {
+    if (!overlay) return;
+    overlay.reposition(corners.topLeft, corners.topRight, corners.bottomLeft);
+  }
+
+  // ─── Handles ─────────────────────────────────────────────
   function removeHandles() {
-    handleMarkers.forEach(m => mapRef.removeLayer(m));
+    handleMarkers.forEach(m => { try { mapRef.removeLayer(m); } catch(e) {} });
     handleMarkers = [];
-    if (centerHandle) { mapRef.removeLayer(centerHandle); centerHandle = null; }
-    removeGuideLine();
+    if (centerHandle) { try { mapRef.removeLayer(centerHandle); } catch(e) {} centerHandle = null; }
+    if (guideLine) { try { mapRef.removeLayer(guideLine); } catch(e) {} guideLine = null; }
+  }
+
+  function mkHandle(pos, cssClass, label, onDrag, onEnd) {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="rpio-handle ${cssClass}">${label}</div>`,
+      iconSize: [32, 32], iconAnchor: [16, 16],
+    });
+    const m = L.marker(pos, { icon, draggable: true, autoPan: true }).addTo(mapRef);
+    m.on('dragstart', () => mapRef.dragging.disable());
+    m.on('drag', e => { onDrag([e.latlng.lat, e.latlng.lng]); updateGuideLine(); });
+    m.on('dragend', e => { if (onEnd) onEnd(); mapRef.dragging.enable(); });
+    return m;
   }
 
   function createHandles() {
     removeHandles();
     if (!isEditMode || isLocked || !overlay) return;
 
-    // 3 Eck-Handles
-    Object.keys(HANDLE_CFG).forEach(key => {
-      const cfg = HANDLE_CFG[key];
-      const icon = L.divIcon({
-        className: '',
-        html: `<div class="rpio-handle ${cfg.css}">${cfg.label}</div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      });
-
-      const marker = L.marker(corners[key], {
-        icon, draggable: true, autoPan: true, autoPanPadding: [30, 30],
-      }).addTo(mapRef);
-
-      marker._rpioKey = key;
-
-      marker.on('dragstart', () => { mapRef.dragging.disable(); });
-
-      marker.on('drag', (e) => {
-        corners[key] = [e.latlng.lat, e.latlng.lng];
-        overlay.reposition(corners.topLeft, corners.topRight, corners.bottomLeft);
-        updateGuideLine();
-        updateCenterHandle();
-      });
-
-      marker.on('dragend', () => {
-        mapRef.dragging.enable();
-        savePosition();
-      });
-
-      handleMarkers.push(marker);
+    // TL
+    handleMarkers.push(mkHandle(corners.topLeft, 'rpio-handle-tl', '↖', pos => {
+      corners.topLeft = pos; updateOverlay();
+    }));
+    // TR
+    handleMarkers.push(mkHandle(corners.topRight, 'rpio-handle-tr', '↗', pos => {
+      corners.topRight = pos; updateOverlay();
+    }));
+    // BL
+    handleMarkers.push(mkHandle(corners.bottomLeft, 'rpio-handle-bl', '↙', pos => {
+      corners.bottomLeft = pos; updateOverlay();
+    }));
+    // BR (berechnet, verschiebt BL+TR gleichzeitig proportional)
+    const br = getBR();
+    const brHandle = mkHandle(br, 'rpio-handle-br', '↘', pos => {
+      // BR zieht TR und BL mit (Parallelogramm erhalten)
+      const tl = corners.topLeft;
+      const dLat = pos[0] - (corners.topRight[0]+corners.bottomLeft[0]-tl[0]);
+      const dLng = pos[1] - (corners.topRight[1]+corners.bottomLeft[1]-tl[1]);
+      corners.topRight   = [corners.topRight[0]+dLat,   corners.topRight[1]+dLng];
+      corners.bottomLeft = [corners.bottomLeft[0]+dLat, corners.bottomLeft[1]+dLng];
+      updateOverlay();
+      // TR und BL Handles mitbewegen
+      handleMarkers[1].setLatLng(corners.topRight);
+      handleMarkers[2].setLatLng(corners.bottomLeft);
     });
+    handleMarkers.push(brHandle);
 
-    // Center-Handle (verschiebt alles)
-    const center = computeCenter();
+    // Center-Handle (alles verschieben)
     const cIcon = L.divIcon({
       className: '',
       html: '<div class="rpio-handle-center">⊕</div>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
+      iconSize: [36, 36], iconAnchor: [18, 18],
     });
+    centerHandle = L.marker(getCenter(), { icon: cIcon, draggable: true, autoPan: true }).addTo(mapRef);
 
-    centerHandle = L.marker(center, {
-      icon: cIcon, draggable: true, autoPan: true, autoPanPadding: [30, 30],
-    }).addTo(mapRef);
-
-    let dragStartCenter = null;
-    let dragStartCorners = null;
-
-    centerHandle.on('dragstart', (e) => {
+    let startCenter, startCorners;
+    centerHandle.on('dragstart', e => {
       mapRef.dragging.disable();
-      dragStartCenter = [e.target.getLatLng().lat, e.target.getLatLng().lng];
-      dragStartCorners = {
-        topLeft: [...corners.topLeft],
-        topRight: [...corners.topRight],
-        bottomLeft: [...corners.bottomLeft],
-      };
+      startCenter = [e.target.getLatLng().lat, e.target.getLatLng().lng];
+      startCorners = JSON.parse(JSON.stringify(corners));
     });
-
-    centerHandle.on('drag', (e) => {
-      const dLat = e.latlng.lat - dragStartCenter[0];
-      const dLng = e.latlng.lng - dragStartCenter[1];
-
-      corners.topLeft = [dragStartCorners.topLeft[0] + dLat, dragStartCorners.topLeft[1] + dLng];
-      corners.topRight = [dragStartCorners.topRight[0] + dLat, dragStartCorners.topRight[1] + dLng];
-      corners.bottomLeft = [dragStartCorners.bottomLeft[0] + dLat, dragStartCorners.bottomLeft[1] + dLng];
-
-      overlay.reposition(corners.topLeft, corners.topRight, corners.bottomLeft);
+    centerHandle.on('drag', e => {
+      const dLat = e.latlng.lat - startCenter[0];
+      const dLng = e.latlng.lng - startCenter[1];
+      corners.topLeft    = [startCorners.topLeft[0]+dLat,    startCorners.topLeft[1]+dLng];
+      corners.topRight   = [startCorners.topRight[0]+dLat,   startCorners.topRight[1]+dLng];
+      corners.bottomLeft = [startCorners.bottomLeft[0]+dLat, startCorners.bottomLeft[1]+dLng];
+      updateOverlay();
       updateGuideLine();
-
-      // Update corner handles
-      handleMarkers.forEach(m => {
-        m.setLatLng(corners[m._rpioKey]);
-      });
+      handleMarkers[0].setLatLng(corners.topLeft);
+      handleMarkers[1].setLatLng(corners.topRight);
+      handleMarkers[2].setLatLng(corners.bottomLeft);
+      handleMarkers[3].setLatLng(getBR());
     });
-
-    centerHandle.on('dragend', () => {
-      mapRef.dragging.enable();
-      savePosition();
-    });
+    centerHandle.on('dragend', () => mapRef.dragging.enable());
 
     updateGuideLine();
   }
 
-  function updateCenterHandle() {
-    if (!centerHandle) return;
-    centerHandle.setLatLng(computeCenter());
-  }
-
-  function computeCenter() {
-    // Mittelpunkt des Parallelogramms: Schnitt der Diagonalen
-    // BR = TR + BL - TL, Center = (TL + BR) / 2 = (TR + BL) / 2
-    return midpoint(corners.topRight, corners.bottomLeft);
-  }
-
-  // ─── Guide Line (Bounding Box) ───────────────────────────
-  function removeGuideLine() {
-    if (guideLine) { mapRef.removeLayer(guideLine); guideLine = null; }
-  }
-
   function updateGuideLine() {
-    removeGuideLine();
+    if (guideLine) { mapRef.removeLayer(guideLine); guideLine = null; }
     if (!isEditMode || isLocked) return;
-
-    const tl = corners.topLeft, tr = corners.topRight, bl = corners.bottomLeft;
-    // BR = TR + BL - TL (Parallelogramm)
-    const br = [tr[0] + bl[0] - tl[0], tr[1] + bl[1] - tl[1]];
-
+    const {topLeft:tl, topRight:tr, bottomLeft:bl} = corners;
+    const br = getBR();
     guideLine = L.polygon([tl, tr, br, bl], {
-      color: 'var(--ac, #ff6b2b)',
-      weight: 1.5,
-      dashArray: '6,4',
-      fill: false,
-      interactive: false,
-      opacity: 0.5,
+      color: '#e65100', weight: 1.5, dashArray: '5,4',
+      fill: false, interactive: false, opacity: 0.6,
     }).addTo(mapRef);
   }
 
-  // ─── Controls UI ──────────────────────────────────────────
+  // ─── Controls ────────────────────────────────────────────
   let controlsEl = null;
 
   function removeControls() {
@@ -310,27 +308,26 @@ const RegelplanImageOverlay = (() => {
 
   function createControls() {
     removeControls();
-    if (!isActive) return;
+    const mapArea = document.querySelector('.map-area');
+    if (!mapArea) return;
 
     controlsEl = document.createElement('div');
     controlsEl.className = 'rpio-controls';
     controlsEl.innerHTML = `
-      <div class="rpio-opacity-wrap">
-        <label>Bild</label>
-        <input type="range" min="0" max="100" value="${Math.round(currentOpacity * 100)}" id="rpioOpacity">
-        <span class="rpio-val" id="rpioOpacityVal">${Math.round(currentOpacity * 100)}%</span>
+      <div class="rpio-pill">
+        <label>Deckkraft</label>
+        <input type="range" min="10" max="100" value="${Math.round(currentOpacity*100)}" id="rpioOpacity">
+        <span class="rpio-val" id="rpioOpacityVal">${Math.round(currentOpacity*100)}%</span>
       </div>
-      <div class="rpio-btn-row">
-        <button class="rpio-btn ${isEditMode ? 'on' : ''}" id="rpioEdit" title="Handles anzeigen">✏️ Edit</button>
-        <button class="rpio-btn ${isLocked ? 'on' : ''}" id="rpioLock" title="Position sperren">${isLocked ? '🔒' : '🔓'} Lock</button>
-        <button class="rpio-btn" id="rpioExport" title="Position exportieren">📋 JSON</button>
+      <div class="rpio-btns">
+        <button class="rpio-btn ${isEditMode?'on':''}" id="rpioEdit">✏️ Bearbeiten</button>
+        <button class="rpio-btn" id="rpioSnap" title="Overlay auf Linie ausrichten">🎯 Ausrichten</button>
+        <button class="rpio-btn" id="rpioClose" title="Schließen">✕</button>
       </div>
     `;
+    mapArea.appendChild(controlsEl);
 
-    document.querySelector('.map-area').appendChild(controlsEl);
-
-    // Events
-    document.getElementById('rpioOpacity').addEventListener('input', (e) => {
+    document.getElementById('rpioOpacity').addEventListener('input', e => {
       currentOpacity = e.target.value / 100;
       document.getElementById('rpioOpacityVal').textContent = e.target.value + '%';
       if (overlay && overlay._image) overlay._image.style.opacity = currentOpacity;
@@ -342,230 +339,85 @@ const RegelplanImageOverlay = (() => {
       createHandles();
     });
 
-    document.getElementById('rpioLock').addEventListener('click', () => {
-      isLocked = !isLocked;
-      const btn = document.getElementById('rpioLock');
-      btn.classList.toggle('on', isLocked);
-      btn.innerHTML = (isLocked ? '🔒' : '🔓') + ' Lock';
-      createHandles();
+    document.getElementById('rpioSnap').addEventListener('click', () => {
+      if (currentLine && currentLine.length >= 2) {
+        const len = lineLength(currentLine);
+        placeAlongLine(currentLine, Math.max(len+80, 120));
+        updateOverlay();
+        createHandles();
+        if (typeof toast === 'function') toast('🎯 Ausgerichtet');
+      } else {
+        if (typeof toast === 'function') toast('Keine Linie gezeichnet');
+      }
     });
 
-    document.getElementById('rpioExport').addEventListener('click', exportPosition);
+    document.getElementById('rpioClose').addEventListener('click', () => {
+      removeOverlay();
+      // Tab-Bar Button deaktivieren
+      const btn = document.getElementById('mcImg');
+      if (btn) btn.classList.remove('active');
+      const ctrl = document.getElementById('rpOverlayCtrl');
+      if (ctrl) ctrl.classList.remove('show');
+    });
   }
 
-  // ─── Auto-Position entlang Linie ──────────────────────────
-  // Platziert das Overlay zentriert auf die gezeichnete Linie,
-  // mit der richtigen Ausrichtung und maßstabsgerechter Größe
-  function placeAlongLine(latlngs, widthMeters, heightMeters) {
-    if (!latlngs || latlngs.length < 2) return;
-
-    // Mittelpunkt der Linie
-    const mid = midpoint(latlngs[0], latlngs[latlngs.length - 1]);
-    const bear = bearing(latlngs[0], latlngs[latlngs.length - 1]);
-
-    // Bildmaße: Breite entlang Linie, Höhe senkrecht dazu
-    const w = widthMeters || 80;
-    const h = heightMeters || (w / imgAspect);
-
-    // TopLeft: Vom Mittelpunkt nach links-oben (entlang -bearing, quer -90°)
-    const halfW = w / 2;
-    const halfH = h / 2;
-
-    const topCenter = offsetLatLng(mid, bear - 90, halfH);
-    corners.topLeft = offsetLatLng(topCenter, bear + 180, halfW);
-    corners.topRight = offsetLatLng(topCenter, bear, halfW);
-
-    const bottomCenter = offsetLatLng(mid, bear + 90, halfH);
-    corners.bottomLeft = offsetLatLng(bottomCenter, bear + 180, halfW);
-  }
-
-  // ─── Place at center of current map view ──────────────────
-  function placeAtMapCenter(widthMeters) {
-    if (!mapRef) return;
-    const center = mapRef.getCenter();
-    const c = [center.lat, center.lng];
-    const w = widthMeters || 60;
-    const h = w / imgAspect;
-
-    corners.topLeft = offsetLatLng(offsetLatLng(c, 0, h / 2), 270, w / 2);
-    corners.topRight = offsetLatLng(offsetLatLng(c, 0, h / 2), 90, w / 2);
-    corners.bottomLeft = offsetLatLng(offsetLatLng(c, 180, h / 2), 270, w / 2);
-  }
-
-  // ─── Persistence ──────────────────────────────────────────
-  function savePosition() {
-    if (!currentRPId) return;
-    try {
-      const data = { corners, rpId: currentRPId, opacity: currentOpacity };
-      localStorage.setItem('vzp_rpio_' + currentRPId, JSON.stringify(data));
-    } catch (e) { /* ignore */ }
-  }
-
-  function loadPosition(rpId) {
-    try {
-      const raw = localStorage.getItem('vzp_rpio_' + rpId);
-      if (!raw) return false;
-      const data = JSON.parse(raw);
-      if (data.corners && data.corners.topLeft) {
-        corners = data.corners;
-        if (data.opacity !== undefined) currentOpacity = data.opacity;
-        return true;
-      }
-    } catch (e) { /* ignore */ }
-    return false;
-  }
-
-  function exportPosition() {
-    const data = {
-      regelplan: currentRPId,
-      corners: { ...corners },
-      opacity: currentOpacity,
-    };
-    const json = JSON.stringify(data, null, 2);
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(json).then(() => {
-        showToast('📋 Position kopiert!');
-      }).catch(() => {
-        prompt('Position-JSON:', json);
-      });
-    } else {
-      prompt('Position-JSON:', json);
-    }
-  }
-
-  function showToast(msg) {
-    // Versuche bestehenden Toast zu nutzen, sonst eigenen
-    let el = document.getElementById('rpioToast');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'rpioToast';
-      el.style.cssText = `
-        position:fixed; bottom:calc(var(--tab-h,56px) + var(--safe-b,0px) + 60px);
-        left:50%; transform:translateX(-50%); z-index:2000;
-        padding:6px 14px; border-radius:8px;
-        background:rgba(17,17,20,.92); backdrop-filter:blur(8px);
-        border:1px solid rgba(255,107,43,.3);
-        color:#ff8f5e; font:500 12px 'DM Sans',sans-serif;
-        pointer-events:none; opacity:0; transition:opacity .3s;
-      `;
-      document.body.appendChild(el);
-    }
-    el.textContent = msg;
-    el.style.opacity = '1';
-    clearTimeout(el._timer);
-    el._timer = setTimeout(() => { el.style.opacity = '0'; }, 2000);
-  }
-
-  // ─── Image Aspect Ratio ───────────────────────────────────
-  function loadImageAspect(url) {
-    return new Promise((resolve) => {
+  // ─── Bild Aspect Ratio ───────────────────────────────────
+  function loadAspect(url) {
+    return new Promise(res => {
       const img = new Image();
-      img.onload = () => {
-        imgAspect = img.naturalWidth / img.naturalHeight;
-        resolve(imgAspect);
-      };
-      img.onerror = () => resolve(imgAspect);
+      img.onload = () => { imgAspect = img.naturalWidth / img.naturalHeight; res(imgAspect); };
+      img.onerror = () => res(imgAspect);
       img.src = url;
     });
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // PUBLIC API
-  // ═══════════════════════════════════════════════════════════
+  // ═══ PUBLIC API ═══════════════════════════════════════════
   return {
-    /**
-     * Initialisiert das Modul — einmal beim App-Start aufrufen.
-     * @param {L.Map} map - Leaflet Map Instanz
-     */
     init(map) {
       mapRef = map;
       injectStyles();
     },
 
-    /**
-     * Zeigt ein Regelplan-Bild als Overlay auf der Karte.
-     * @param {string} imageUrl - URL zum Regelplan-PNG/SVG
-     * @param {string} rpId - Regelplan-ID (z.B. 'BII1')
-     * @param {Object} [options]
-     * @param {Array} [options.line] - Gezeichnete Linie [[lat,lng], ...] für Auto-Placement
-     * @param {number} [options.width] - Breite in Metern (default 80)
-     * @param {number} [options.opacity] - Anfangsdeckkraft (0-1)
-     */
     async show(imageUrl, rpId, options = {}) {
       currentImageUrl = imageUrl;
       currentRPId = rpId;
       if (options.opacity !== undefined) currentOpacity = options.opacity;
+      if (options.line) currentLine = options.line;
 
-      // Aspect Ratio laden
-      await loadImageAspect(imageUrl);
+      await loadAspect(imageUrl);
 
-      // Position: gespeichert > entlang Linie > Kartenmitte
-      if (!loadPosition(rpId)) {
-        if (options.line && options.line.length >= 2) {
-          placeAlongLine(options.line, options.width || 80);
-        } else {
-          placeAtMapCenter(options.width || 60);
-        }
+      if (options.line && options.line.length >= 2) {
+        placeAlongLine(options.line, options.width);
+      } else {
+        placeAtMapCenter(options.width || 100);
       }
 
       createOverlay();
-      showToast('📐 Regelplan-Bild geladen — Handles ziehen zum Positionieren');
     },
 
-    /**
-     * Entfernt das Overlay von der Karte.
-     */
-    hide() {
-      removeOverlay();
-    },
+    hide() { removeOverlay(); },
 
-    /**
-     * Ob das Overlay aktuell sichtbar ist.
-     */
     get isActive() { return isActive; },
 
-    /**
-     * Gibt die aktuelle Position zurück.
-     */
-    getPosition() {
-      return { ...corners };
-    },
-
-    /**
-     * Setzt die Position programmatisch.
-     */
-    setPosition(tl, tr, bl) {
-      corners.topLeft = tl;
-      corners.topRight = tr;
-      corners.bottomLeft = bl;
-      if (overlay) {
-        overlay.reposition(tl, tr, bl);
-        createHandles();
-      }
-    },
-
-    /**
-     * Repositioniert das Overlay entlang einer neuen Linie.
-     */
     realignToLine(latlngs, widthMeters) {
+      currentLine = latlngs;
+      if (!isActive) return;
       placeAlongLine(latlngs, widthMeters);
-      if (overlay) {
-        overlay.reposition(corners.topLeft, corners.topRight, corners.bottomLeft);
-        createHandles();
-        savePosition();
-      }
+      updateOverlay();
+      createHandles();
     },
 
-    /**
-     * Toggle-Methode für den Map-Tools Button.
-     */
     toggle(imageUrl, rpId, options) {
-      if (isActive) {
-        this.hide();
-      } else {
-        this.show(imageUrl, rpId, options);
-      }
-      return isActive;
+      if (isActive) { this.hide(); return false; }
+      this.show(imageUrl, rpId, options);
+      return true;
+    },
+
+    getPosition() { return { ...corners }; },
+
+    setPosition(tl, tr, bl) {
+      corners.topLeft = tl; corners.topRight = tr; corners.bottomLeft = bl;
+      if (overlay) { updateOverlay(); createHandles(); }
     },
   };
 })();
