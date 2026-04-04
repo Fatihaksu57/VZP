@@ -208,6 +208,7 @@ select.param-input{cursor:pointer}
       <input type="range" min="10" max="100" value="70" oninput="setRPOverlayOpacity(this.value/100)">
     </div>
     <div class="status-bar"><span class="dot"></span><span id="stCoord">—</span><span id="stZoom">Z17</span></div>
+    <div class="bau-info" id="bauInfo" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:700;background:var(--sf);border:2px solid var(--orange);border-radius:12px;padding:6px 14px;font:600 11px 'IBM Plex Mono',monospace;color:var(--orange);box-shadow:var(--shadow-md);align-items:center;gap:6px;max-width:90vw;white-space:nowrap">📏 <span id="bauLaenge">—</span></div>
   </div>
 
   <div class="panel" id="panelRP">
@@ -254,6 +255,7 @@ var overlayResult=null, masskettenResult=null, drawnLine=null, lineHandles=null;
 var showRP=true, showMK=false, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
 var baseLayers={}, currentBaseMap='k5';
+var detectedGehwegBreite=null, detectedSurface=null;
 
 var RP_DEFS={
   BII1:{id:'BII1',name:'B II/1',title:'Radweg gesperrt',desc:'Paralleler Geh-/Radweg – Sperrung Radweg',img:'assets/rp_BII1_rsa21.png'},
@@ -385,6 +387,170 @@ function cancelPlacement(){
   document.getElementById('instrBanner').classList.remove('show');
   map.getContainer().style.cursor='';
 }
+// ═══ GEOPORTAL BERLIN: Oberflächen-Erkennung ═══
+// Fragt via WMS GetFeatureInfo ab, was unter einem Punkt liegt
+// und berechnet die Gehwegbreite aus Fläche / Länge
+
+function detectSurface(latlng, callback){
+  // Convert latlng to EPSG:3857
+  var x3857 = latlng.lng * 20037508.34 / 180;
+  var lat_rad = latlng.lat * Math.PI / 180;
+  var y3857 = Math.log(Math.tan(Math.PI/4 + lat_rad/2)) * 20037508.34 / Math.PI;
+  
+  // Small bbox around the point (±5m)
+  var d = 5;
+  var bbox = (x3857-d)+','+(y3857-d)+','+(x3857+d)+','+(y3857+d);
+  
+  // Query all surface layers
+  var layers = ['cl_gehweg','cm_fahrbahn','ch_radweg'];
+  var found = false;
+  var pending = layers.length;
+  
+  layers.forEach(function(layer){
+    var url = 'https://gdi.berlin.de/services/wms/strassenbefahrung?service=WMS&version=1.1.1'+
+      '&request=GetFeatureInfo&layers='+layer+'&query_layers='+layer+
+      '&styles=&info_format=application/vnd.ogc.gml&srs=EPSG:3857'+
+      '&bbox='+bbox+'&width=10&height=10&x=5&y=5&feature_count=1';
+    
+    fetch(url).then(function(r){return r.text()}).then(function(gml){
+      pending--;
+      if(found) return;
+      
+      if(gml.indexOf('featureMember')>=0){
+        found = true;
+        var result = parseGML(gml, layer);
+        callback(result);
+      } else if(pending===0 && !found){
+        callback({type:'unbekannt', breite:null});
+      }
+    }).catch(function(){
+      pending--;
+      if(pending===0 && !found) callback({type:'unbekannt', breite:null});
+    });
+  });
+}
+
+function parseGML(gml, layer){
+  var type = 'unbekannt';
+  if(layer==='cl_gehweg') type='Gehweg';
+  else if(layer==='cm_fahrbahn') type='Fahrbahn';
+  else if(layer==='ch_radweg') type='Radweg';
+  
+  // Extract Fläche und Länge für Breitenberechnung
+  var flaeche = null, laenge = null;
+  var fm = gml.match(/flaeche>([^<]+)/);
+  var lm = gml.match(/shape_length>([^<]+)/);
+  if(fm) flaeche = parseFloat(fm[1]);
+  if(lm) laenge = parseFloat(lm[1]);
+  
+  var breite = null;
+  if(flaeche && laenge && laenge > 0){
+    breite = flaeche / laenge;
+  }
+  
+  return { type:type, breite:breite, flaeche:flaeche, laenge:laenge };
+}
+
+// Gehweg-Erkennung für beide Punkte ausführen und Restbreite berechnen
+function detectGehwegAtPoints(){
+  if(!drawnLine || drawnLine.length < 2) return;
+  
+  // Punkt in der Mitte der Linie nehmen (repräsentativer)
+  var mid = [
+    (drawnLine[0][0]+drawnLine[1][0])/2,
+    (drawnLine[0][1]+drawnLine[1][1])/2
+  ];
+  
+  // Erst die Baustellenseite prüfen — offset in Baufeld-Richtung
+  var sf = seite==='links' ? -1 : 1;
+  var breiteVal = parseFloat(document.getElementById('breiteInput').value)||2.0;
+  
+  // Punkt leicht ins Baufeld versetzt (1m zur Seite)
+  var bearing = 0;
+  if(drawnLine.length>=2){
+    var dx=drawnLine[1][1]-drawnLine[0][1], dy=drawnLine[1][0]-drawnLine[0][0];
+    bearing = Math.atan2(dx,dy)*180/Math.PI;
+  }
+  
+  // Prüfe den Mittelpunkt direkt
+  detectSurface(L.latLng(mid[0],mid[1]), function(result){
+    detectedSurface = result.type;
+    
+    if(result.type==='Gehweg' && result.breite){
+      detectedGehwegBreite = Math.round(result.breite * 100) / 100;
+      var restBreite = detectedGehwegBreite - breiteVal;
+      restBreite = Math.round(restBreite * 100) / 100;
+      
+      updateBauInfo(restBreite);
+      
+      if(restBreite < 1.30){
+        toast('⚠️ Restgehweg nur '+restBreite.toFixed(2)+'m — RSA Minimum 1,30m!');
+      } else {
+        toast('✓ Gehweg erkannt: '+detectedGehwegBreite.toFixed(1)+'m breit, Rest: '+restBreite.toFixed(2)+'m');
+      }
+    } else if(result.type==='Fahrbahn'){
+      detectedGehwegBreite = null;
+      toast('ℹ️ Punkt liegt auf der Fahrbahn');
+    } else {
+      // Versuche den Gehweg auf der Baufeld-Seite zu finden
+      detectGehwegSeitlich(mid, sf, breiteVal);
+    }
+  });
+}
+
+// Suche Gehweg seitlich vom Mittelpunkt
+function detectGehwegSeitlich(mid, sf, breiteVal){
+  // Offset 3m in Baufeld-Richtung
+  var bearing = 0;
+  if(drawnLine && drawnLine.length>=2){
+    var dx=drawnLine[1][1]-drawnLine[0][1], dy=drawnLine[1][0]-drawnLine[0][0];
+    bearing = Math.atan2(dx,dy)*180/Math.PI;
+  }
+  var offBearing = bearing + 90;
+  var R = 6378137;
+  var offDist = 3 * sf;
+  var lat2 = mid[0] + (offDist * Math.cos(offBearing*Math.PI/180)) / (R*Math.PI/180);
+  var lng2 = mid[1] + (offDist * Math.sin(offBearing*Math.PI/180)) / (R*Math.PI/180*Math.cos(mid[0]*Math.PI/180));
+  
+  detectSurface(L.latLng(lat2, lng2), function(result){
+    if(result.type==='Gehweg' && result.breite){
+      detectedGehwegBreite = Math.round(result.breite * 100) / 100;
+      var restBreite = detectedGehwegBreite - breiteVal;
+      restBreite = Math.round(restBreite * 100) / 100;
+      updateBauInfo(restBreite);
+      
+      if(restBreite < 1.30){
+        toast('⚠️ Gehweg '+detectedGehwegBreite.toFixed(1)+'m — Restbreite '+restBreite.toFixed(2)+'m < 1,30m!');
+      } else {
+        toast('✓ Gehweg erkannt: '+detectedGehwegBreite.toFixed(1)+'m, Rest: '+restBreite.toFixed(2)+'m');
+      }
+    }
+  });
+}
+
+function updateBauInfo(restBreite){
+  var el = document.getElementById('bauInfo');
+  if(!el) return;
+  
+  var lenText = '';
+  if(overlayResult && overlayResult.baustellenLaenge){
+    var len = overlayResult.baustellenLaenge;
+    lenText = len<100 ? len.toFixed(1)+'m' : (len/1000).toFixed(2)+'km';
+  }
+  
+  var gwText = '';
+  if(detectedGehwegBreite){
+    gwText = ' · GW: '+detectedGehwegBreite.toFixed(1)+'m';
+    if(restBreite !== null && restBreite !== undefined){
+      var color = restBreite >= 1.30 ? 'var(--green)' : 'var(--red)';
+      gwText += ' · <span style="color:'+color+';font-weight:700">Rest: '+restBreite.toFixed(2)+'m</span>';
+    }
+  }
+  
+  el.innerHTML = '📏 '+lenText+gwText;
+  el.style.display = 'flex';
+}
+
 function onMapClick(e){
   if(!placementMode)return;
   var ll=[e.latlng.lat,e.latlng.lng];placementPoints.push(ll);
@@ -399,7 +565,9 @@ function onMapClick(e){
     map.getContainer().style.cursor='';
     drawnLine=[].concat(placementPoints);
     applyRegelplan();createLineHandles();showClearButtons();
-    toast('✓ '+RP_DEFS[activeRP].name+' platziert');
+    toast('✓ '+RP_DEFS[activeRP].name+' platziert — prüfe Gehweg…');
+    // Auto-detect Gehweg width via Geoportal WMS
+    setTimeout(function(){ detectGehwegAtPoints(); }, 300);
   }
 }
 function showClearButtons(){['clearBtnD','clearBtnM'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=''})}
@@ -414,6 +582,9 @@ function applyRegelplan(){
   var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
   if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
   if(showMK&&typeof Massketten!=='undefined')masskettenResult=Massketten.generateMassketten(map,drawnLine,activeRP,seite,opts);
+  // Baustellenlänge + Restgehweg anzeigen
+  var restBreite = (detectedGehwegBreite) ? Math.round((detectedGehwegBreite - breite)*100)/100 : null;
+  updateBauInfo(restBreite);
 }
 function reapply(){if(drawnLine)applyRegelplan()}
 
@@ -478,6 +649,8 @@ function clearAll(){
   document.getElementById('mcImg').classList.remove('active');
   document.getElementById('rpOverlayCtrl').classList.remove('show');
   document.getElementById('rpPreview').classList.remove('active');
+  var bi=document.getElementById('bauInfo');if(bi)bi.style.display='none';
+  detectedGehwegBreite=null; detectedSurface=null;
 }
 
 // ═══ EXPORT ═══
@@ -516,4 +689,5 @@ document.addEventListener('keydown',function(e){
 </script>
 </body>
 </html>
+
 
