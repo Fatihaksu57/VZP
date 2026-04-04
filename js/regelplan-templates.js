@@ -1,10 +1,8 @@
-// VZP Editor — Regelplan SVG Overlay v33 (RSA 2021 konform)
-// Fixes v33:
-//   - Z 123 Nachwarnung bei ALLEN Plänen (auch Gegenrichtung)
-//   - Schrankengitter am FB-Rand bei B II/4
-//   - Warnleuchten-SVG an Gehweg-Längsabsperrung
-//   - arbeitsstelle-Property für Maßketten-Kompatibilität
-//   - Baustellenlänge wird über Callback zurückgegeben
+// VZP Editor — Regelplan SVG Overlay v34
+// Fixes v34:
+//   - Leitbaken-Rotation FIX: Baken stehen immer senkrecht (rot=0), nicht in Fahrtrichtung gedreht
+//   - Leitbaken links/rechts korrekt je nach Seite
+//   - Schranken-Rotation FIX: pos.b-90 war korrekt, beibehalten
 
 var RegelplanTemplates = (function() {
 
@@ -40,8 +38,8 @@ var RegelplanTemplates = (function() {
   // ═══ SYMBOL SIZES ═══
   function schW(map){return Math.max(18, Math.round(m2px(map,2.0)))}
   function schH(map){return Math.max(5, Math.round(schW(map)*0.22))}
-  function bakeH(map){return Math.max(18, Math.round(m2px(map,1.0)))}
-  function bakeW(map){return Math.max(5, Math.round(bakeH(map)*0.28))}
+  function bakeH(map){return Math.max(20, Math.round(m2px(map,1.1)))}
+  function bakeW(map){return Math.max(6, Math.round(bakeH(map)*0.30))}
   function vzS(map){return Math.max(18, Math.round(m2px(map,1.0)))}
   function querW(map,asB){return Math.max(18, Math.round(m2px(map,asB)))}
 
@@ -83,8 +81,7 @@ var RegelplanTemplates = (function() {
     }
   }
 
-  // [FIX #3] Schrankengitter MIT Leuchten (Gehwegseite)
-  // RSA 21: "Warnleuchten gemäß Teil B, Abschnitt 2.4.3 Absatz 2"
+  // Schrankengitter MIT Leuchten (Gehwegseite)
   function schrankenReiheLeuchte(map,grp,lls,sf,tL,offM,startM,endM,mk){
     var SEG=2.0,GAP=0.05,len=endM-startM;
     var n=Math.max(1,Math.floor(len/(SEG+GAP)));
@@ -97,16 +94,28 @@ var RegelplanTemplates = (function() {
     }
   }
 
-  // Leitbaken-Reihe
+  // ═══ LEITBAKEN-REIHE — v34 FIX ═══
+  // Leitbaken stehen IMMER senkrecht (rot=0).
+  // Seite bestimmt welches SVG: rechts → bake_rechts, links → bake_links
   function leitbakenReihe(map,grp,lls,sf,tL,offM,startM,endM,mk){
     var ABST=9.0,len=endM-startM;
     var n=Math.max(2,Math.floor(len/ABST)+1);
     var w=bakeW(map),h=bakeH(map);
+    // Seite bestimmen: sf>0 = rechts, sf<0 = links
+    var isLinks=(sf<0);
     for(var i=0;i<n;i++){
       var along=startM+(n>1?i*len/(n-1):len/2);
       var pos=ptM(lls,along,tL,offM*sf,0);
-      var svg=(i===0||i===n-1)?'bake_rechts_leuchte.svg':'bake_rechts.svg';
-      mk.push(mkSVG(map,grp,pos,svg,w,h,pos.b,555));
+      // Erste und letzte Bake: mit Leuchte
+      var hasLeuchte=(i===0||i===n-1);
+      var svg;
+      if(isLinks){
+        svg=hasLeuchte?'bake_links_leuchte.svg':'bake_links.svg';
+      } else {
+        svg=hasLeuchte?'bake_rechts_leuchte.svg':'bake_rechts.svg';
+      }
+      // rot=0: Bake steht immer senkrecht (vertikal), unabhängig von Fahrtrichtung
+      mk.push(mkSVG(map,grp,pos,svg,w,h,0,555));
     }
   }
 
@@ -116,7 +125,7 @@ var RegelplanTemplates = (function() {
     var qW=querW(map,asB),qH=Math.max(5,Math.round(qW*0.2));
     mk.push(mkSVG(map,grp,qPos,'absperrschranke_leuchte.svg',qW,qH,qPos.b,570));
     var bPos=pt(lls,tN,0,0);
-    mk.push(mkSVG(map,grp,bPos,'bake_rechts_leuchte.svg',bakeW(map),bakeH(map),bPos.b,575));
+    mk.push(mkSVG(map,grp,bPos,'bake_rechts_leuchte.svg',bakeW(map),bakeH(map),0,575));
   }
 
   // 3 diagonale Leitbaken (B II/4)
@@ -125,7 +134,8 @@ var RegelplanTemplates = (function() {
     var w=bakeW(map),h=bakeH(map);
     for(var i=0;i<N;i++){
       var pos=pt(lls,tN,i*AQ*sf,i*AL*dir);
-      mk.push(mkSVG(map,grp,pos,'bake_rechts_leuchte.svg',w,h,pos.b,560));
+      // Diagonale Baken: leicht geneigt (45° zur Fahrbahn)
+      mk.push(mkSVG(map,grp,pos,'bake_rechts_leuchte.svg',w,h,pos.b*0.5,560));
     }
   }
 
@@ -136,76 +146,44 @@ var RegelplanTemplates = (function() {
     mk.push(mkSVG(map,grp,pos,'absperrschranke_leuchte.svg',qW,qH,pos.b,565));
   }
 
-  // [FIX #1] Vorwarnung + Nachwarnung Z 123 (beidseitig)
-  // RSA 21: Z 123 steht 30-50m VOR und NACH dem Baufeld
+  // Vorwarnung + Nachwarnung Z 123 (beidseitig)
   function vorUndNachwarnung(map,grp,lls,sf,tL,speed,mk){
     var dist = speed <= 30 ? RSA_DISTANCES.innerorts_30 : RSA_DISTANCES.innerorts_50;
     var vw = Math.min(dist.vorwarn, tL * 0.8);
     var nw = Math.min(dist.nachwarn, tL * 0.6);
-
-    // Vorwarnung: Z 123 VOR dem Startpunkt (Richtung 1)
     var v1=mkVZ(map,grp,pt(lls,0,-2*sf,-vw),'123',0);
     if(v1) mk.push(v1);
-
-    // Nachwarnung: Z 123 NACH dem Endpunkt (Gegenrichtung)
     var v2=mkVZ(map,grp,pt(lls,1,-2*sf,nw),'123',180);
     if(v2) mk.push(v2);
   }
 
   // ═══════════════════════════════════════════
   // B II/4 — Gehwegsperrung, Notweg auf Fahrbahn
-  // RSA 21 Seite 80
   // ═══════════════════════════════════════════
   function placeBII4(map,grp,lls,sf,asB,gwB,tL,speed){
     var mk=[];
-
-    // [FIX #1] Z 123 beidseitig (Vor- + Nachwarnung)
     vorUndNachwarnung(map,grp,lls,sf,tL,speed,mk);
-
-    // Querabsperrung FB: 3 diagonale Leitbaken (Start + Ende)
     diagBaken(map,grp,lls,sf,asB,0,1,mk);
     diagBaken(map,grp,lls,sf,asB,1,-1,mk);
-
-    // Querabsperrung GW: Schranke quer (Start + Ende)
     querGW(map,grp,lls,sf,asB,0,4.5,mk);
     querGW(map,grp,lls,sf,asB,1,-4.5,mk);
-
-    // Längsabsperrung FB: Leitbaken alle 9m an der Fahrbahnlinie
     leitbakenReihe(map,grp,lls,sf,tL,0,0,tL,mk);
-
-    // [FIX #2] Schrankengitter am fahrbahnseitigen Baufeldrand
-    // RSA 21: "Absperrschrankengitter am fahrbahnseitigen Baufeldrand"
     schrankenReihe(map,grp,lls,sf,tL,0.2,0,tL,mk);
-
-    // [FIX #3] Längsabsperrung GW: Schrankengitter MIT Warnleuchten
     schrankenReiheLeuchte(map,grp,lls,sf,tL,asB-0.15,0,tL,mk);
-
     return mk;
   }
 
   // ═══════════════════════════════════════════
   // B II/1 — Radwegsperrung
-  // RSA 21 Seite 77
   // ═══════════════════════════════════════════
   function placeBII1(map,grp,lls,sf,asB,gwB,tL,speed){
     var mk=[];
-
-    // [FIX #1] Z 123 beidseitig
     vorUndNachwarnung(map,grp,lls,sf,tL,speed,mk);
-
-    // Querabsperrung (Start + Ende)
     querAbsperrung(map,grp,lls,sf,asB,0,mk);
     querAbsperrung(map,grp,lls,sf,asB,1,mk);
-
-    // Längsabsperrung FB: Leitbaken alle 9m
     leitbakenReihe(map,grp,lls,sf,tL,0,0,tL,mk);
-
-    // Schrankengitter am FB-Baufeldrand (ohne Leuchten)
     schrankenReihe(map,grp,lls,sf,tL,0.2,0,tL,mk);
-
-    // [FIX #3] Gehwegseite: Schrankengitter MIT Warnleuchten
     schrankenReiheLeuchte(map,grp,lls,sf,tL,asB-0.15,0,tL,mk);
-
     return mk;
   }
 
@@ -220,20 +198,11 @@ var RegelplanTemplates = (function() {
   // ═══ B II/3 — Nicht benutzungspfl. Radweg ═══
   function placeBII3(map,grp,lls,sf,asB,gwB,tL,speed){
     var mk=[];
-
-    // [FIX #1] Z 123 beidseitig
     vorUndNachwarnung(map,grp,lls,sf,tL,speed,mk);
-
-    // Querabsperrung (Start + Ende)
     querAbsperrung(map,grp,lls,sf,asB,0,mk);
     querAbsperrung(map,grp,lls,sf,asB,1,mk);
-
-    // Beide Seiten: Schrankengitter (keine Leitbaken bei B II/3!)
     schrankenReihe(map,grp,lls,sf,tL,0.2,0,tL,mk);
-
-    // [FIX #3] Gehwegseite MIT Warnleuchten
     schrankenReiheLeuchte(map,grp,lls,sf,tL,asB-0.15,0,tL,mk);
-
     return mk;
   }
 
@@ -259,11 +228,18 @@ var RegelplanTemplates = (function() {
     var tL=pLen(lls);
     var grp=L.layerGroup().addTo(map);
 
-    // Baufeld-Schraffur
+    // Baufeld-Schraffur — wie im Referenz-VZP: gepunkteter roter Rand + grau schraffiert
     var poly=[],steps=Math.max(10,Math.ceil(tL/2));
     for(var i=0;i<=steps;i++)poly.push(pt(lls,i/steps,0.05*sf,0).p);
     for(var j=steps;j>=0;j--)poly.push(pt(lls,j/steps,(asB-0.05)*sf,0).p);
-    grp.addLayer(L.polygon(poly,{fillColor:'#b0b0b0',fillOpacity:0.3,color:'#999',weight:1,dashArray:'4,3',interactive:false}));
+
+    // Schraffur-Fläche (grau diagonal)
+    grp.addLayer(L.polygon(poly,{
+      fillColor:'#9e9e9e',fillOpacity:0.25,
+      color:'#c62828',weight:2,
+      dashArray:'4,4',
+      interactive:false
+    }));
 
     var markers=[];
     var placeFn=placeFns[rpId]||placeBII4;
@@ -288,7 +264,7 @@ var RegelplanTemplates = (function() {
     return Math.sqrt(Math.pow(p2.x-p1.x,2)+Math.pow(p2.y-p1.y,2))/0.00001/(111320*Math.cos(c.lat*Math.PI/180));
   }
 
-  (function(){if(document.getElementById('rp33css'))return;var s=document.createElement('style');s.id='rp33css';s.textContent='.leaflet-div-icon{background:none!important;border:none!important}';document.head.appendChild(s)})();
+  (function(){if(document.getElementById('rp34css'))return;var s=document.createElement('style');s.id='rp34css';s.textContent='.leaflet-div-icon{background:none!important;border:none!important}';document.head.appendChild(s)})();
 
   return{
     REGELPLÄNE:REGELPLÄNE,
