@@ -1,14 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 24">
-  <!-- Absperrschrankengitter — horizontal, rot-weiß diagonal -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40">
   <defs>
-    <pattern id="rw" width="20" height="24" patternUnits="userSpaceOnUse" patternTransform="skewX(-30)">
-      <rect width="10" height="24" fill="#d32f2f"/>
-      <rect x="10" width="10" height="24" fill="#fff"/>
+    <pattern id="rw-s" x="0" y="0" width="28" height="22" patternUnits="userSpaceOnUse" patternTransform="skewX(-25)">
+      <rect x="0" y="0" width="14" height="22" fill="#d32f2f"/>
+      <rect x="14" y="0" width="14" height="22" fill="#ffffff"/>
     </pattern>
+    <clipPath id="sch-clip"><rect x="6" y="10" width="208" height="22" rx="2"/></clipPath>
   </defs>
-  <!-- Main barrier bar -->
-  <rect x="1" y="2" width="198" height="20" rx="2" fill="url(#rw)" stroke="#333" stroke-width="1.5"/>
-  <!-- End caps -->
-  <rect x="0" y="0" width="6" height="24" rx="1" fill="#666"/>
-  <rect x="194" y="0" width="6" height="24" rx="1" fill="#666"/>
+  <!-- Ständer links -->
+  <rect x="8" y="10" width="5" height="30" rx="1" fill="#555" stroke="#333" stroke-width="0.8"/>
+  <rect x="2" y="36" width="18" height="4" rx="1" fill="#444"/>
+  <!-- Ständer rechts -->
+  <rect x="207" y="10" width="5" height="30" rx="1" fill="#555" stroke="#333" stroke-width="0.8"/>
+  <rect x="200" y="36" width="18" height="4" rx="1" fill="#444"/>
+  <!-- Schrankenbalken -->
+  <rect x="6" y="10" width="208" height="22" fill="url(#rw-s)" clip-path="url(#sch-clip)"/>
+  <rect x="6" y="10" width="208" height="22" rx="2" fill="none" stroke="#333" stroke-width="1.5"/>
+  <!-- Reflexstreifen (weißer Glanz-Streifen) -->
+  <rect x="7" y="11" width="206" height="3" rx="1" fill="rgba(255,255,255,0.35)" clip-path="url(#sch-clip)"/>
 </svg>
