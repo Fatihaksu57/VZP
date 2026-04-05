@@ -756,11 +756,16 @@ function applyRegelplan(){
   var breite=parseFloat(document.getElementById('breiteInput').value)||2.0;
   var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
   if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
-  // Massketten auf Karte aktualisieren
+  // Massketten auf Karte aktualisieren — Länge sofort, Restbreite kommt via updateBauInfo
   if(typeof Massketten!=='undefined'&&overlayResult){
     var sf2=seite==='links'?-1:1;
     Massketten.update(drawnLine,sf2,breite,overlayResult.baustellenLaenge,
       detectedGehwegBreite!==null?Math.round((detectedGehwegBreite-breite)*100)/100:null);
+  }
+  // Restbreite neu berechnen wenn bereits bekannt (z.B. nach Breiten-Änderung)
+  if(detectedGehwegBreite!==null){
+    var rb=Math.round((detectedGehwegBreite-breite)*100)/100;
+    updateBauInfo(rb);
   }
   // RSA-Bild automatisch entlang Linie ausrichten wenn aktiv
   if(rpImageVisible&&typeof RegelplanImageOverlay!=='undefined'&&RP_DEFS[activeRP]){
