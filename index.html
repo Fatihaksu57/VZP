@@ -254,6 +254,7 @@ var showRP=true, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
 var baseLayers={}, currentBaseMap='k5';
 var detectedGehwegBreite=null, detectedSurface=null;
+var detectedRestFahrbahn=null, detectedRestHaus=null;
 
 var RP_DEFS={
   BII1:{id:'BII1',name:'B II/1',title:'Radweg gesperrt',desc:'Paralleler Geh-/Radweg – Sperrung Radweg',img:'assets/rp_BII1_rsa21.png'},
@@ -651,7 +652,9 @@ function detectGehwegAtPoints(){
     var minRes=results.reduce(function(a,b){return a.restbreite<b.restbreite?a:b});
     var restBreite=Math.round(minRes.restbreite*100)/100;
 
-    // Gehwegbreite rückrechnen für Anzeige
+    // Beide Richtungen speichern
+    detectedRestFahrbahn=minRes.restFahrbahn!==null?Math.round(minRes.restFahrbahn*100)/100:null;
+    detectedRestHaus=minRes.restHaus!==null?Math.round(minRes.restHaus*100)/100:null;
     detectedGehwegBreite=Math.round((restBreite+breiteVal)*100)/100;
     updateBauInfo(restBreite);
 
@@ -702,7 +705,7 @@ function updateBauInfo(restBreite){
   if(typeof Massketten!=='undefined'&&drawnLine&&drawnLine.length>=2&&overlayResult){
     var sf3=seite==='links'?-1:1;
     var bv=parseFloat(document.getElementById('breiteInput').value)||2.0;
-    Massketten.update(drawnLine,sf3,bv,overlayResult.baustellenLaenge,restBreite);
+    Massketten.update(drawnLine,sf3,bv,overlayResult.baustellenLaenge,detectedRestFahrbahn,restBreite);
   }
   var el=document.getElementById('bauInfo');
   if(!el)return;
@@ -760,7 +763,8 @@ function applyRegelplan(){
   if(typeof Massketten!=='undefined'&&overlayResult){
     var sf2=seite==='links'?-1:1;
     Massketten.update(drawnLine,sf2,breite,overlayResult.baustellenLaenge,
-      detectedGehwegBreite!==null?Math.round((detectedGehwegBreite-breite)*100)/100:null);
+      detectedRestFahrbahn,
+      detectedRestHaus);
   }
   // Restbreite neu berechnen wenn bereits bekannt (z.B. nach Breiten-Änderung)
   if(detectedGehwegBreite!==null){
@@ -856,7 +860,7 @@ function clearAll(){
   document.getElementById('rpOverlayCtrl').classList.remove('show');
   document.getElementById('rpPreview').classList.remove('active');
   var bi=document.getElementById('bauInfo');if(bi)bi.style.display='none';
-  detectedGehwegBreite=null; detectedSurface=null;
+  detectedGehwegBreite=null; detectedSurface=null; detectedRestFahrbahn=null; detectedRestHaus=null;
   if(typeof Massketten!=='undefined')Massketten.remove();
 }
 
