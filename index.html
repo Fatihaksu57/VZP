@@ -242,6 +242,7 @@ select.param-input{cursor:pointer}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/leaflet-imageoverlay-rotated.js"></script>
 <script src="js/regelplan-templates.js"></script>
+<script src="js/massketten.js"></script>
 <script src="js/drag-handles.js"></script>
 <script src="js/regelplan-image-overlay.js"></script>
 <script src="js/pdf-export.js"></script>
@@ -304,6 +305,7 @@ function initMap(){
   map.on('zoomend',function(){document.getElementById('stZoom').textContent='Z'+map.getZoom()});
 
   if(typeof DragHandles!=='undefined')DragHandles.injectStyles();
+  if(typeof Massketten!=='undefined')Massketten.init(map);
   if(typeof RegelplanImageOverlay!=='undefined')RegelplanImageOverlay.init(map);
 }
 
@@ -696,6 +698,12 @@ function detectGehwegSeitlich(mid, sf, breiteVal){
 }
 
 function updateBauInfo(restBreite){
+  // Massketten auf Karte aktualisieren
+  if(typeof Massketten!=='undefined'&&drawnLine&&drawnLine.length>=2&&overlayResult){
+    var sf3=seite==='links'?-1:1;
+    var bv=parseFloat(document.getElementById('breiteInput').value)||2.0;
+    Massketten.update(drawnLine,sf3,bv,overlayResult.baustellenLaenge,restBreite);
+  }
   var el=document.getElementById('bauInfo');
   if(!el)return;
 
@@ -748,6 +756,12 @@ function applyRegelplan(){
   var breite=parseFloat(document.getElementById('breiteInput').value)||2.0;
   var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
   if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
+  // Massketten auf Karte aktualisieren
+  if(typeof Massketten!=='undefined'&&overlayResult){
+    var sf2=seite==='links'?-1:1;
+    Massketten.update(drawnLine,sf2,breite,overlayResult.baustellenLaenge,
+      detectedGehwegBreite!==null?Math.round((detectedGehwegBreite-breite)*100)/100:null);
+  }
   // RSA-Bild automatisch entlang Linie ausrichten wenn aktiv
   if(rpImageVisible&&typeof RegelplanImageOverlay!=='undefined'&&RP_DEFS[activeRP]){
     var ll2=drawnLine,lineLen2=0;
@@ -838,6 +852,7 @@ function clearAll(){
   document.getElementById('rpPreview').classList.remove('active');
   var bi=document.getElementById('bauInfo');if(bi)bi.style.display='none';
   detectedGehwegBreite=null; detectedSurface=null;
+  if(typeof Massketten!=='undefined')Massketten.remove();
 }
 
 // ═══ EXPORT ═══
