@@ -391,41 +391,165 @@ function cancelPlacement(){
 // Fragt via WMS GetFeatureInfo ab, was unter einem Punkt liegt
 // und berechnet die Gehwegbreite aus Fläche / Länge
 
+// ═══ Hilfsfunktionen Geometrie ═══
+function ll2m(lat,lng){
+  var x=lng*20037508.34/180;
+  var r=lat*Math.PI/180;
+  var y=Math.log(Math.tan(Math.PI/4+r/2))*20037508.34/Math.PI;
+  return {x:x,y:y};
+}
+
+function parseCoordsGML(gml){
+  var matches=[],re=/<gml:coordinates[^>]*>([^<]+)<\/gml:coordinates>/g,m;
+  while((m=re.exec(gml))!==null){
+    var pts=[];
+    m[1].trim().split(/\s+/).forEach(function(pair){
+      var xy=pair.split(',');
+      if(xy.length>=2)pts.push({x:parseFloat(xy[0]),y:parseFloat(xy[1])});
+    });
+    if(pts.length>=2)matches.push(pts);
+  }
+  return matches;
+}
+
+// Abstand Punkt → Liniensegment (in Metern, EPSG:3857)
+function ptSegDist(p,a,b){
+  var dx=b.x-a.x,dy=b.y-a.y;
+  var len2=dx*dx+dy*dy;
+  if(len2===0)return Math.sqrt((p.x-a.x)*(p.x-a.x)+(p.y-a.y)*(p.y-a.y));
+  var t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/len2));
+  var nx=a.x+t*dx,ny=a.y+t*dy;
+  return Math.sqrt((p.x-nx)*(p.x-nx)+(p.y-ny)*(p.y-ny));
+}
+
+// Minimaler Abstand Punkt → Polygon-Kante
+function minDistToPolygon(p,pts){
+  var minD=Infinity;
+  for(var i=0;i<pts.length-1;i++){
+    var d=ptSegDist(p,pts[i],pts[i+1]);
+    if(d<minD)minD=d;
+  }
+  return minD;
+}
+
+// WFS-Abfrage für einen Layer, gibt Koordinaten-Arrays zurück
+function wfsQuery(layer,bbox,callback){
+  var url='https://gdi.berlin.de/services/wfs/strassenbefahrung?service=WFS&version=1.0.0'+
+    '&request=GetFeature&typeName=strassenbefahrung:'+layer+
+    '&bbox='+bbox+',EPSG:3857&maxFeatures=5';
+  fetch(url).then(function(r){return r.text()})
+    .then(function(gml){ callback(parseCoordsGML(gml)); })
+    .catch(function(){ callback([]); });
+}
+
+// ═══ HAUPT-FUNKTION: Restbreite von Baufeld-Rand messen ═══
+// Misst Abstand vom Baufeld-Rand (= Abfragepunkt) bis:
+//   A) Fahrbahngrenze
+//   B) Häusergrenze (äußerer Gehwegrand)
+// Restbreite = max(A, B) — der nutzbare freie Gehwegstreifen
+function measureRestbreite(bauPt, baustellenBreite, seiteSign, callback){
+  var m=ll2m(bauPt.lat, bauPt.lng);
+  var d=20; // 20m bbox
+  var bbox=(m.x-d)+','+(m.y-d)+','+(m.x+d)+','+(m.y+d);
+
+  // Baufeld-Rand Punkt in EPSG:3857
+  // offset = baustellenBreite in Richtung Gehweg (senkrecht zur Linie)
+  var bear=0;
+  if(drawnLine&&drawnLine.length>=2){
+    var dx=drawnLine[1][1]-drawnLine[0][1];
+    var dy=drawnLine[1][0]-drawnLine[0][0];
+    bear=Math.atan2(dx,dy);
+  }
+  // Baufeld-Rand: baustellenBreite Meter seitlich vom Mittelpunkt
+  var offRad=bear+(seiteSign>0?Math.PI/2:-Math.PI/2);
+  var mPerDeg=111320;
+  var latOff=baustellenBreite*Math.cos(offRad)/mPerDeg;
+  var lngOff=baustellenBreite*Math.sin(offRad)/(mPerDeg*Math.cos(bauPt.lat*Math.PI/180));
+  var bauRandLat=bauPt.lat+latOff, bauRandLng=bauPt.lng+lngOff;
+  var bauRandM=ll2m(bauRandLat,bauRandLng);
+  var P={x:bauRandM.x,y:bauRandM.y};
+
+  var gwPolys=[], fbPolys=[];
+  var pending=2;
+
+  function onDone(){
+    if(pending>0)return;
+
+    var distFB=Infinity, distHaus=Infinity;
+
+    // A) Abstand Baufeld-Rand → nächste Fahrbahnkante
+    fbPolys.forEach(function(pts){
+      if(pts.length<3)return;
+      var d=minDistToPolygon(P,pts);
+      if(d<distFB)distFB=d;
+    });
+
+    // B) Gehweg-Außenkante = die Seite des Gehwegpolygons die NICHT an Fahrbahn grenzt
+    // Wir nehmen alle Gehweg-Polygon-Kanten und wählen die die AM WEITESTEN von der Fahrbahn ist
+    gwPolys.forEach(function(gwPts){
+      if(gwPts.length<3)return;
+      // Teile die Polygon-Kanten in "Fahrbahn-nah" und "Häuser-nah"
+      for(var i=0;i<gwPts.length-1;i++){
+        var seg_mid={x:(gwPts[i].x+gwPts[i+1].x)/2,y:(gwPts[i].y+gwPts[i+1].y)/2};
+        // Abstand dieser Segment-Mitte zur Fahrbahn
+        var segDistFB=Infinity;
+        fbPolys.forEach(function(fb){
+          var dd=minDistToPolygon(seg_mid,fb);
+          if(dd<segDistFB)segDistFB=dd;
+        });
+        // Wenn Segment weit von Fahrbahn → das ist die Häuserseite
+        if(segDistFB>2){
+          var dToSeg=ptSegDist(P,gwPts[i],gwPts[i+1]);
+          if(dToSeg<distHaus)distHaus=dToSeg;
+        }
+      }
+    });
+
+    // Fallback: wenn Fahrbahn nicht gefunden, nutze Gehwegbreite - Abstand zur Fahrbahn-Seite
+    if(distFB===Infinity&&gwPolys.length>0){
+      gwPolys.forEach(function(pts){
+        var d=minDistToPolygon(P,pts);
+        if(d<distFB)distFB=d;
+      });
+    }
+
+    var restFB   = distFB   < Infinity ? Math.round(distFB*100)/100   : null;
+    var restHaus = distHaus < Infinity ? Math.round(distHaus*100)/100 : null;
+
+    callback({
+      restFahrbahn: restFB,
+      restHaus:     restHaus,
+      restbreite:   restFB!==null||restHaus!==null ? Math.max(restFB||0, restHaus||0) : null
+    });
+  }
+
+  wfsQuery('cl_gehweg', bbox, function(polys){ gwPolys=polys; pending--; onDone(); });
+  wfsQuery('cm_fahrbahn', bbox, function(polys){ fbPolys=polys; pending--; onDone(); });
+}
+
 function detectSurface(latlng, callback){
-  // Convert latlng to EPSG:3857
-  var x3857 = latlng.lng * 20037508.34 / 180;
-  var lat_rad = latlng.lat * Math.PI / 180;
-  var y3857 = Math.log(Math.tan(Math.PI/4 + lat_rad/2)) * 20037508.34 / Math.PI;
-  
-  // Small bbox around the point (±5m)
-  var d = 5;
-  var bbox = (x3857-d)+','+(y3857-d)+','+(x3857+d)+','+(y3857+d);
-  
-  // Query all surface layers
-  var layers = ['cl_gehweg','cm_fahrbahn','ch_radweg'];
-  var found = false;
-  var pending = layers.length;
-  
+  var m=ll2m(latlng.lat,latlng.lng);
+  var d=15;
+  var bbox=(m.x-d)+','+(m.y-d)+','+(m.x+d)+','+(m.y+d);
+  var layers=['cl_gehweg','cm_fahrbahn','ch_radweg'];
+  var found=false,pending=layers.length;
   layers.forEach(function(layer){
-    var url = 'https://gdi.berlin.de/services/wms/strassenbefahrung?service=WMS&version=1.1.1'+
+    var url='https://gdi.berlin.de/services/wms/strassenbefahrung?service=WMS&version=1.1.1'+
       '&request=GetFeatureInfo&layers='+layer+'&query_layers='+layer+
       '&styles=&info_format=application/vnd.ogc.gml&srs=EPSG:3857'+
       '&bbox='+bbox+'&width=10&height=10&x=5&y=5&feature_count=1';
-    
     fetch(url).then(function(r){return r.text()}).then(function(gml){
       pending--;
-      if(found) return;
-      
+      if(found)return;
       if(gml.indexOf('featureMember')>=0){
-        found = true;
-        var result = parseGML(gml, layer);
-        callback(result);
-      } else if(pending===0 && !found){
-        callback({type:'unbekannt', breite:null});
+        found=true;
+        callback(parseGML(gml,layer));
+      } else if(pending===0&&!found){
+        callback({type:'unbekannt',breite:null});
       }
     }).catch(function(){
       pending--;
-      if(pending===0 && !found) callback({type:'unbekannt', breite:null});
+      if(pending===0&&!found)callback({type:'unbekannt',breite:null});
     });
   });
 }
@@ -494,62 +618,58 @@ function parseGML(gml, layer){
 
 // Gehweg-Erkennung für beide Punkte ausführen und Restbreite berechnen
 function detectGehwegAtPoints(){
-  if(!drawnLine || drawnLine.length < 2) return;
-  var sf = seite==='links' ? -1 : 1;
-  var breiteVal = parseFloat(document.getElementById('breiteInput').value)||2.0;
+  if(!drawnLine||drawnLine.length<2)return;
+  var sf=seite==='links'?-1:1;
+  var breiteVal=parseFloat(document.getElementById('breiteInput').value)||2.0;
 
-  // 3 Punkte entlang der Linie abfragen: 25%, 50%, 75%
-  // Minimale Gehwegbreite entlang der Baustelle ist maßgebend (RSA 21)
-  var lats = drawnLine.map(function(p){return p[0]});
-  var lngs = drawnLine.map(function(p){return p[1]});
-  var queryPoints = [0.25, 0.5, 0.75].map(function(t){
-    return [
-      lats[0] + (lats[lats.length-1]-lats[0])*t,
-      lngs[0] + (lngs[lngs.length-1]-lngs[0])*t
-    ];
+  // 3 Messpunkte bei 25/50/75% der Linie
+  var p0=drawnLine[0],p1=drawnLine[drawnLine.length-1];
+  var queryPts=[0.25,0.5,0.75].map(function(t){
+    return L.latLng(p0[0]+(p1[0]-p0[0])*t, p0[1]+(p1[1]-p0[1])*t);
   });
 
-  var results = [];
-  var pending = queryPoints.length;
+  var results=[];
+  var pending=queryPts.length;
 
-  queryPoints.forEach(function(pt){
-    detectSurface(L.latLng(pt[0], pt[1]), function(result){
-      if(result.type==='Gehweg' && result.breite && result.breite > 0.5){
-        results.push(result.breite);
+  queryPts.forEach(function(pt){
+    measureRestbreite(pt, breiteVal, sf, function(res){
+      if(res.restbreite!==null&&res.restbreite>0&&res.restbreite<20){
+        results.push(res);
       }
       pending--;
-      if(pending === 0) finishDetection();
+      if(pending===0)finishDetection();
     });
   });
 
   function finishDetection(){
-    if(results.length > 0){
-      // Minimalwert entlang der Linie ist maßgebend für RSA-Prüfung
-      var minBreite = Math.min.apply(null, results);
-      var avgBreite = results.reduce(function(s,v){return s+v},0)/results.length;
-      detectedGehwegBreite = Math.round(minBreite * 100) / 100;
-      var restBreite = Math.round((detectedGehwegBreite - breiteVal)*100)/100;
-      updateBauInfo(restBreite);
-      var info = results.length > 1
-        ? ' (min '+minBreite.toFixed(1)+'m, ø '+avgBreite.toFixed(1)+'m, '+results.length+' Messpunkte)'
-        : '';
-      if(restBreite < 1.30){
-        toast('⚠️ Restgehweg '+restBreite.toFixed(2)+'m — RSA Min. 1,30m!'+info);
-      } else {
-        toast('✓ Gehweg '+detectedGehwegBreite.toFixed(1)+'m → Rest: '+restBreite.toFixed(2)+'m'+info);
-      }
+    if(results.length===0){
+      // Fallback auf alten WMS-Ansatz
+      detectGehwegSeitlich(
+        [(p0[0]+p1[0])/2,(p0[1]+p1[1])/2], sf, breiteVal
+      );
+      return;
+    }
+    // Minimalwert ist maßgebend (engste Stelle)
+    var minRes=results.reduce(function(a,b){return a.restbreite<b.restbreite?a:b});
+    var restBreite=Math.round(minRes.restbreite*100)/100;
+
+    // Gehwegbreite rückrechnen für Anzeige
+    detectedGehwegBreite=Math.round((restBreite+breiteVal)*100)/100;
+    updateBauInfo(restBreite);
+
+    var info='';
+    if(minRes.restFahrbahn!==null&&minRes.restHaus!==null){
+      var groesser=minRes.restFahrbahn>minRes.restHaus?'Fahrbahn':'Häuser';
+      info=' (Fahrbahn: '+minRes.restFahrbahn.toFixed(2)+'m | Häuser: '+minRes.restHaus.toFixed(2)+'m → '+groesser+')';
+    }
+    if(restBreite<1.30){
+      toast('⚠️ Restgehweg '+restBreite.toFixed(2)+'m < 1,30m!'+info);
     } else {
-      // Fallback: seitlich suchen
-      var mid = [
-        (drawnLine[0][0]+drawnLine[drawnLine.length-1][0])/2,
-        (drawnLine[0][1]+drawnLine[drawnLine.length-1][1])/2
-      ];
-      detectGehwegSeitlich(mid, sf, breiteVal);
+      toast('✓ Restgehweg: '+restBreite.toFixed(2)+'m'+info);
     }
   }
 }
 
-// Suche Gehweg seitlich vom Mittelpunkt
 function detectGehwegSeitlich(mid, sf, breiteVal){
   // Offset 3m in Baufeld-Richtung
   var bearing = 0;
