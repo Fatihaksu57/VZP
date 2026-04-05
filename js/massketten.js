@@ -182,14 +182,19 @@ const Massketten = (() => {
   // ─── 2. Restgehwegbreite ─────────────────────────────────
   function drawRestgehweg(g, lls, sf, bauBreite, restBreite) {
     const p0 = lls[0], p1 = lls[lls.length-1];
+    // Messpunkt bei 65% der Linie
     const midLL = [p0[0]+(p1[0]-p0[0])*0.65, p0[1]+(p1[1]-p0[1])*0.65];
     const bear = bearing(p0, p1);
 
-    const bauRand = offsetLL(midLL, bear + 90*sf, bauBreite);
-    // Pfeil zeigt vom Baufeld-Rand WEG — Richtung Häuser/Privat (= -sf)
-    const gwEnde  = offsetLL(bauRand, bear - 90*sf, restBreite);
+    // Baufeld-Rand auf der Gehwegseite:
+    // sf=1 (rechts) → Gehweg ist links → bear - 90
+    // sf=-1 (links) → Gehweg ist rechts → bear + 90
+    // Kurzform: senkrecht zur Linie in Richtung -sf (weg von der Fahrbahn)
+    const absRand = offsetLL(midLL, bear - 90*sf, bauBreite);
+    // Restgehweg-Ende: von dort weiter in dieselbe Richtung (Richtung Häuser)
+    const gwEnde  = offsetLL(absRand, bear - 90*sf, restBreite);
 
-    const pA = toP(bauRand);
+    const pA = toP(absRand);
     const pB = toP(gwEnde);
     const isWarn = restBreite < 1.30;
     const color = isWarn ? '#c62828' : '#2e7d32';
@@ -197,12 +202,33 @@ const Massketten = (() => {
     const markerId = 'arr-gw-' + Math.random().toString(36).slice(2,6);
     arrowMarker(g.ownerSVGElement || g, markerId, color);
 
-    // Nur Linie mit Pfeil — kein Label
+    // Linie mit Pfeil
     g.appendChild(el('line', {
       x1: pA.x, y1: pA.y, x2: pB.x, y2: pB.y,
-      stroke: color, 'stroke-width': 1.5,
+      stroke: color, 'stroke-width': 1.8,
       'marker-end': `url(#${markerId})`
     }));
+
+    // Maß direkt am Pfeil (rotiert mit der Linie)
+    const mx = (pA.x+pB.x)/2, my = (pA.y+pB.y)/2;
+    const angle = Math.atan2(pB.y-pA.y, pB.x-pA.x) * 180/Math.PI;
+    const label = restBreite.toFixed(2) + 'm';
+
+    const grp = el('g', { transform: `translate(${mx},${my}) rotate(${angle})` });
+    grp.appendChild(el('rect', {
+      x: -16, y: -9, width: 32, height: 11,
+      fill: isWarn ? '#fff3f3' : '#f0fff4',
+      stroke: color, 'stroke-width': 0.6, rx: 2, opacity: 0.92
+    }));
+    const txt = el('text', {
+      x: 0, y: 0,
+      'text-anchor': 'middle', 'dominant-baseline': 'middle',
+      'font-size': 8, 'font-family': "'IBM Plex Mono', monospace",
+      'font-weight': '700', fill: color
+    });
+    txt.textContent = label;
+    grp.appendChild(txt);
+    g.appendChild(grp);
   }
 
   return { init, update, remove, render };
