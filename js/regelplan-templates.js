@@ -151,9 +151,22 @@ var RegelplanTemplates = (function() {
     var dist = speed <= 30 ? RSA_DISTANCES.innerorts_30 : RSA_DISTANCES.innerorts_50;
     var vw = Math.min(dist.vorwarn, tL * 0.8);
     var nw = Math.min(dist.nachwarn, tL * 0.6);
-    var v1=mkVZ(map,grp,pt(lls,0,-2*sf,-vw),'123',0);
+
+    // Bearing der Linie am Start und Ende
+    var bearStart = bear(lls[0], lls[Math.min(1,lls.length-1)]);
+    var bearEnd   = bear(lls[Math.max(0,lls.length-2)], lls[lls.length-1]);
+
+    // VZ 123 Vorwarnung: vw Meter VOR dem Startpunkt (bear+180 = rückwärts)
+    var posVor = { p: oLL(lls[0], bearStart+180, vw), b: bearStart };
+    // Seitlich versetzt (-2m zur Gehwegseite)
+    posVor.p = oLL(posVor.p, bearStart+90, -2*sf);
+    var v1 = mkVZ(map,grp,posVor,'123',0);
     if(v1) mk.push(v1);
-    var v2=mkVZ(map,grp,pt(lls,1,-2*sf,nw),'123',180);
+
+    // VZ 123 Nachwarnung: nw Meter NACH dem Endpunkt (bear vorwärts)
+    var posNach = { p: oLL(lls[lls.length-1], bearEnd, nw), b: bearEnd };
+    posNach.p = oLL(posNach.p, bearEnd+90, -2*sf);
+    var v2 = mkVZ(map,grp,posNach,'123',180);
     if(v2) mk.push(v2);
   }
 
