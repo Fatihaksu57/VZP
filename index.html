@@ -255,6 +255,7 @@ var placementMode=false, placementPoints=[], placementMarkers=[];
 var baseLayers={}, currentBaseMap='k5';
 var detectedGehwegBreite=null, detectedSurface=null;
 var detectedRestFahrbahn=null, detectedRestHaus=null;
+var detectedPfeilFB=null, detectedPfeilHaus=null;
 
 var RP_DEFS={
   BII1:{id:'BII1',name:'B II/1',title:'Radweg gesperrt',desc:'Paralleler Geh-/Radweg – Sperrung Radweg',img:'assets/rp_BII1_rsa21.png'},
@@ -515,10 +516,35 @@ function measureRestbreite(bauPt, baustellenBreite, seiteSign, callback){
     var restFB   = distFB   < Infinity ? Math.round(distFB*100)/100   : null;
     var restHaus = distHaus < Infinity ? Math.round(distHaus*100)/100 : null;
 
+    // Startpunkt (Baufeld-Rand) als LatLng
+    // EPSG:3857 → LatLng: x/20037508.34*180=lng, y via atan(exp())
+    var startLng = bauRandM.x / 20037508.34 * 180;
+    var startLat = Math.atan(Math.exp(bauRandM.y * Math.PI / 20037508.34)) * 360 / Math.PI - 90;
+    var startLL  = [startLat, startLng];
+
+    // Richtungsvektor der Linie (normiert)
+    var bearRad = bear;
+    var perpFB  = bear + (seiteSign>0 ? Math.PI/2 : -Math.PI/2);   // Richtung Fahrbahn
+    var perpHaus= bear + (seiteSign>0 ? -Math.PI/2 : Math.PI/2);   // Richtung Häuser
+
+    // Endpunkte: vom Baufeld-Rand in die jeweilige Richtung
+    function moveLL(ll, dirRad, meters){
+      var R=6378137, d=meters/R;
+      var la=ll[0]*Math.PI/180, lo=ll[1]*Math.PI/180;
+      var la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(dirRad));
+      var lo2=lo+Math.atan2(Math.sin(dirRad)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+      return [la2*180/Math.PI, lo2*180/Math.PI];
+    }
+
+    var pfeilFB   = restFB   ? { startLL: startLL, endLL: moveLL(startLL, perpFB,   restFB),   dist: restFB   } : null;
+    var pfeilHaus = restHaus ? { startLL: startLL, endLL: moveLL(startLL, perpHaus, restHaus), dist: restHaus } : null;
+
     callback({
       restFahrbahn: restFB,
       restHaus:     restHaus,
-      restbreite:   restFB!==null||restHaus!==null ? Math.max(restFB||0, restHaus||0) : null
+      restbreite:   restFB!==null||restHaus!==null ? Math.max(restFB||0, restHaus||0) : null,
+      pfeilFB:      pfeilFB,
+      pfeilHaus:    pfeilHaus
     });
   }
 
@@ -655,6 +681,8 @@ function detectGehwegAtPoints(){
     // Beide Richtungen speichern
     detectedRestFahrbahn=minRes.restFahrbahn!==null?Math.round(minRes.restFahrbahn*100)/100:null;
     detectedRestHaus=minRes.restHaus!==null?Math.round(minRes.restHaus*100)/100:null;
+    detectedPfeilFB=minRes.pfeilFB||null;
+    detectedPfeilHaus=minRes.pfeilHaus||null;
     detectedGehwegBreite=Math.round((restBreite+breiteVal)*100)/100;
     updateBauInfo(restBreite);
 
@@ -705,7 +733,7 @@ function updateBauInfo(restBreite){
   if(typeof Massketten!=='undefined'&&drawnLine&&drawnLine.length>=2&&overlayResult){
     var sf3=seite==='links'?-1:1;
     var bv=parseFloat(document.getElementById('breiteInput').value)||2.0;
-    Massketten.update(drawnLine,sf3,bv,overlayResult.baustellenLaenge,detectedRestFahrbahn,restBreite);
+    Massketten.update(drawnLine,overlayResult.baustellenLaenge,detectedPfeilFB,detectedPfeilHaus);
   }
   var el=document.getElementById('bauInfo');
   if(!el)return;
@@ -762,9 +790,7 @@ function applyRegelplan(){
   // Massketten auf Karte aktualisieren — Länge sofort, Restbreite kommt via updateBauInfo
   if(typeof Massketten!=='undefined'&&overlayResult){
     var sf2=seite==='links'?-1:1;
-    Massketten.update(drawnLine,sf2,breite,overlayResult.baustellenLaenge,
-      detectedRestFahrbahn,
-      detectedRestHaus);
+    Massketten.update(drawnLine,overlayResult.baustellenLaenge,detectedPfeilFB,detectedPfeilHaus);
   }
   // Restbreite neu berechnen wenn bereits bekannt (z.B. nach Breiten-Änderung)
   if(detectedGehwegBreite!==null){
@@ -860,7 +886,7 @@ function clearAll(){
   document.getElementById('rpOverlayCtrl').classList.remove('show');
   document.getElementById('rpPreview').classList.remove('active');
   var bi=document.getElementById('bauInfo');if(bi)bi.style.display='none';
-  detectedGehwegBreite=null; detectedSurface=null; detectedRestFahrbahn=null; detectedRestHaus=null;
+  detectedGehwegBreite=null; detectedSurface=null; detectedRestFahrbahn=null; detectedRestHaus=null; detectedPfeilFB=null; detectedPfeilHaus=null;
   if(typeof Massketten!=='undefined')Massketten.remove();
 }
 
