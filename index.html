@@ -170,7 +170,6 @@ select.param-input{cursor:pointer}
       <div class="section-label">Anzeige</div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="toggleRPImageOverlay()">🖼 RSA-Bild</button>
-        <button class="btn btn-secondary" onclick="toggleLayer('mk')">📏 Maßketten</button>
       </div>
     </div>
     <div class="section" style="margin-top:16px;padding-bottom:16px">
@@ -191,7 +190,6 @@ select.param-input{cursor:pointer}
     </div>
     <div class="map-controls">
       <button class="mc-btn active" id="mcRP" onclick="toggleLayer('rp')" title="Regelplan">📐</button>
-      <button class="mc-btn" id="mcMK" onclick="toggleLayer('mk')" title="Maßketten">📏</button>
       <button class="mc-btn" id="mcImg" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
     </div>
     <div class="instruction-banner" id="instrBanner">
@@ -244,15 +242,14 @@ select.param-input{cursor:pointer}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/leaflet-imageoverlay-rotated.js"></script>
 <script src="js/regelplan-templates.js"></script>
-<script src="js/massketten.js"></script>
 <script src="js/drag-handles.js"></script>
 <script src="js/regelplan-image-overlay.js"></script>
 <script src="js/pdf-export.js"></script>
 <script>
 // ═══ STATE ═══
 var map, activeRP='BII1', seite='rechts', tempo=50;
-var overlayResult=null, masskettenResult=null, drawnLine=null, lineHandles=null;
-var showRP=true, showMK=false, rpImageVisible=false;
+var overlayResult=null, drawnLine=null, lineHandles=null;
+var showRP=true, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
 var baseLayers={}, currentBaseMap='k5';
 var detectedGehwegBreite=null, detectedSurface=null;
@@ -308,7 +305,6 @@ function initMap(){
 
   if(typeof DragHandles!=='undefined')DragHandles.injectStyles();
   if(typeof RegelplanImageOverlay!=='undefined')RegelplanImageOverlay.init(map);
-  if(typeof Massketten!=='undefined')Massketten.injectStyles();
 }
 
 // ═══ BASE MAP ═══
@@ -700,26 +696,27 @@ function detectGehwegSeitlich(mid, sf, breiteVal){
 }
 
 function updateBauInfo(restBreite){
-  var el = document.getElementById('bauInfo');
-  if(!el) return;
-  
-  var lenText = '';
-  if(overlayResult && overlayResult.baustellenLaenge){
-    var len = overlayResult.baustellenLaenge;
-    lenText = len<100 ? len.toFixed(1)+'m' : (len/1000).toFixed(2)+'km';
+  var el=document.getElementById('bauInfo');
+  if(!el)return;
+
+  // Länge der Maßnahme
+  var laengeEl=document.getElementById('bauLaenge');
+  if(laengeEl&&overlayResult&&overlayResult.baustellenLaenge){
+    var len=overlayResult.baustellenLaenge;
+    laengeEl.textContent=len<100?len.toFixed(1)+'m':(len/1000).toFixed(2)+'km';
   }
-  
-  var gwText = '';
-  if(detectedGehwegBreite){
-    gwText = ' · GW: '+detectedGehwegBreite.toFixed(1)+'m';
-    if(restBreite !== null && restBreite !== undefined){
-      var color = restBreite >= 1.30 ? 'var(--green)' : 'var(--red)';
-      gwText += ' · <span style="color:'+color+';font-weight:700">Rest: '+restBreite.toFixed(2)+'m</span>';
+
+  // Restgehwegbreite
+  var gwEl=document.getElementById('bauGW');
+  var gwWrap=document.getElementById('bauGWWrap');
+  if(gwEl&&restBreite!==null&&restBreite!==undefined){
+    gwEl.textContent=restBreite.toFixed(2)+'m';
+    if(gwWrap){
+      gwWrap.style.color=restBreite<1.30?'var(--red)':'var(--green)';
     }
   }
-  
-  el.innerHTML = '📏 '+lenText+gwText;
-  el.style.display = 'flex';
+
+  el.style.display='flex';
 }
 
 function onMapClick(e){
@@ -748,11 +745,9 @@ function hideClearButtons(){['clearBtnD','clearBtnM'].forEach(function(id){var e
 function applyRegelplan(){
   if(!drawnLine||drawnLine.length<2)return;
   if(overlayResult){overlayResult.remove();overlayResult=null}
-  if(masskettenResult){masskettenResult.remove();masskettenResult=null}
   var breite=parseFloat(document.getElementById('breiteInput').value)||2.0;
   var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
   if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
-  if(showMK&&typeof Massketten!=='undefined')masskettenResult=Massketten.generateMassketten(map,drawnLine,activeRP,seite,opts);
   // RSA-Bild automatisch entlang Linie ausrichten wenn aktiv
   if(rpImageVisible&&typeof RegelplanImageOverlay!=='undefined'&&RP_DEFS[activeRP]){
     var ll2=drawnLine,lineLen2=0;
@@ -796,10 +791,6 @@ function toggleLayer(l){
     showRP=!showRP;document.getElementById('mcRP').classList.toggle('active',showRP);
     if(overlayResult){overlayResult.remove();overlayResult=null}
     if(showRP&&drawnLine)applyRegelplan();
-  }else if(l==='mk'){
-    showMK=!showMK;document.getElementById('mcMK').classList.toggle('active',showMK);
-    if(masskettenResult){masskettenResult.remove();masskettenResult=null}
-    if(showMK&&drawnLine)applyRegelplan();
   }
 }
 
@@ -837,7 +828,6 @@ function setRPOverlayOpacity(val){
 function clearAll(){
   cancelPlacement();
   if(overlayResult){overlayResult.remove();overlayResult=null}
-  if(masskettenResult){masskettenResult.remove();masskettenResult=null}
   if(lineHandles){lineHandles.remove();lineHandles=null}
   placementMarkers.forEach(function(m){map.removeLayer(m)});
   placementMarkers=[];drawnLine=null;hideClearButtons();
