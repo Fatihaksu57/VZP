@@ -181,37 +181,27 @@ const Massketten = (() => {
 
   // ─── 2. Restgehwegbreite ─────────────────────────────────
   function drawRestgehweg(g, lls, sf, bauBreite, restBreite) {
-    // Messpunkt: 65% entlang der Linie (sichtbarer als Mitte)
     const p0 = lls[0], p1 = lls[lls.length-1];
-    const t = 0.65;
-    const midLL = [p0[0]+(p1[0]-p0[0])*t, p0[1]+(p1[1]-p0[1])*t];
+    const midLL = [p0[0]+(p1[0]-p0[0])*0.65, p0[1]+(p1[1]-p0[1])*0.65];
     const bear = bearing(p0, p1);
 
-    // Baufeld-Rand = Startpunkt der Querlinie
     const bauRand = offsetLL(midLL, bear + 90*sf, bauBreite);
-    // Restgehweg-Ende = Baufeld-Rand + restBreite weiter seitwärts
-    const gwEnde = offsetLL(bauRand, bear + 90*sf, restBreite);
+    const gwEnde  = offsetLL(bauRand, bear + 90*sf, restBreite);
 
     const pA = toP(bauRand);
     const pB = toP(gwEnde);
-
-    const label = restBreite.toFixed(2) + 'm';
     const isWarn = restBreite < 1.30;
+    const color = isWarn ? '#c62828' : '#2e7d32';
 
-    drawDimLine(g, pA.x, pA.y, pB.x, pB.y, label, isWarn ? '#c62828' : '#2e7d32', 0, isWarn);
+    const markerId = 'arr-gw-' + Math.random().toString(36).slice(2,6);
+    arrowMarker(g.ownerSVGElement || g, markerId, color);
 
-    // Kleines "GW" Label als Zusatz
-    const mx = (pA.x+pB.x)/2, my = (pA.y+pB.y)/2;
-    const angle = Math.atan2(pB.y-pA.y, pB.x-pA.x) * 180/Math.PI;
-    const tag = el('g', { transform: `translate(${mx},${my+16}) rotate(${angle})` });
-    const tagTxt = el('text', {
-      x: 0, y: 0, 'text-anchor': 'middle',
-      'font-size': 7, 'font-family': "'IBM Plex Sans', sans-serif",
-      fill: isWarn ? '#c62828' : '#2e7d32', opacity: 0.8
-    });
-    tagTxt.textContent = isWarn ? '⚠ < 1,30m RSA' : 'Restgehweg';
-    tag.appendChild(tagTxt);
-    g.appendChild(tag);
+    // Nur Linie mit Pfeil — kein Label
+    g.appendChild(el('line', {
+      x1: pA.x, y1: pA.y, x2: pB.x, y2: pB.y,
+      stroke: color, 'stroke-width': 1.5,
+      'marker-end': `url(#${markerId})`
+    }));
   }
 
   return { init, update, remove, render };
