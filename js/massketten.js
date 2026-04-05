@@ -186,7 +186,8 @@ const Massketten = (() => {
     const bear = bearing(p0, p1);
 
     const bauRand = offsetLL(midLL, bear + 90*sf, bauBreite);
-    const gwEnde  = offsetLL(bauRand, bear + 90*sf, restBreite);
+    // Pfeil zeigt vom Baufeld-Rand WEG — Richtung Häuser/Privat (= -sf)
+    const gwEnde  = offsetLL(bauRand, bear - 90*sf, restBreite);
 
     const pA = toP(bauRand);
     const pB = toP(gwEnde);
