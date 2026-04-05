@@ -25,14 +25,15 @@ const Massketten = (() => {
   }
 
   // ─── Maßketten aktualisieren ─────────────────────────────
-  function update(lls, sf, bauBreite, bauLaenge, restFahrbahn, restHaus) {
-    currentData = { lls, sf, bauBreite, bauLaenge, restFahrbahn, restHaus };
+  // update: pfeilFB/pfeilHaus = {startLL:[lat,lng], endLL:[lat,lng], dist:m} oder null
+  function update(lls, bauLaenge, pfeilFB, pfeilHaus) {
+    currentData = { lls, bauLaenge, pfeilFB, pfeilHaus };
     render();
   }
 
   function render() {
     if (!mapRef || !currentData) return;
-    const { lls, sf, bauBreite, bauLaenge, restFahrbahn, restHaus } = currentData;
+    const { lls, bauLaenge, pfeilFB, pfeilHaus } = currentData;
     if (!lls || lls.length < 2) return;
 
     // SVG-Overlay neu aufbauen
@@ -50,17 +51,170 @@ const Massketten = (() => {
     drawLaenge(g, lls, bauLaenge);
 
     // ── 2. Pfeile: fahrbahnseitig + häuserseitig ──
-    if (restFahrbahn !== null && restFahrbahn !== undefined) {
-      drawRestpfeil(g, lls, sf, bauBreite, restFahrbahn, 'fahrbahn');
-    }
-    if (restHaus !== null && restHaus !== undefined) {
-      drawRestpfeil(g, lls, sf, bauBreite, restHaus, 'haus');
-    }
+    if (pfeilFB)   drawRestpfeil(g, pfeilFB,   '#1565C0');
+    if (pfeilHaus) drawRestpfeil(g, pfeilHaus, pfeilHaus.dist < 1.30 ? '#c62828' : '#2e7d32');
 
     root.appendChild(g);
   }
 
   // ─── Geo → Pixel ─────────────────────────────────────────
+  function toP(latlng) {
+    return mapRef.latLngToLayerPoint(L.latLng(latlng[0], latlng[1]));
+  }
+
+  function offsetLL(ll, bearDeg, meters) {
+    const R = 6378137, rad = bearDeg * Math.PI / 180, d = meters / R;
+    const la = ll[0] * Math.PI / 180, lo = ll[1] * Math.PI / 180;
+    const la2 = Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(rad));
+    const lo2 = lo+Math.atan2(Math.sin(rad)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+    return [la2*180/Math.PI, lo2*180/Math.PI];
+  }
+
+  function bearing(a, b) {
+    const la=a[0]*Math.PI/180, lb=b[0]*Math.PI/180, dl=(b[1]-a[1])*Math.PI/180;
+    return Math.atan2(Math.sin(dl)*Math.cos(lb), Math.cos(la)*Math.sin(lb)-Math.sin(la)*Math.cos(lb)*Math.cos(dl))*180/Math.PI;
+  }
+
+  // ─── SVG Hilfsfunktionen ─────────────────────────────────
+  function el(tag, attrs) {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    return e;
+  }
+
+  // Pfeilspitze als Marker-Definition
+  function arrowMarker(svg, id, color) {
+    let defs = svg.querySelector('defs');
+    if (!defs) { defs = el('defs', {}); svg.insertBefore(defs, svg.firstChild); }
+    const marker = el('marker', {
+      id, markerWidth: 6, markerHeight: 6,
+      refX: 5, refY: 3, orient: 'auto'
+    });
+    marker.appendChild(el('path', { d: 'M0,0 L6,3 L0,6 Z', fill: color }));
+    defs.appendChild(marker);
+  }
+
+  // Maßlinie mit Pfeilen und Beschriftung zeichnen
+  function drawDimLine(g, x1, y1, x2, y2, label, color, offsetPx, isWarn) {
+    color = color || '#c62828';
+    offsetPx = offsetPx || 0;
+
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len < 10) return;
+
+    const nx = -dy/len, ny = dx/len; // Normalvektor (senkrecht)
+
+    // Versatz der Maßlinie
+    const ox = nx * offsetPx, oy = ny * offsetPx;
+    const ax = x1+ox, ay = y1+oy;
+    const bx = x2+ox, by = y2+oy;
+
+    const markerId = 'arr-' + Math.random().toString(36).slice(2,6);
+    arrowMarker(g.ownerSVGElement || g, markerId, color);
+
+    // Hilfslinien (Extension lines)
+    const extLen = Math.min(Math.abs(offsetPx) + 6, 20);
+    const extSign = offsetPx >= 0 ? 1 : -1;
+    g.appendChild(el('line', {
+      x1: x1 + nx*4*extSign, y1: y1 + ny*4*extSign,
+      x2: x1 + nx*(extLen)*extSign, y2: y1 + ny*(extLen)*extSign,
+      stroke: color, 'stroke-width': 0.8, opacity: 0.6
+    }));
+    g.appendChild(el('line', {
+      x1: x2 + nx*4*extSign, y1: y2 + ny*4*extSign,
+      x2: x2 + nx*(extLen)*extSign, y2: y2 + ny*(extLen)*extSign,
+      stroke: color, 'stroke-width': 0.8, opacity: 0.6
+    }));
+
+    // Maßlinie
+    g.appendChild(el('line', {
+      x1: ax, y1: ay, x2: bx, y2: by,
+      stroke: color, 'stroke-width': 1.5,
+      'marker-start': `url(#${markerId})`,
+      'marker-end': `url(#${markerId})`
+    }));
+
+    // Label-Hintergrund + Text
+    const mx = (ax+bx)/2, my = (ay+by)/2;
+    const angle = Math.atan2(by-ay, bx-ax) * 180/Math.PI;
+    const labelColor = isWarn ? '#c62828' : '#1a1814';
+    const bgColor = isWarn ? '#fff3f3' : '#ffffff';
+
+    const grp = el('g', { transform: `translate(${mx},${my}) rotate(${angle})` });
+
+    // Weißes Rechteck hinter Text
+    const txtBg = el('rect', {
+      x: -22, y: -9, width: 44, height: 13,
+      fill: bgColor, stroke: color, 'stroke-width': 0.6,
+      rx: 2, opacity: 0.92
+    });
+    grp.appendChild(txtBg);
+
+    const txt = el('text', {
+      x: 0, y: 1,
+      'text-anchor': 'middle', 'dominant-baseline': 'middle',
+      'font-size': 9, 'font-family': "'IBM Plex Mono', monospace",
+      'font-weight': '700', fill: labelColor
+    });
+    txt.textContent = label;
+    grp.appendChild(txt);
+    g.appendChild(grp);
+  }
+
+  // ─── 1. Längenmaß ────────────────────────────────────────
+  function drawLaenge(g, lls, bauLaenge) {
+    const start = lls[0];
+    const end = lls[lls.length - 1];
+    const bear = bearing(start, end);
+
+    // Maßlinie etwas seitlich versetzt (12px über der Linie)
+    const p1 = toP(start);
+    const p2 = toP(end);
+    const label = bauLaenge < 100
+      ? bauLaenge.toFixed(1) + 'm'
+      : Math.round(bauLaenge) + 'm';
+
+    // Versatz: 18px senkrecht zur Linienrichtung (nach links = oben auf Karte)
+    drawDimLine(g, p1.x, p1.y, p2.x, p2.y, label, '#1565C0', -22, false);
+  }
+
+  // ─── 2. Restgehwegbreite ─────────────────────────────────
+  // ─── Restbreiten-Pfeile ─────────────────────────────────
+  // richtung: 'fahrbahn' → von fahrbahnseitiger Absperrung Richtung Straße
+  //           'haus'     → von häuserseitiger Absperrung Richtung Gebäude
+  function drawRestpfeil(g, pfeil, color) {
+    const pA = toP(pfeil.startLL);
+    const pB = toP(pfeil.endLL);
+    const dx = pB.x-pA.x, dy = pB.y-pA.y;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    if (len < 5) return;
+
+    const markerId = 'arr-' + Math.random().toString(36).slice(2,6);
+    arrowMarker(g.ownerSVGElement || g, markerId, color);
+
+    g.appendChild(el('line', {
+      x1: pA.x, y1: pA.y, x2: pB.x, y2: pB.y,
+      stroke: color, 'stroke-width': 1.8,
+      'marker-end': `url(#${markerId})`
+    }));
+
+    // Maß am Pfeil
+    const mx = (pA.x+pB.x)/2, my = (pA.y+pB.y)/2;
+    const angle = Math.atan2(dy, dx) * 180/Math.PI;
+    const label = pfeil.dist.toFixed(2) + 'm';
+    const grp = el('g', { transform: `translate(${mx},${my}) rotate(${angle})` });
+    grp.appendChild(el('rect', { x:-16, y:-9, width:32, height:11,
+      fill:'#fff', stroke:color, 'stroke-width':0.6, rx:2, opacity:0.92 }));
+    const txt = el('text', { x:0, y:0, 'text-anchor':'middle',
+      'dominant-baseline':'middle', 'font-size':8,
+      'font-family':"'IBM Plex Mono',monospace", 'font-weight':'700', fill:color });
+    txt.textContent = label;
+    grp.appendChild(txt);
+    g.appendChild(grp);
+  }
+
+    // ─── Geo → Pixel ─────────────────────────────────────────
   function toP(latlng) {
     return mapRef.latLngToLayerPoint(L.latLng(latlng[0], latlng[1]));
   }
