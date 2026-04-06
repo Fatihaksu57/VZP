@@ -155,6 +155,24 @@ var RegelplanLayoutV2 = (function() {
     var remainingWidth;
     var i;
 
+    if (context.workWidth <= 0 || context.workWidth > 8) {
+      validations.push({
+        code: 'WORK_WIDTH_INVALID',
+        severity: 'error',
+        message: 'Arbeitsstellenbreite ist unplausibel',
+        value: context.workWidth
+      });
+    }
+
+    if (context.totalLength < 5) {
+      validations.push({
+        code: 'LINE_TOO_SHORT',
+        severity: 'error',
+        message: 'Baustellenlinie ist zu kurz fuer einen belastbaren Plan',
+        value: context.totalLength
+      });
+    }
+
     if (!plan.constraints || context.existingPathWidth === null) {
       return validations;
     }

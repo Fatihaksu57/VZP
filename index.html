@@ -111,6 +111,21 @@ select.param-input{cursor:pointer}
 .action-card{background:var(--yellow-bg);border:2px solid var(--yellow);border-radius:var(--r2);padding:14px;margin-bottom:12px}
 .action-card .ac-title{font:700 13px 'IBM Plex Sans',sans-serif;color:var(--tx);margin-bottom:4px}
 .action-card .ac-desc{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--tx2);margin-bottom:10px;line-height:1.5}
+.wizard-steps{display:flex;gap:8px;margin-bottom:12px}
+.wizard-step{flex:1;padding:8px 10px;border-radius:12px;background:var(--sf2);border:1.5px solid var(--bd);font:700 10px 'IBM Plex Mono',monospace;color:var(--tx3);text-align:center}
+.wizard-step.active{background:var(--orange-bg);border-color:var(--orange);color:var(--orange)}
+.wizard-pane{display:none}
+.wizard-pane.active{display:block}
+.wizard-summary,.validation-list{display:flex;flex-direction:column;gap:8px}
+.summary-card,.validation-item{padding:10px 12px;border-radius:12px;border:1px solid var(--bd);background:var(--sf2)}
+.summary-card .summary-title{font:700 10px 'IBM Plex Mono',monospace;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.summary-card .summary-body,.validation-item{font:500 12px 'IBM Plex Sans',sans-serif;color:var(--tx2);line-height:1.45}
+.validation-item.warning{background:var(--yellow-bg);border-color:rgba(249,168,37,.35);color:#8a5b00}
+.validation-item.error{background:var(--red-bg);border-color:rgba(198,40,40,.25);color:var(--red)}
+.validation-item.ok{background:var(--green-bg);border-color:rgba(46,125,50,.2);color:var(--green)}
+.wizard-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.wizard-actions .btn{flex:1}
+.helper-text{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--tx3);line-height:1.45;margin:-2px 0 10px}
 
 .toast{position:fixed;top:56px;left:50%;transform:translateX(-50%) translateY(-100px);z-index:10000;padding:10px 20px;border-radius:var(--r);background:var(--tx);color:#fff;font:500 13px 'IBM Plex Sans',sans-serif;box-shadow:var(--shadow-lg);transition:transform .3s cubic-bezier(.4,0,.2,1);white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
@@ -197,12 +212,41 @@ select.param-input{cursor:pointer}
     </div>
     <div class="section" style="margin-top:16px;padding-bottom:16px">
       <div class="section-label">Projekt</div>
-      <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektName" placeholder="Projektname"></div>
+      <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektName" data-plan-field="name" placeholder="Projektname"></div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="saveProject()">💾 Speichern</button>
         <button class="btn btn-secondary" onclick="loadProject()">📂 Laden</button>
       </div>
       <div class="section-label">Export</div>
+      <div class="wizard-steps" data-wizard-steps="desktop">
+        <div class="wizard-step active">1 Baustelle</div>
+        <div class="wizard-step">2 Projekt</div>
+        <div class="wizard-step">3 Ausgabe</div>
+      </div>
+      <div class="wizard-pane active" data-wizard-pane="desktop" data-step="1">
+        <div class="param-row"><span class="param-label">Adresse</span><input class="param-input" type="text" data-plan-field="adresse" placeholder="Baustelle / Straße"></div>
+        <div class="param-row"><span class="param-label">Regelplan</span><input class="param-input" type="text" data-plan-display="regelplan" readonly></div>
+        <div class="param-row"><span class="param-label">Seite</span><input class="param-input" type="text" data-plan-display="seite" readonly></div>
+        <div class="param-row"><span class="param-label">Tempo</span><input class="param-input" type="text" data-plan-display="tempo" readonly></div>
+        <div class="param-row"><span class="param-label">Breite</span><input class="param-input" type="text" data-plan-display="arbeitsstelleBreite" readonly></div>
+        <div class="helper-text">Adresse, Regelplan und Parameter werden automatisch aus der aktuellen Planung übernommen und können hier vor dem Export geprüft werden.</div>
+      </div>
+      <div class="wizard-pane" data-wizard-pane="desktop" data-step="2">
+        <div class="param-row"><span class="param-label">Bauvorhaben</span><input class="param-input" type="text" data-plan-field="bauvorhaben" placeholder="z.B. Glasfaser Tiefbau"></div>
+        <div class="param-row"><span class="param-label">Auftragg.</span><input class="param-input" type="text" data-plan-field="auftraggeber" placeholder="Auftraggeber"></div>
+        <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" data-plan-field="ersteller" value="QFM GmbH"></div>
+        <div class="param-row"><span class="param-label">Plan-Nr.</span><input class="param-input" type="text" data-plan-field="planNummer" placeholder="optional"></div>
+      </div>
+      <div class="wizard-pane" data-wizard-pane="desktop" data-step="3">
+        <div class="section-label">Vorschau</div>
+        <div class="wizard-summary" id="wizardSummaryDesktop"></div>
+        <div class="section-label" style="margin-top:12px">Prüfung</div>
+        <div class="validation-list" id="wizardValidationsDesktop"></div>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-secondary" type="button" onclick="prevExportWizardStep()">Zurück</button>
+        <button class="btn btn-secondary" type="button" onclick="nextExportWizardStep()">Weiter</button>
+      </div>
       <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjekt" placeholder="z.B. Glasfaser Tiefbau"></div>
       <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErsteller" value="QFM GmbH"></div>
       <button class="btn btn-primary btn-block" onclick="exportPDF()">📄 PDF exportieren</button>
@@ -264,11 +308,40 @@ select.param-input{cursor:pointer}
     <div class="panel-header"><h2>📄 Export</h2><button class="ph-close" onclick="closePanel()">✕</button></div>
     <div class="section">
       <div class="section-label">Projekt</div>
-      <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektNameM" placeholder="Projektname"></div>
+      <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektNameM" data-plan-field="name" placeholder="Projektname"></div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="saveProject()">💾 Speichern</button>
         <button class="btn btn-secondary" onclick="loadProject()">📂 Laden</button>
       </div>
+    </div>
+    <div class="wizard-steps" data-wizard-steps="mobile">
+      <div class="wizard-step active">1 Baustelle</div>
+      <div class="wizard-step">2 Projekt</div>
+      <div class="wizard-step">3 Ausgabe</div>
+    </div>
+    <div class="wizard-pane active" data-wizard-pane="mobile" data-step="1">
+      <div class="param-row"><span class="param-label">Adresse</span><input class="param-input" type="text" data-plan-field="adresse" placeholder="Baustelle / Straße"></div>
+      <div class="param-row"><span class="param-label">Regelplan</span><input class="param-input" type="text" data-plan-display="regelplan" readonly></div>
+      <div class="param-row"><span class="param-label">Seite</span><input class="param-input" type="text" data-plan-display="seite" readonly></div>
+      <div class="param-row"><span class="param-label">Tempo</span><input class="param-input" type="text" data-plan-display="tempo" readonly></div>
+      <div class="param-row"><span class="param-label">Breite</span><input class="param-input" type="text" data-plan-display="arbeitsstelleBreite" readonly></div>
+      <div class="helper-text">Der Export übernimmt die aktuelle Baustelle automatisch und zeigt dir vorab die wichtigsten Angaben.</div>
+    </div>
+    <div class="wizard-pane" data-wizard-pane="mobile" data-step="2">
+      <div class="param-row"><span class="param-label">Bauvorhaben</span><input class="param-input" type="text" data-plan-field="bauvorhaben" placeholder="z.B. Glasfaser Tiefbau"></div>
+      <div class="param-row"><span class="param-label">Auftragg.</span><input class="param-input" type="text" data-plan-field="auftraggeber" placeholder="Auftraggeber"></div>
+      <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" data-plan-field="ersteller" value="QFM GmbH"></div>
+      <div class="param-row"><span class="param-label">Plan-Nr.</span><input class="param-input" type="text" data-plan-field="planNummer" placeholder="optional"></div>
+    </div>
+    <div class="wizard-pane" data-wizard-pane="mobile" data-step="3">
+      <div class="section-label">Vorschau</div>
+      <div class="wizard-summary" id="wizardSummaryMobile"></div>
+      <div class="section-label" style="margin-top:12px">Prüfung</div>
+      <div class="validation-list" id="wizardValidationsMobile"></div>
+    </div>
+    <div class="wizard-actions">
+      <button class="btn btn-secondary" type="button" onclick="prevExportWizardStep()">Zurück</button>
+      <button class="btn btn-secondary" type="button" onclick="nextExportWizardStep()">Weiter</button>
     </div>
     <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjektM" placeholder="z.B. Glasfaser Tiefbau"></div>
     <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErstellerM" value="QFM GmbH"></div>
@@ -304,6 +377,16 @@ var baseLayers={}, currentBaseMap='k5';
 var detectedGehwegBreite=null, detectedSurface=null;
 var detectedRestFahrbahn=null, detectedRestHaus=null;
 var detectedPfeilFB=null, detectedPfeilHaus=null;
+var exportWizardStep=1;
+var currentPlanDocument=null;
+var projectState={
+  name:'',
+  adresse:'',
+  bauvorhaben:'',
+  auftraggeber:'',
+  ersteller:'QFM GmbH',
+  planNummer:''
+};
 
 var RP_DEFS={
   BII1:{id:'BII1',name:'B II/1',title:'Radweg gesperrt',desc:'Paralleler Geh-/Radweg – Sperrung Radweg',img:'assets/rp_BII1_rsa21.png'},
@@ -319,6 +402,12 @@ document.addEventListener('DOMContentLoaded',function(){
   initMap();
   renderRPGrid();
   document.getElementById('addressInput').addEventListener('keydown',function(e){if(e.key==='Enter')searchAddress(e.target.value)});
+  document.getElementById('addressInput').addEventListener('input',function(e){projectState.adresse=e.target.value;syncAllProjectFields();refreshPlanDocument();});
+  bindPlanFields();
+  hideLegacyExportFields();
+  syncAllProjectFields();
+  updateExportWizard();
+  refreshPlanDocument();
 });
 
 function initMap(){
@@ -393,9 +482,207 @@ function getGPSLocation(){
 }
 
 // ═══ PROJECT SAVE/LOAD ═══
+function bindPlanFields(){
+  document.querySelectorAll('[data-plan-field]').forEach(function(el){
+    el.addEventListener('input',function(){
+      projectState[el.dataset.planField]=el.value;
+      syncAllProjectFields(el);
+      refreshPlanDocument();
+    });
+  });
+}
+
+function syncAllProjectFields(sourceEl){
+  document.querySelectorAll('[data-plan-field]').forEach(function(el){
+    var key=el.dataset.planField;
+    var value=projectState[key] || '';
+    if(el!==sourceEl && el.value!==value)el.value=value;
+  });
+}
+
+function hideLegacyExportFields(){
+  ['pdfProjekt','pdfErsteller','pdfProjektM','pdfErstellerM'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.parentElement)el.parentElement.style.display='none';
+  });
+}
+
+function getArbeitsstellenBreite(){
+  return parseFloat(document.getElementById('breiteInput').value)||2.0;
+}
+
+function setMirroredInputValue(idA,idB,val){
+  var a=document.getElementById(idA), b=document.getElementById(idB);
+  if(a && a.value!==String(val))a.value=val;
+  if(b && b.value!==String(val))b.value=val;
+}
+
+function getOrtFromAdresse(adresse){
+  if(!adresse)return '';
+  var parts=adresse.split(',').map(function(s){return s.trim()}).filter(Boolean);
+  return parts.length>1 ? parts[1] : parts[0];
+}
+
+function collectPlanValidations(sceneValidations){
+  var validations=(sceneValidations||[]).slice();
+  var breite=getArbeitsstellenBreite();
+  var lineLength=(overlayResult&&overlayResult.baustellenLaenge)||0;
+  var restBreite=detectedGehwegBreite!==null ? Math.round((detectedGehwegBreite-breite)*100)/100 : null;
+
+  if(!drawnLine||drawnLine.length<2)validations.push({severity:'error',code:'LINE_MISSING',message:'Baustellenlinie fehlt'});
+  if(!projectState.adresse||!projectState.adresse.trim())validations.push({severity:'error',code:'ADDRESS_MISSING',message:'Adresse/Baubereich fehlt'});
+  if(!projectState.bauvorhaben||!projectState.bauvorhaben.trim())validations.push({severity:'error',code:'PROJECT_MISSING',message:'Bauvorhaben fehlt'});
+  if(!projectState.auftraggeber||!projectState.auftraggeber.trim())validations.push({severity:'warning',code:'CLIENT_MISSING',message:'Auftraggeber fehlt'});
+  if(!projectState.ersteller||!projectState.ersteller.trim())validations.push({severity:'error',code:'AUTHOR_MISSING',message:'Ersteller fehlt'});
+  if(lineLength>0 && lineLength<5)validations.push({severity:'error',code:'LINE_TOO_SHORT_UI',message:'Baustellenlinie ist zu kurz'});
+  if(restBreite!==null && restBreite<1.3)validations.push({severity:'warning',code:'RESTWEG_LT_130_UI',message:'Restgehwegbreite unter 1,30 m',value:restBreite});
+
+  return validations.filter(function(item,index,arr){
+    return arr.findIndex(function(other){ return other.code===item.code; })===index;
+  });
+}
+
+function buildCurrentPlanDocument(){
+  var rp=RP_DEFS[activeRP]||{};
+  var breite=getArbeitsstellenBreite();
+  var restBreite=detectedGehwegBreite!==null ? Math.round((detectedGehwegBreite-breite)*100)/100 : null;
+  var scene=(overlayResult&&overlayResult.scene)||null;
+  var validations=collectPlanValidations(scene&&scene.validations);
+  var hasErrors=validations.some(function(v){ return v.severity==='error'; });
+  var lineCopy=drawnLine ? drawnLine.map(function(ll){ return [ll[0],ll[1]]; }) : [];
+  var laenge=(overlayResult&&overlayResult.baustellenLaenge)||0;
+  if(!laenge && drawnLine && drawnLine.length>1){
+    for(var i=0;i<drawnLine.length-1;i++)laenge+=L.latLng(drawnLine[i]).distanceTo(L.latLng(drawnLine[i+1]));
+  }
+
+  return {
+    project:{
+      name:projectState.name||'',
+      bauvorhaben:projectState.bauvorhaben||'',
+      auftraggeber:projectState.auftraggeber||'',
+      ersteller:projectState.ersteller||'QFM GmbH',
+      planNummer:projectState.planNummer||'VZP-001',
+      datum:new Date().toLocaleDateString('de-DE')
+    },
+    site:{
+      adresse:projectState.adresse||'',
+      ort:getOrtFromAdresse(projectState.adresse||''),
+      seite:seite,
+      tempo:tempo
+    },
+    regelplan:{
+      id:rp.id||activeRP,
+      name:rp.name||activeRP,
+      title:rp.title||''
+    },
+    geometry:{
+      referenceLine:lineCopy,
+      baustellenLaenge:laenge,
+      arbeitsstelleBreite:breite,
+      restbreite:restBreite,
+      restfahrbahn:detectedRestFahrbahn
+    },
+    scene:{
+      items:(scene&&scene.items)||[],
+      workZonePolygon:(scene&&scene.workZonePolygon)||[],
+      dimensions:(scene&&scene.dimensions)||[],
+      validations:validations
+    },
+    exportMeta:{
+      format:'A3',
+      orientation:'portrait',
+      hasErrors:hasErrors
+    }
+  };
+}
+
+function renderWizardSummary(planDocument){
+  var rpText=planDocument.regelplan.name+(planDocument.regelplan.title?' - '+planDocument.regelplan.title:'');
+  var metrics=[
+    'Laenge: '+(planDocument.geometry.baustellenLaenge ? planDocument.geometry.baustellenLaenge.toFixed(1)+' m' : '-'),
+    'Arbeitsstelle: '+planDocument.geometry.arbeitsstelleBreite.toFixed(1)+' m',
+    'Restbreite: '+(planDocument.geometry.restbreite!==null ? planDocument.geometry.restbreite.toFixed(2)+' m' : 'nicht gemessen'),
+    'Tempo: '+planDocument.site.tempo+' km/h',
+    'Seite: '+(planDocument.site.seite==='links'?'Links':'Rechts')
+  ].join('<br>');
+  var project=[
+    'Bauvorhaben: '+(planDocument.project.bauvorhaben||'-'),
+    'Auftraggeber: '+(planDocument.project.auftraggeber||'-'),
+    'Ersteller: '+(planDocument.project.ersteller||'-'),
+    'Plan-Nr.: '+(planDocument.project.planNummer||'-'),
+    'Adresse: '+(planDocument.site.adresse||'-')
+  ].join('<br>');
+  var html='<div class="summary-card"><div class="summary-title">Plan</div><div class="summary-body">'+rpText+'<br>'+metrics+'</div></div>'
+    +'<div class="summary-card"><div class="summary-title">Projekt</div><div class="summary-body">'+project+'</div></div>';
+
+  ['wizardSummaryDesktop','wizardSummaryMobile'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.innerHTML=html;
+  });
+}
+
+function renderWizardValidations(validations){
+  var html='';
+  if(!validations.length){
+    html='<div class="validation-item ok">Keine blockierenden Prüfhinweise. Der Plan ist exportbereit.</div>';
+  }else{
+    html=validations.map(function(v){
+      return '<div class="validation-item '+(v.severity||'warning')+'">'+v.message+'</div>';
+    }).join('');
+  }
+  ['wizardValidationsDesktop','wizardValidationsMobile'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.innerHTML=html;
+  });
+}
+
+function updatePlanDisplays(){
+  if(!currentPlanDocument)return;
+  var displayValues={
+    regelplan:currentPlanDocument.regelplan.name+(currentPlanDocument.regelplan.title?' - '+currentPlanDocument.regelplan.title:''),
+    seite:currentPlanDocument.site.seite==='links'?'Links':'Rechts',
+    tempo:currentPlanDocument.site.tempo+' km/h',
+    arbeitsstelleBreite:currentPlanDocument.geometry.arbeitsstelleBreite.toFixed(1)+' m'
+  };
+  document.querySelectorAll('[data-plan-display]').forEach(function(el){
+    el.value=displayValues[el.dataset.planDisplay] || '';
+  });
+}
+
+function refreshPlanDocument(){
+  projectState.adresse=document.getElementById('addressInput').value || projectState.adresse || '';
+  currentPlanDocument=buildCurrentPlanDocument();
+  updatePlanDisplays();
+  renderWizardSummary(currentPlanDocument);
+  renderWizardValidations(currentPlanDocument.scene.validations||[]);
+}
+
+function updateExportWizard(){
+  document.querySelectorAll('[data-wizard-steps]').forEach(function(wrapper){
+    Array.prototype.forEach.call(wrapper.children,function(stepEl,index){
+      stepEl.classList.toggle('active',index+1===exportWizardStep);
+    });
+  });
+  document.querySelectorAll('[data-wizard-pane]').forEach(function(pane){
+    pane.classList.toggle('active',parseInt(pane.dataset.step,10)===exportWizardStep);
+  });
+}
+
+function nextExportWizardStep(){
+  exportWizardStep=Math.min(3,exportWizardStep+1);
+  refreshPlanDocument();
+  updateExportWizard();
+}
+
+function prevExportWizardStep(){
+  exportWizardStep=Math.max(1,exportWizardStep-1);
+  updateExportWizard();
+}
+
 function saveProject(){
-  var name=document.getElementById('projektName').value || document.getElementById('projektNameM').value;
+  var name=projectState.name || document.getElementById('projektName').value || document.getElementById('projektNameM').value;
   if(!name.trim()){toast('❌ Projektname eingeben');return;}
+  refreshPlanDocument();
   var state={
     name:name,
     activeRP:activeRP,
@@ -406,15 +693,15 @@ function saveProject(){
     mapCenter:map.getCenter(),
     mapZoom:map.getZoom(),
     breite:document.getElementById('breiteInput').value,
-    pdfProjekt:document.getElementById('pdfProjekt').value,
-    pdfErsteller:document.getElementById('pdfErsteller').value
+    projectState:projectState,
+    currentPlanDocument:currentPlanDocument
   };
   localStorage.setItem('vzp_project_'+name, JSON.stringify(state));
   toast('💾 Projekt "'+name+'" gespeichert');
 }
 
 function loadProject(){
-  var name=document.getElementById('projektName').value || document.getElementById('projektNameM').value;
+  var name=projectState.name || document.getElementById('projektName').value || document.getElementById('projektNameM').value;
   if(!name.trim()){toast('❌ Projektname eingeben');return;}
   var data=localStorage.getItem('vzp_project_'+name);
   if(!data){toast('❌ Projekt nicht gefunden');return;}
@@ -422,15 +709,13 @@ function loadProject(){
     var state=JSON.parse(data);
     activeRP=state.activeRP;seite=state.seite;tempo=state.tempo;
     drawnLine=state.drawnLine;placementPoints=state.placementPoints;
-    document.getElementById('breiteInput').value=state.breite;
-    document.getElementById('breiteInputM').value=state.breite;
-    document.getElementById('pdfProjekt').value=state.pdfProjekt;
-    document.getElementById('pdfProjektM').value=state.pdfProjekt;
-    document.getElementById('pdfErsteller').value=state.pdfErsteller;
-    document.getElementById('pdfErstellerM').value=state.pdfErsteller;
+    projectState=Object.assign({},projectState,state.projectState||{}, { name: state.name || (state.projectState&&state.projectState.name) || name });
+    syncAllProjectFields();
+    setMirroredInputValue('breiteInput','breiteInputM',state.breite||2.0);
     renderRPGrid();setSide(seite);setTempo(tempo);
     if(state.mapCenter)map.setView(state.mapCenter, state.mapZoom);
     if(drawnLine)reapply();
+    refreshPlanDocument();
     toast('📂 Projekt "'+name+'" geladen');
   }catch(e){toast('❌ Fehler beim Laden');}
 }
@@ -454,6 +739,7 @@ function selectRP(id){
   activeRP=id;renderRPGrid();
   if(drawnLine)reapply();
   if(rpImageVisible)updateRPImageOverlay();
+  refreshPlanDocument();
   toast('✓ '+RP_DEFS[id].name+' gewählt');
 }
 
@@ -468,6 +754,7 @@ function setSide(val){
   seite=val;
   document.querySelectorAll('[data-val="rechts"],[data-val="links"]').forEach(function(b){b.classList.toggle('active',b.dataset.val===val)});
   if(drawnLine)reapply();
+  refreshPlanDocument();
 }
 function setTempo(val){
   tempo=val;
@@ -476,6 +763,7 @@ function setTempo(val){
       b.classList.toggle('active',b.dataset.val===String(val));
   });
   if(drawnLine)reapply();
+  refreshPlanDocument();
 }
 
 // ═══ 2-POINT PLACEMENT ═══
@@ -867,6 +1155,7 @@ function updateBauInfo(restBreite){
   }
 
   el.style.display='flex';
+  refreshPlanDocument();
 }
 
 function onMapClick(e){
@@ -917,6 +1206,7 @@ function applyRegelplan(){
   // Baustellenlänge + Restgehweg anzeigen
   var restBreite = (detectedGehwegBreite) ? Math.round((detectedGehwegBreite - breite)*100)/100 : null;
   updateBauInfo(restBreite);
+  refreshPlanDocument();
 }
 function reapply(){
   if(drawnLine) applyRegelplan();
@@ -929,6 +1219,7 @@ function reapply(){
     var el = document.getElementById('gwWarn');
     if(el) el.style.display = restBreite < 1.30 ? '' : 'none';
   }
+  refreshPlanDocument();
 }
 
 function createLineHandles(){
@@ -942,6 +1233,7 @@ function createLineHandles(){
       return L.marker(ll,{icon:L.divIcon({html:'<div class="'+cls+'"></div>',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''})}).addTo(map);
     });
     applyRegelplan();
+    refreshPlanDocument();
   });
 }
 
@@ -999,11 +1291,21 @@ function clearAll(){
   var bi=document.getElementById('bauInfo');if(bi)bi.style.display='none';
   detectedGehwegBreite=null; detectedSurface=null; detectedRestFahrbahn=null; detectedRestHaus=null; detectedPfeilFB=null; detectedPfeilHaus=null;
   if(typeof Massketten!=='undefined')Massketten.remove();
+  refreshPlanDocument();
 }
 
 // ═══ EXPORT ═══
 function exportPDF(){
-  if(typeof PDFExport!=='undefined')PDFExport.exportPDF(map,activeRP);
+  refreshPlanDocument();
+  if(currentPlanDocument&&currentPlanDocument.exportMeta&&currentPlanDocument.exportMeta.hasErrors){
+    exportWizardStep=3;
+    updateExportWizard();
+    toast('Export blockiert - bitte Pflichtangaben und Pruefhinweise pruefen');
+    return;
+    toast('âŒ Export blockiert â€” bitte Pflichtangaben und Prüfhinweise prüfen');
+    return;
+  }
+  if(typeof PDFExport!=='undefined'&&currentPlanDocument)PDFExport.exportPlan(currentPlanDocument,{map:map});
   else toast('PDF Export wird geladen…');
 }
 
