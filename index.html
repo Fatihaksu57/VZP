@@ -884,6 +884,13 @@ function minDistToPolygon(p,pts){
   return minD;
 }
 
+function pickRestGehweg(res){
+  if(!res)return null;
+  if(res.restHaus!==null&&res.restHaus!==undefined&&res.restHaus>=0)return res.restHaus;
+  if(res.restbreite!==null&&res.restbreite!==undefined&&res.restbreite>=0)return res.restbreite;
+  return null;
+}
+
 // WFS-Abfrage für einen Layer, gibt Koordinaten-Arrays zurück
 function wfsQuery(layer,bbox,callback){
   var url='https://gdi.berlin.de/services/wfs/strassenbefahrung?service=WFS&version=1.0.0'+
@@ -898,7 +905,7 @@ function wfsQuery(layer,bbox,callback){
 // Misst Abstand vom Baufeld-Rand (= Abfragepunkt) bis:
 //   A) Fahrbahngrenze
 //   B) Häusergrenze (äußerer Gehwegrand)
-// Restbreite = max(A, B) — der nutzbare freie Gehwegstreifen
+// Restbreite = Abstand vom aeusseren Baufeldrand zur haeuserseitigen Gehwegkante
 function measureRestbreite(bauPt, baustellenBreite, seiteSign, callback){
   var m=ll2m(bauPt.lat, bauPt.lng);
   var d=20; // 20m bbox
@@ -991,10 +998,15 @@ function measureRestbreite(bauPt, baustellenBreite, seiteSign, callback){
     var pfeilFB   = restFB   ? { startLL: startLL, endLL: moveLL(startLL, perpFB,   restFB),   dist: restFB   } : null;
     var pfeilHaus = restHaus ? { startLL: startLL, endLL: moveLL(startLL, perpHaus, restHaus), dist: restHaus } : null;
 
+    var restGehweg = restHaus;
+    if(restGehweg===null && restFB!==null){
+      restGehweg = Math.max(0, restFB - baustellenBreite);
+    }
+
     callback({
       restFahrbahn: restFB,
       restHaus:     restHaus,
-      restbreite:   restFB!==null||restHaus!==null ? Math.max(restFB||0, restHaus||0) : null,
+      restbreite:   restGehweg,
       pfeilFB:      pfeilFB,
       pfeilHaus:    pfeilHaus
     });
@@ -1110,7 +1122,9 @@ function detectGehwegAtPoints(){
 
   queryPts.forEach(function(pt){
     measureRestbreite(pt, breiteVal, sf, function(res){
-      if(res.restbreite!==null&&res.restbreite>0&&res.restbreite<20){
+      var restGehweg = pickRestGehweg(res);
+      if(restGehweg!==null&&restGehweg>=0&&restGehweg<20){
+        res.restbreite=restGehweg;
         results.push(res);
       }
       pending--;
@@ -1128,7 +1142,7 @@ function detectGehwegAtPoints(){
     }
     // Minimalwert ist maßgebend (engste Stelle)
     var minRes=results.reduce(function(a,b){return a.restbreite<b.restbreite?a:b});
-    var restBreite=Math.round(minRes.restbreite*100)/100;
+    var restBreite=Math.round((pickRestGehweg(minRes)||0)*100)/100;
 
     // Beide Richtungen speichern
     detectedRestFahrbahn=minRes.restFahrbahn!==null?Math.round(minRes.restFahrbahn*100)/100:null;
@@ -1140,8 +1154,7 @@ function detectGehwegAtPoints(){
 
     var info='';
     if(minRes.restFahrbahn!==null&&minRes.restHaus!==null){
-      var groesser=minRes.restFahrbahn>minRes.restHaus?'Fahrbahn':'Häuser';
-      info=' (Fahrbahn: '+minRes.restFahrbahn.toFixed(2)+'m | Häuser: '+minRes.restHaus.toFixed(2)+'m → '+groesser+')';
+      info=' (Fahrbahn: '+minRes.restFahrbahn.toFixed(2)+'m | Haeuserseite frei: '+minRes.restHaus.toFixed(2)+'m)';
     }
     if(restBreite<1.30){
       toast('⚠️ Restgehweg '+restBreite.toFixed(2)+'m < 1,30m!'+info);
@@ -1169,6 +1182,12 @@ function detectGehwegSeitlich(mid, sf, breiteVal){
       detectedGehwegBreite = Math.round(result.breite * 100) / 100;
       var restBreite = detectedGehwegBreite - breiteVal;
       restBreite = Math.round(restBreite * 100) / 100;
+      if(restBreite < 0){
+        detectedGehwegBreite = null;
+        updateBauInfo(null);
+        toast('⚠️ Gehwegbreite konnte nicht belastbar bestimmt werden');
+        return;
+      }
       updateBauInfo(restBreite);
       
       if(restBreite < 1.30){
