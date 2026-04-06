@@ -881,7 +881,12 @@ function loadProject(){
     renderRPGrid();setPlacementType(placementType);setSide(seite);setTempo(tempo);
     if(state.mapCenter)map.setView(state.mapCenter, state.mapZoom);
     redrawMeasurements();
-    if(drawnLine||drawnPolygon){reapply();showClearButtons();}
+    if(drawnLine||drawnPolygon){
+      reapply();
+      if(placementType==='regelplan_line')createLineHandles();
+      if(placementType==='arbeitsbereich_polygon')createPolygonHandles();
+      showClearButtons();
+    }
     refreshPlanDocument();
     toast('📂 Projekt "'+name+'" geladen');
   }catch(e){toast('❌ Fehler beim Laden');}
@@ -961,13 +966,14 @@ function setPlacementType(type){
   }
   if(overlayResult){overlayResult.remove();overlayResult=null}
   if(lineHandles){lineHandles.remove();lineHandles=null}
+  if(polygonHandles){polygonHandles.remove();polygonHandles=null}
   if(typeof Massketten!=='undefined'&&Massketten.clear)Massketten.clear();
   if(placementType==='arbeitsbereich_polygon'){
     var bauInfo=document.getElementById('bauInfo');
     if(bauInfo)bauInfo.style.display='none';
-    if(showRP&&drawnPolygon)applyPolygonWorkspace();
+    if(showRP&&drawnPolygon){applyPolygonWorkspace();createPolygonHandles();}
   }else if(showRP&&drawnLine){
-    applyRegelplan();
+    applyRegelplan();createLineHandles();
   }
   updatePlacementModeUI();
   refreshPlanDocument();
@@ -1030,6 +1036,7 @@ function finishPolygonPlacement(){
   document.getElementById('instrFinishBtn').classList.remove('show');
   map.getContainer().style.cursor='';
   applyCurrentPlacement();
+  createPolygonHandles();
   showClearButtons();
   toast('✓ Arbeitsbereich gesetzt');
 }
@@ -1071,7 +1078,7 @@ function toggleMeasureMode(){
   }else{
     measurePoints=[];
     if(measureDraftMarker&&measureGroup){measureGroup.removeLayer(measureDraftMarker);measureDraftMarker=null;}
-    updatePolygonPlacementUI();
+    document.getElementById('instrBanner').classList.remove('show');
     map.getContainer().style.cursor='';
   }
 }
@@ -1731,6 +1738,80 @@ function createLineHandles(){
 }
 
 // ═══ LAYERS ═══
+function createPolygonHandles(){
+  if(polygonHandles){polygonHandles.remove();polygonHandles=null;}
+  if(!drawnPolygon||drawnPolygon.length<4)return;
+  var handles=[], isDragging=false, dragIndex=null;
+  var openPoints=drawnPolygon.slice(0,-1);
+  function eventLatLng(e){
+    if(e.latlng)return e.latlng;
+    if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches[0]){
+      return map.mouseEventToLatLng(e.originalEvent.touches[0]);
+    }
+    return null;
+  }
+  function onMove(e){
+    if(!isDragging||dragIndex===null)return;
+    var ll=eventLatLng(e);
+    if(!ll)return;
+    openPoints[dragIndex]=[ll.lat,ll.lng];
+    drawnPolygon=normalizePolygonPoints(openPoints);
+    polygonPlacementPoints=openPoints.map(function(p){return[p[0],p[1]]});
+    handles[dragIndex].setLatLng(ll);
+    applyPolygonWorkspace();
+  }
+  function onEnd(){
+    isDragging=false;
+    dragIndex=null;
+    map.dragging.enable();
+    map.getContainer().style.cursor='';
+    map.off('mousemove',onMove);
+    map.off('mouseup',onEnd);
+    map.off('touchmove',onMove);
+    map.off('touchend',onEnd);
+    refreshPlanDocument();
+  }
+  openPoints.forEach(function(ll,index){
+    var h=L.circleMarker(L.latLng(ll),{
+      radius:7,
+      color:'#dd5a12',
+      fillColor:'#fff',
+      fillOpacity:1,
+      weight:2.5,
+      className:'drag-handle drag-handle-corner'
+    }).addTo(map);
+    h.on('mousedown touchstart',function(e){
+      L.DomEvent.stopPropagation(e);
+      L.DomEvent.preventDefault(e);
+      isDragging=true;
+      dragIndex=index;
+      map.dragging.disable();
+      map.getContainer().style.cursor='grab';
+      map.on('mousemove',onMove);
+      map.on('mouseup',onEnd);
+      map.on('touchmove',onMove);
+      map.on('touchend',onEnd);
+    });
+    h.on('mouseover',function(){
+      if(!isDragging){h.setStyle({fillColor:'#FFE0B2',radius:9});map.getContainer().style.cursor='grab';}
+    });
+    h.on('mouseout',function(){
+      if(!isDragging){h.setStyle({fillColor:'#fff',radius:7});map.getContainer().style.cursor='';}
+    });
+    handles.push(h);
+  });
+  polygonHandles={
+    handles:handles,
+    remove:function(){
+      handles.forEach(function(h){map.removeLayer(h)});
+      map.off('mousemove',onMove);
+      map.off('mouseup',onEnd);
+      map.off('touchmove',onMove);
+      map.off('touchend',onEnd);
+    }
+  };
+}
+
 function toggleLayer(l){
   if(l==='rp'){
     showRP=!showRP;document.getElementById('mcRP').classList.toggle('active',showRP);
@@ -1782,7 +1863,7 @@ function clearAll(){
   if(mcMeasure)mcMeasure.classList.remove('active');
   if(overlayResult){overlayResult.remove();overlayResult=null}
   if(lineHandles){lineHandles.remove();lineHandles=null}
-  polygonHandles=null;
+  if(polygonHandles){polygonHandles.remove();polygonHandles=null;}
   placementMarkers.forEach(function(m){map.removeLayer(m)});
   placementMarkers=[];drawnLine=null;drawnPolygon=null;polygonPlacementPoints=[];hideClearButtons();
   if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}

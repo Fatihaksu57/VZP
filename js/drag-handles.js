@@ -74,37 +74,53 @@ const DragHandles = (() => {
     handles.push(startHandle, endHandle, centerHandle);
 
     // ── Drag Logic ──
+    function getEventLatLng(e) {
+      if (e.latlng) return e.latlng;
+      if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches[0]) {
+        return map.mouseEventToLatLng(e.originalEvent.touches[0]);
+      }
+      return null;
+    }
+
     function enableDrag(handle) {
-      handle.on('mousedown', (e) => {
+      const onStart = (e) => {
         L.DomEvent.stopPropagation(e);
         L.DomEvent.preventDefault(e);
+        const startLatLng = getEventLatLng(e);
+        if (!startLatLng) return;
         isDragging = true;
         dragType = handle._handleType;
-        dragStartLatLng = e.latlng;
+        dragStartLatLng = startLatLng;
         originalLatlngs = latlngs.map(ll => [ll[0], ll[1]]);
         map.dragging.disable();
         map.getContainer().style.cursor = dragType === 'center' ? 'grab' : 'col-resize';
 
         map.on('mousemove', onDragMove);
         map.on('mouseup', onDragEnd);
-      });
+        map.on('touchmove', onDragMove);
+        map.on('touchend', onDragEnd);
+      };
+      handle.on('mousedown', onStart);
+      handle.on('touchstart', onStart);
     }
 
     function onDragMove(e) {
       if (!isDragging) return;
+      const moveLatLng = getEventLatLng(e);
+      if (!moveLatLng) return;
 
       const newLatlngs = originalLatlngs.map(ll => [...ll]);
 
       if (dragType === 'start') {
-        newLatlngs[0] = [e.latlng.lat, e.latlng.lng];
-        startHandle.setLatLng(e.latlng);
+        newLatlngs[0] = [moveLatLng.lat, moveLatLng.lng];
+        startHandle.setLatLng(moveLatLng);
       } else if (dragType === 'end') {
-        newLatlngs[newLatlngs.length - 1] = [e.latlng.lat, e.latlng.lng];
-        endHandle.setLatLng(e.latlng);
+        newLatlngs[newLatlngs.length - 1] = [moveLatLng.lat, moveLatLng.lng];
+        endHandle.setLatLng(moveLatLng);
       } else if (dragType === 'center') {
         // Gesamte Linie verschieben
-        const dLat = e.latlng.lat - dragStartLatLng.lat;
-        const dLng = e.latlng.lng - dragStartLatLng.lng;
+        const dLat = moveLatLng.lat - dragStartLatLng.lat;
+        const dLng = moveLatLng.lng - dragStartLatLng.lng;
 
         for (let i = 0; i < newLatlngs.length; i++) {
           newLatlngs[i][0] = originalLatlngs[i][0] + dLat;
@@ -144,6 +160,8 @@ const DragHandles = (() => {
       map.getContainer().style.cursor = '';
       map.off('mousemove', onDragMove);
       map.off('mouseup', onDragEnd);
+      map.off('touchmove', onDragMove);
+      map.off('touchend', onDragEnd);
     }
 
     // Hover-Effekte
@@ -177,6 +195,8 @@ const DragHandles = (() => {
         handles.forEach(h => map.removeLayer(h));
         map.off('mousemove', onDragMove);
         map.off('mouseup', onDragEnd);
+        map.off('touchmove', onDragMove);
+        map.off('touchend', onDragEnd);
       },
     };
   }
