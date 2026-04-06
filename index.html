@@ -65,18 +65,17 @@ body{
 .version-chip{color:var(--orange-strong);background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(255,244,235,.96));border:1px solid rgba(221,90,18,.18)}
 .header-actions{gap:10px;flex-shrink:0}
 .search-strip{
-  grid-area:search;align-self:start;display:flex;flex-direction:column;gap:10px;min-width:0;
-  padding:18px;border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(246,242,235,.96));border:1px solid rgba(255,255,255,.84);box-shadow:var(--shadow-sm)
+  grid-area:search;align-self:start;display:flex;flex-direction:column;gap:8px;min-width:0;
+  padding:12px 14px;border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(246,242,235,.96));border:1px solid rgba(255,255,255,.84);box-shadow:var(--shadow-sm)
 }
 .search-strip::before{content:'Baustelle finden';font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
-.search-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;min-width:0}
-.search-label{display:flex;align-items:center;padding-left:2px;font:500 12px 'IBM Plex Sans',sans-serif;color:var(--text-soft)}
-.search-label::before{content:'Adresse';font:700 10px 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted);margin-right:10px}
-.search-strip>.search-btn{align-self:flex-start}
-.header-search{width:100%;height:52px;padding:0 16px 0 46px;background:linear-gradient(180deg,#fffdfa,#f8f4ee);border:1.5px solid var(--line);border-radius:18px;color:var(--text);font:500 15px 'IBM Plex Sans',sans-serif;outline:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%23dd5a12' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:16px center}
+.search-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;min-width:0;align-items:center}
+.search-strip .section-copy{display:none}
+.search-label{display:none}
+.header-search{width:100%;height:44px;padding:0 14px 0 42px;background:linear-gradient(180deg,#fffdfa,#f8f4ee);border:1.5px solid var(--line);border-radius:16px;color:var(--text);font:500 14px 'IBM Plex Sans',sans-serif;outline:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%23dd5a12' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:14px center}
 .header-search::placeholder{color:#968b7d}
 .header-search:focus{border-color:rgba(221,90,18,.42);box-shadow:0 0 0 4px rgba(221,90,18,.10)}
-.search-btn{height:52px;padding:0 20px;border:none;border-radius:18px;background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff;font:700 13px 'IBM Plex Sans',sans-serif;cursor:pointer;box-shadow:0 14px 28px rgba(221,90,18,.24)}
+.search-btn{height:44px;padding:0 18px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff;font:700 13px 'IBM Plex Sans',sans-serif;cursor:pointer;box-shadow:0 14px 28px rgba(221,90,18,.24)}
 
 .map-switcher{position:absolute;top:18px;left:18px;z-index:700;display:flex;gap:0;padding:6px;border-radius:22px;box-shadow:var(--shadow-sm);border:1px solid rgba(255,255,255,.72);background:rgba(255,253,250,.90);backdrop-filter:blur(12px)}
 .ms-btn{padding:12px 16px;border:none;cursor:pointer;font:700 12px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--text-soft);transition:all .15s;white-space:nowrap;border-radius:16px}
@@ -90,6 +89,8 @@ body{
 .ib-step{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff;font:700 12px 'IBM Plex Sans',sans-serif;flex-shrink:0}
 .ib-text{font:600 13px 'IBM Plex Sans',sans-serif;color:var(--text)}
 .ib-cancel{width:30px;height:30px;border-radius:10px;border:1px solid var(--line);background:var(--surface-soft);color:var(--text-muted);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.ib-finish{height:32px;padding:0 12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff;font:700 12px 'IBM Plex Sans',sans-serif;cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0}
+.ib-finish.show{display:inline-flex}
 .status-bar{position:absolute;left:18px;bottom:18px;z-index:700;background:rgba(255,253,250,.92);border:1px solid rgba(255,255,255,.74);border-radius:999px;padding:8px 14px;font:600 10px 'IBM Plex Mono',monospace;color:var(--text-muted);display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-sm);max-width:calc(100% - 180px);overflow:auto;backdrop-filter:blur(10px)}
 .status-bar .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
 .rp-preview{position:absolute;bottom:18px;right:18px;z-index:700;width:92px;background:rgba(255,253,250,.94);border:1px solid rgba(255,255,255,.74);border-radius:22px;overflow:hidden;box-shadow:var(--shadow-sm);cursor:pointer;transition:all .2s}
@@ -194,10 +195,9 @@ select.param-input{cursor:pointer}
   .header-logo .logo-sub{font-size:10px}
   .header-meta .meta-pill{display:none}
   .header-actions{gap:8px}
-  .search-strip{padding:14px;border-radius:22px}
+  .search-strip{padding:12px;border-radius:20px}
   .search-shell{grid-template-columns:1fr}
-  .search-label{padding-left:0}
-  .search-label::before{display:block;margin-right:0}
+  .search-btn{width:100%}
   .sidebar{display:none}
   .map-area{border-radius:24px}
   .map-switcher{top:12px;left:12px;right:74px;overflow:auto;padding:5px}
@@ -226,12 +226,10 @@ select.param-input{cursor:pointer}
     </div>
   </div>
   <div class="search-strip">
-    <div class="section-copy">Adresse suchen, Karte positionieren und danach den passenden Regelplan direkt auf die Baustelle setzen.</div>
     <div class="search-shell">
-      <span class="search-label">Adresse</span>
       <input class="header-search" type="text" id="addressInput" placeholder="Adresse oder Straße suchen…">
+      <button class="search-btn" onclick="searchAddress(document.getElementById('addressInput').value)">Suchen</button>
     </div>
-    <button class="search-btn" onclick="searchAddress(document.getElementById('addressInput').value)">Suchen</button>
   </div>
 
   <div class="sidebar" id="sidebar">
@@ -337,6 +335,7 @@ select.param-input{cursor:pointer}
     <div class="instruction-banner" id="instrBanner">
       <span class="ib-step" id="instrStep">1</span>
       <span class="ib-text" id="instrText">Tippe den Startpunkt der Baustelle</span>
+      <button class="ib-finish" id="instrFinishBtn" onclick="finishPolygonPlacement()">Fertig</button>
       <button class="ib-cancel" onclick="cancelPlacement()">✕</button>
     </div>
     <div class="rp-preview" id="rpPreview" onclick="toggleRPImageOverlay()">
@@ -441,7 +440,7 @@ select.param-input{cursor:pointer}
 var map, activeRP='BII1', seite='rechts', tempo=50;
 var overlayResult=null, drawnLine=null, lineHandles=null;
 var placementType='regelplan_line';
-var polygonPlacementMode=false, polygonRectPoints=[], drawnPolygon=null, polygonHandles=null;
+var polygonPlacementMode=false, polygonPlacementPoints=[], drawnPolygon=null, polygonHandles=null, polygonDraftLayer=null;
 var showRP=true, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
 var measureMode=false, measurePoints=[], measureGroup=null, measureItems=[], measureDraftMarker=null;
@@ -851,7 +850,7 @@ function saveProject(){
     tempo:tempo,
     drawnLine:drawnLine,
     drawnPolygon:drawnPolygon,
-    polygonRectPoints:polygonRectPoints,
+    polygonPlacementPoints:polygonPlacementPoints,
     placementPoints:placementPoints,
     mapCenter:map.getCenter(),
     mapZoom:map.getZoom(),
@@ -873,7 +872,7 @@ function loadProject(){
     var state=JSON.parse(data);
     activeRP=state.activeRP;seite=state.seite;tempo=state.tempo;
     placementType=state.placementType||'regelplan_line';
-    drawnLine=state.drawnLine;drawnPolygon=state.drawnPolygon||null;polygonRectPoints=state.polygonRectPoints||[];
+    drawnLine=state.drawnLine;drawnPolygon=state.drawnPolygon||null;polygonPlacementPoints=state.polygonPlacementPoints||state.polygonRectPoints||[];
     placementPoints=state.placementPoints;
     measureItems=Array.isArray(state.measureItems)?state.measureItems:[];
     projectState=Object.assign({},projectState,state.projectState||{}, { name: state.name || (state.projectState&&state.projectState.name) || name });
@@ -929,7 +928,7 @@ function updatePlacementModeUI(){
   });
   var isPolygon=placementType==='arbeitsbereich_polygon';
   var desc=isPolygon
-    ? '2 Punkte auf der Karte tippen: gegenueberliegende Ecken des Arbeitsbereichs.'
+    ? 'Mehrere Punkte auf der Karte setzen und mit Fertig abschliessen.'
     : '2 Punkte auf der Karte tippen: Start und Ende der Baustelle.';
   ['placementDescD','placementDescM'].forEach(function(id){
     var el=document.getElementById(id);
@@ -943,10 +942,12 @@ function setPlacementType(type){
   placementMode=false;
   polygonPlacementMode=false;
   placementPoints=[];
-  polygonRectPoints=[];
+  polygonPlacementPoints=[];
   placementMarkers.forEach(function(m){map.removeLayer(m)});
   placementMarkers=[];
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
   document.getElementById('instrBanner').classList.remove('show');
+  document.getElementById('instrFinishBtn').classList.remove('show');
   map.getContainer().style.cursor='';
   if(placementType==='arbeitsbereich_polygon'){
     if(rpImageVisible&&typeof RegelplanImageOverlay!=='undefined'){
@@ -972,17 +973,65 @@ function setPlacementType(type){
   refreshPlanDocument();
 }
 
-function buildRectPolygonFromPoints(a,b){
-  if(!a||!b)return null;
-  var south=Math.min(a[0],b[0]), north=Math.max(a[0],b[0]);
-  var west=Math.min(a[1],b[1]), east=Math.max(a[1],b[1]);
-  return [
-    [south,west],
-    [south,east],
-    [north,east],
-    [north,west],
-    [south,west]
-  ];
+function normalizePolygonPoints(points){
+  if(!Array.isArray(points)||points.length<3)return null;
+  var clean=points.map(function(ll){return[ll[0],ll[1]]});
+  var first=clean[0],last=clean[clean.length-1];
+  if(!last||last[0]!==first[0]||last[1]!==first[1])clean.push([first[0],first[1]]);
+  return clean;
+}
+
+function redrawPolygonPlacementDraft(){
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
+  if(!polygonPlacementPoints.length)return;
+  if(polygonPlacementPoints.length>=3){
+    polygonDraftLayer=L.polygon(polygonPlacementPoints,{
+      color:'#dd5a12',
+      weight:2,
+      dashArray:'6,6',
+      fillColor:'#dd5a12',
+      fillOpacity:0.08,
+      interactive:false
+    }).addTo(map);
+  }else{
+    polygonDraftLayer=L.polyline(polygonPlacementPoints,{
+      color:'#dd5a12',
+      weight:2,
+      dashArray:'6,6',
+      interactive:false
+    }).addTo(map);
+  }
+}
+
+function updatePolygonPlacementUI(){
+  var finishBtn=document.getElementById('instrFinishBtn');
+  if(!polygonPlacementMode){
+    finishBtn.classList.remove('show');
+    return;
+  }
+  var count=polygonPlacementPoints.length;
+  document.getElementById('instrStep').textContent=String(Math.min(count+1,9));
+  document.getElementById('instrText').textContent=count<2
+    ? 'Tippe weitere Eckpunkte des Arbeitsbereichs'
+    : 'Weitere Punkte setzen oder mit Fertig den Arbeitsbereich schliessen';
+  finishBtn.classList.toggle('show',count>=3);
+}
+
+function finishPolygonPlacement(){
+  if(!polygonPlacementMode)return;
+  if(polygonPlacementPoints.length<3){
+    toast('Mindestens 3 Punkte fuer den Arbeitsbereich setzen');
+    return;
+  }
+  drawnPolygon=normalizePolygonPoints(polygonPlacementPoints);
+  polygonPlacementMode=false;
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
+  document.getElementById('instrBanner').classList.remove('show');
+  document.getElementById('instrFinishBtn').classList.remove('show');
+  map.getContainer().style.cursor='';
+  applyCurrentPlacement();
+  showClearButtons();
+  toast('✓ Arbeitsbereich gesetzt');
 }
 
 // ═══ PARAMS ═══
@@ -1007,9 +1056,11 @@ function toggleMeasureMode(){
   placementMode=false;
   polygonPlacementMode=false;
   placementPoints=[];
-  polygonRectPoints=[];
+  polygonPlacementPoints=[];
   placementMarkers.forEach(function(m){map.removeLayer(m)});
   placementMarkers=[];
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
+  document.getElementById('instrFinishBtn').classList.remove('show');
   document.getElementById('mcMeasure').classList.toggle('active',measureMode);
   if(measureMode){
     document.getElementById('instrStep').textContent='M';
@@ -1093,19 +1144,23 @@ function startPlacement(){
   clearAll();
   placementMode=placementType==='regelplan_line';
   polygonPlacementMode=placementType==='arbeitsbereich_polygon';
-  placementPoints=[];polygonRectPoints=[];placementMarkers=[];closePanel();
+  placementPoints=[];polygonPlacementPoints=[];placementMarkers=[];closePanel();
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
   document.getElementById('instrStep').textContent='1';
   document.getElementById('instrText').textContent=placementType==='arbeitsbereich_polygon'
-    ? 'Tippe die erste Ecke des Arbeitsbereichs'
+    ? 'Tippe den ersten Punkt des Arbeitsbereichs'
     : 'Tippe den Startpunkt der Baustelle';
+  document.getElementById('instrFinishBtn').classList.toggle('show',false);
   document.getElementById('instrBanner').classList.add('show');
   map.getContainer().style.cursor='crosshair';
 }
 function cancelPlacement(){
   placementMode=false;placementPoints=[];
-  polygonPlacementMode=false;polygonRectPoints=[];
+  polygonPlacementMode=false;polygonPlacementPoints=[];
   placementMarkers.forEach(function(m){map.removeLayer(m)});placementMarkers=[];
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
   document.getElementById('instrBanner').classList.remove('show');
+  document.getElementById('instrFinishBtn').classList.remove('show');
   map.getContainer().style.cursor='';
 }
 // ═══ GEOPORTAL BERLIN: Oberflächen-Erkennung ═══
@@ -1734,7 +1789,7 @@ function clearAll(){
   if(lineHandles){lineHandles.remove();lineHandles=null}
   polygonHandles=null;
   placementMarkers.forEach(function(m){map.removeLayer(m)});
-  placementMarkers=[];drawnLine=null;drawnPolygon=null;polygonRectPoints=[];hideClearButtons();
+  placementMarkers=[];drawnLine=null;drawnPolygon=null;polygonPlacementPoints=[];hideClearButtons();
   if(typeof RegelplanImageOverlay!=='undefined')RegelplanImageOverlay.hide();
   rpImageVisible=false;
   document.getElementById('mcImg').classList.remove('active');
