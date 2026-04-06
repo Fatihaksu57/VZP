@@ -228,6 +228,16 @@ var RegelplanTemplates = (function() {
   }
 
   var placeFns={BII1:placeBII1,BII2:placeBII2,BII3:placeBII3,BII4:placeBII4,BII5:placeBII5};
+  function edgeLen(a,b){return L.latLng(a).distanceTo(L.latLng(b))}
+  function edgeMid(a,b,t){return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]}
+  function polygonPerimeter(poly){var total=0;for(var i=0;i<poly.length-1;i++)total+=edgeLen(poly[i],poly[i+1]);return total}
+  function ll2mPoly(ll){var x=ll[1]*20037508.34/180,r=ll[0]*Math.PI/180,y=Math.log(Math.tan(Math.PI/4+r/2))*20037508.34/Math.PI;return{x:x,y:y}}
+  function polygonAreaSquareMeters(poly){var area=0;for(var i=0;i<poly.length-1;i++){var a=ll2mPoly(poly[i]),b=ll2mPoly(poly[i+1]);area+=a.x*b.y-b.x*a.y}return Math.abs(area)/2}
+  function polygonCentroid(poly){var sumLat=0,sumLng=0,count=Math.max(1,poly.length-1);for(var i=0;i<count;i++){sumLat+=poly[i][0];sumLng+=poly[i][1]}return[sumLat/count,sumLng/count]}
+  function outwardBearing(a,b,centroid){var m=edgeMid(a,b,0.5),br=bear(a,b),p1=oLL(m,br+90,1.5),p2=oLL(m,br-90,1.5),c=L.latLng(centroid);return L.latLng(p1).distanceTo(c)>L.latLng(p2).distanceTo(c)?br+90:br-90}
+  function polygonBarrierRow(map,grp,a,b,mk,scene){var len=edgeLen(a,b),seg=2.0,gap=0.05,count=Math.max(1,Math.floor(len/(seg+gap))),used=count*seg+(count-1)*gap,pad=(len-used)/2,w=schW(map),h=Math.max(6,Math.round(schW(map)*0.28)),br=bear(a,b);for(var i=0;i<count;i++){var along=pad+i*(seg+gap)+seg/2,pos=edgeMid(a,b,Math.max(0,Math.min(1,along/len)));mk.push(mkSVG(map,grp,{p:pos,b:br},'absperrschranke_leuchte.svg',w,h,br-90,520));if(scene)scene.items.push({kind:'barrier',role:'polygon_edge_barrier',asset:'absperrschranke_leuchte.svg',point:pos,bearing:br,orientation:'longitudinal',widthMeters:seg});}}
+  function polygonWarningSigns(map,grp,poly,mk,scene){var centroid=polygonCentroid(poly),lengths=[],maxLen=0;for(var i=0;i<poly.length-1;i++){var len=edgeLen(poly[i],poly[i+1]);lengths.push({index:i,len:len});if(len>maxLen)maxLen=len}lengths.forEach(function(entry){if(entry.len<8||entry.len<maxLen*0.98)return;var a=poly[entry.index],b=poly[entry.index+1],br=bear(a,b),outBr=outwardBearing(a,b,centroid),pStart={p:oLL(edgeMid(a,b,0.15),outBr,2.5),b:br},pEnd={p:oLL(edgeMid(a,b,0.85),outBr,2.5),b:br};var s1=mkVZ(map,grp,pStart,'123',0,700),s2=mkVZ(map,grp,pEnd,'123',180,700);if(s1)mk.push(s1);if(s2)mk.push(s2);if(scene){scene.items.push({kind:'sign',role:'polygon_warning_start',sign:'123',point:pStart.p,rotation:0});scene.items.push({kind:'sign',role:'polygon_warning_end',sign:'123',point:pEnd.p,rotation:180});}});}
+  function generatePolygonOverlay(map,polygon,opts){if(!polygon||polygon.length<4)return null;if(activeOverlay){activeOverlay.remove();activeOverlay=null;}opts=opts||{};var grp=L.layerGroup().addTo(map),markers=[],perimeter=polygonPerimeter(polygon);var scene={planId:'CUSTOM_AREA',baustellenLaenge:perimeter,polygonPerimeter:perimeter,polygonArea:polygonAreaSquareMeters(polygon),workZonePolygon:polygon.slice(),items:[],dimensions:[{kind:'perimeter',value:perimeter}],validations:[{code:'POLYGON_SIGNS_REVIEW',severity:'warning',message:'Verkehrszeichenlogik fuer Polygon-Arbeitsbereich pruefen'}]};function render(){grp.clearLayers();scene.items=[];grp.addLayer(L.polygon(polygon,{fillColor:'#9e9e9e',fillOpacity:0.22,color:'#c62828',weight:2,dashArray:'4,4',interactive:false}));markers=[];for(var i=0;i<polygon.length-1;i++)polygonBarrierRow(map,grp,polygon[i],polygon[i+1],markers,scene);if(opts.enableWarnings!==false)polygonWarningSigns(map,grp,polygon,markers,scene);}render();var onZoom=function(){render()};map.on('zoomend',onZoom);activeOverlay={overlay:grp,group:grp,scene:scene,markers:markers,baustellenLaenge:perimeter,validations:scene.validations,remove:function(){map.removeLayer(grp);map.off('zoomend',onZoom);activeOverlay=null}};return activeOverlay}
 
   // ═══ MAIN ═══
   function generateOverlay(map,lls,rpId,seite,opts){
@@ -286,6 +296,7 @@ var RegelplanTemplates = (function() {
     REGELPLÄNE:REGELPLÄNE,
     RSA_DISTANCES:RSA_DISTANCES,
     generateOverlay:generateOverlay,
+    generatePolygonOverlay:generatePolygonOverlay,
     getMapScale:getMapScale,
     pLen:pLen
   };
