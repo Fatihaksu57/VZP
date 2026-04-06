@@ -149,6 +149,8 @@ select.param-input{cursor:pointer}
 @keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(230,81,0,.5)}70%{box-shadow:0 0 0 12px rgba(230,81,0,0)}100%{box-shadow:0 0 0 0 rgba(230,81,0,0)}}
 .placement-marker{width:16px;height:16px;border-radius:50%;background:var(--orange);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);animation:pulse-ring 1.5s infinite}
 .placement-marker-done{width:14px;height:14px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.measure-point{width:14px;height:14px;border-radius:50%;background:#1565C0;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)}
+.measure-label{padding:3px 8px;border-radius:999px;background:#fff;border:1.5px solid rgba(21,101,192,.28);box-shadow:0 2px 8px rgba(0,0,0,.14);font:700 11px 'IBM Plex Mono',monospace;color:#1565C0;white-space:nowrap}
 
 @media(min-width:769px){
   .app{flex-direction:row}.tab-bar{display:none}
@@ -285,6 +287,7 @@ select.param-input{cursor:pointer}
     </div>
     <div class="map-controls">
       <button class="mc-btn active" id="mcRP" onclick="toggleLayer('rp')" title="Regelplan">📐</button>
+      <button class="mc-btn" id="mcMeasure" onclick="toggleMeasureMode()" title="Bemaßung">📏</button>
       <button class="mc-btn" id="mcImg" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
       <button class="mc-btn" onclick="getGPSLocation()" title="GPS-Standort">📍</button>
     </div>
@@ -396,6 +399,7 @@ var map, activeRP='BII1', seite='rechts', tempo=50;
 var overlayResult=null, drawnLine=null, lineHandles=null;
 var showRP=true, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
+var measureMode=false, measurePoints=[], measureGroup=null, measureItems=[], measureDraftMarker=null;
 var baseLayers={}, currentBaseMap='k5';
 var streetOverlay=null;
 var showRestbreiteOnMap=true;
@@ -440,6 +444,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 function initMap(){
   map=L.map('map',{center:[52.4730,13.4430],zoom:17,doubleClickZoom:false,zoomControl:true,maxZoom:20});
+  measureGroup=L.layerGroup();
 
   // Geoportal Berlin: K5 Farbe (Gebäude, Straßennamen, Hausnummern)
   baseLayers.k5=L.tileLayer.wms('https://gdi.berlin.de/services/wms/k5_farbe',{
@@ -752,6 +757,7 @@ function saveProject(){
     mapCenter:map.getCenter(),
     mapZoom:map.getZoom(),
     breite:document.getElementById('breiteInput').value,
+    measureItems:measureItems,
     projectState:projectState,
     currentPlanDocument:currentPlanDocument
   };
@@ -768,11 +774,13 @@ function loadProject(){
     var state=JSON.parse(data);
     activeRP=state.activeRP;seite=state.seite;tempo=state.tempo;
     drawnLine=state.drawnLine;placementPoints=state.placementPoints;
+    measureItems=Array.isArray(state.measureItems)?state.measureItems:[];
     projectState=Object.assign({},projectState,state.projectState||{}, { name: state.name || (state.projectState&&state.projectState.name) || name });
     syncAllProjectFields();
     setMirroredInputValue('breiteInput','breiteInputM',state.breite||2.0);
     renderRPGrid();setSide(seite);setTempo(tempo);
     if(state.mapCenter)map.setView(state.mapCenter, state.mapZoom);
+    redrawMeasurements();
     if(drawnLine)reapply();
     refreshPlanDocument();
     toast('📂 Projekt "'+name+'" geladen');
@@ -825,8 +833,68 @@ function setTempo(val){
   refreshPlanDocument();
 }
 
+function toggleMeasureMode(){
+  measureMode=!measureMode;
+  placementMode=false;
+  placementPoints=[];
+  placementMarkers.forEach(function(m){map.removeLayer(m)});
+  placementMarkers=[];
+  document.getElementById('mcMeasure').classList.toggle('active',measureMode);
+  if(measureMode){
+    document.getElementById('instrStep').textContent='M';
+    document.getElementById('instrText').textContent='Tippe zwei Punkte fuer die Bemaßung';
+    document.getElementById('instrBanner').classList.add('show');
+    map.getContainer().style.cursor='crosshair';
+    toast('Bemaßung aktiv');
+  }else{
+    measurePoints=[];
+    if(measureDraftMarker&&measureGroup){measureGroup.removeLayer(measureDraftMarker);measureDraftMarker=null;}
+    document.getElementById('instrBanner').classList.remove('show');
+    map.getContainer().style.cursor='';
+  }
+}
+
+function renderMeasurementItem(item){
+  if(!measureGroup._map)measureGroup.addTo(map);
+  var a=item.a, b=item.b;
+  var pa=L.latLng(a), pb=L.latLng(b);
+  var dist=pa.distanceTo(pb);
+  var line=L.polyline([a,b],{color:'#1565C0',weight:2,dashArray:'8,6'}).addTo(measureGroup);
+  var markerA=L.marker(a,{icon:L.divIcon({html:'<div class="measure-point"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(measureGroup);
+  var markerB=L.marker(b,{icon:L.divIcon({html:'<div class="measure-point"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(measureGroup);
+  var mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  var label=(dist<100?dist.toFixed(2):dist.toFixed(1))+' m';
+  var labelMarker=L.marker(mid,{icon:L.divIcon({html:'<div class="measure-label">'+label+'</div>',iconSize:[72,24],iconAnchor:[36,12],className:''})}).addTo(measureGroup);
+  item.distance=dist;
+  return {line:line,markerA:markerA,markerB:markerB,labelMarker:labelMarker};
+}
+
+function addMeasurement(a,b){
+  var item={a:a,b:b,distance:L.latLng(a).distanceTo(L.latLng(b))};
+  measureItems.push(item);
+  return renderMeasurementItem(item);
+}
+
+function redrawMeasurements(){
+  if(!measureGroup)return;
+  measureGroup.clearLayers();
+  if(!measureItems.length)return;
+  if(!measureGroup._map)measureGroup.addTo(map);
+  measureItems.forEach(function(item){ renderMeasurementItem(item); });
+}
+
+function clearMeasurements(){
+  measurePoints=[];
+  measureDraftMarker=null;
+  measureItems=[];
+  if(measureGroup)measureGroup.clearLayers();
+  if(measureGroup&&measureGroup._map)map.removeLayer(measureGroup);
+}
+
 // ═══ 2-POINT PLACEMENT ═══
 function startPlacement(){
+  measureMode=false;
+  document.getElementById('mcMeasure').classList.remove('active');
   clearAll();placementMode=true;placementPoints=[];placementMarkers=[];closePanel();
   document.getElementById('instrStep').textContent='1';
   document.getElementById('instrText').textContent='Tippe den Startpunkt der Baustelle';
@@ -1237,6 +1305,25 @@ function updateBauInfo(restBreite){
 }
 
 function onMapClick(e){
+  if(measureMode){
+    var ml=[e.latlng.lat,e.latlng.lng];
+    measurePoints.push(ml);
+    if(measurePoints.length===1){
+      if(!measureGroup._map)measureGroup.addTo(map);
+      if(measureDraftMarker)measureGroup.removeLayer(measureDraftMarker);
+      measureDraftMarker=L.marker(ml,{icon:L.divIcon({html:'<div class="measure-point"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(measureGroup);
+      document.getElementById('instrStep').textContent='2';
+      document.getElementById('instrText').textContent='Tippe den zweiten Punkt der Bemaßung';
+      return;
+    }
+    if(measureDraftMarker){measureGroup.removeLayer(measureDraftMarker);measureDraftMarker=null;}
+    addMeasurement(measurePoints[0],measurePoints[1]);
+    measurePoints=[];
+    document.getElementById('instrStep').textContent='M';
+    document.getElementById('instrText').textContent='Weitere zwei Punkte tippen oder Maßmodus beenden';
+    toast('Bemaßung gesetzt');
+    return;
+  }
   if(!placementMode)return;
   var ll=[e.latlng.lat,e.latlng.lng];placementPoints.push(ll);
   if(placementPoints.length===1){
@@ -1357,6 +1444,10 @@ function setRPOverlayOpacity(val){
 // ═══ CLEAR ═══
 function clearAll(){
   cancelPlacement();
+  measureMode=false;
+  measurePoints=[];
+  var mcMeasure=document.getElementById('mcMeasure');
+  if(mcMeasure)mcMeasure.classList.remove('active');
   if(overlayResult){overlayResult.remove();overlayResult=null}
   if(lineHandles){lineHandles.remove();lineHandles=null}
   placementMarkers.forEach(function(m){map.removeLayer(m)});
@@ -1369,6 +1460,7 @@ function clearAll(){
   var bi=document.getElementById('bauInfo');if(bi)bi.style.display='none';
   detectedGehwegBreite=null; detectedSurface=null; detectedRestFahrbahn=null; detectedRestHaus=null; detectedPfeilFB=null; detectedPfeilHaus=null;
   if(typeof Massketten!=='undefined')Massketten.remove();
+  clearMeasurements();
   refreshPlanDocument();
 }
 
