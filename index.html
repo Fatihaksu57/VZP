@@ -31,21 +31,22 @@ body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--bg);color
 .map-area{flex:1;position:relative;overflow:hidden}
 #map{width:100%;height:100%;background:#e8e4dc}
 
-.header{height:48px;flex-shrink:0;background:var(--orange);color:#fff;display:flex;align-items:center;padding:0 12px;gap:8px;box-shadow:0 2px 8px rgba(230,81,0,.25);z-index:1000}
-.header-logo{font:700 15px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap}
-.header-logo .badge{font:600 9px 'IBM Plex Mono',monospace;background:rgba(255,255,255,.2);padding:2px 6px;border-radius:4px}
-.header-search{flex:1;height:32px;padding:0 10px 0 32px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;font:400 13px 'IBM Plex Sans',sans-serif;outline:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23ffffffaa' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center}
-.header-search::placeholder{color:rgba(255,255,255,.55)}
-.header-search:focus{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.3)}
+.header{height:60px;flex-shrink:0;background:linear-gradient(135deg, #e96900, #f07a1f);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:12px;box-shadow:0 3px 16px rgba(230,81,0,.24);z-index:1000}
+.header-logo{font:700 16px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;gap:8px;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,.14)}
+.header-logo .badge{font:700 10px 'IBM Plex Mono',monospace;background:rgba(255,255,255,.18);padding:3px 7px;border-radius:6px}
+.header-search{flex:1;min-width:240px;height:40px;padding:0 14px 0 38px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);border-radius:14px;color:#fff;font:400 14px 'IBM Plex Sans',sans-serif;outline:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%23ffffffcc' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:12px center}
+.header-search::placeholder{color:rgba(255,255,255,.75)}
+.header-search:focus{background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.45);box-shadow:0 0 0 4px rgba(255,255,255,.12)}
+.header-actions{display:flex;align-items:center;gap:8px}
 
 .map-controls{position:absolute;top:10px;right:10px;z-index:700;display:flex;flex-direction:column;gap:5px}
 .mc-btn{width:42px;height:42px;border-radius:var(--r);background:var(--sf);border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);color:var(--tx2)}
 .mc-btn:active{transform:scale(.92)}
 .mc-btn.active{border-color:var(--orange);color:var(--orange);background:var(--orange-bg)}
 
-.map-switcher{position:absolute;top:10px;left:10px;z-index:700;display:flex;gap:0;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-md);border:1.5px solid var(--bd2)}
-.ms-btn{padding:8px 10px;border:none;cursor:pointer;font:600 10px 'IBM Plex Sans',sans-serif;background:var(--sf);color:var(--tx2);transition:all .15s;white-space:nowrap}
-.ms-btn+.ms-btn{border-left:1px solid var(--bd)}
+.map-switcher{position:absolute;top:12px;left:12px;z-index:700;display:flex;gap:0;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.92)}
+.ms-btn{padding:10px 14px;border:none;cursor:pointer;font:700 11px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--tx2);transition:all .15s;white-space:nowrap}
+.ms-btn+.ms-btn{border-left:1px solid rgba(0,0,0,.08)}
 .ms-btn.active{background:var(--orange);color:#fff}
 
 .instruction-banner{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:800;display:none;align-items:center;gap:8px;background:var(--sf);border:2px solid var(--orange);border-radius:var(--r2);padding:8px 14px;box-shadow:var(--shadow-lg);max-width:92vw}
@@ -130,11 +131,29 @@ select.param-input{cursor:pointer}
 
 @media(min-width:769px){
   .app{flex-direction:row}.tab-bar{display:none}
-  .sidebar{width:340px;flex-shrink:0;background:var(--sf);border-right:2px solid var(--bd);overflow-y:auto;display:flex;flex-direction:column}
-  .sidebar .section{padding:0 16px}.sidebar .section:first-child{padding-top:16px}
+  .sidebar{width:360px;flex-shrink:0;background:rgba(255,255,255,.96);border-right:1px solid rgba(0,0,0,.08);overflow-y:auto;display:flex;flex-direction:column;backdrop-filter:blur(12px)}
+  .sidebar .section{padding:0 18px}.sidebar .section:first-child{padding-top:20px}
   .map-area{flex:1}.panel{display:none!important}
 }
 @media(max-width:768px){.sidebar{display:none}}
+
+.sidebar .section{background:var(--sf2);border:1px solid var(--bd);border-radius:18px;padding:16px;margin-bottom:16px}
+.sidebar .section:last-child{margin-bottom:24px}
+.sidebar .section-label{margin-bottom:14px;font-size:11px;letter-spacing:1.2px;color:var(--orange);}
+.sidebar .btn-row{justify-content:space-between}
+.sidebar .btn-row .btn{flex:1;min-width:0}
+.sidebar .btn-row .btn + .btn{margin-left:10px}
+.section .param-row{margin-bottom:10px}
+.section .param-label{width:100px}
+.rp-card{border-radius:16px}
+.btn{border-radius:14px}
+.mc-btn{width:46px;height:46px}
+.ms-btn{padding:10px 14px;font-size:11px}
+.tab-bar{border-top-color:rgba(0,0,0,.06);box-shadow:0 -6px 20px rgba(0,0,0,.08)}
+.panel{border-top-left-radius:18px;border-top-right-radius:18px}
+.panel-header{padding-bottom:4px;border-bottom:1px solid rgba(0,0,0,.06)}
+.rp-preview{border-radius:16px}
+.bau-info{border-radius:16px;letter-spacing:.02em}
 </style>
 </head>
 <body>
@@ -142,6 +161,10 @@ select.param-input{cursor:pointer}
   <div class="header">
     <div class="header-logo">🚧 VZP <span class="badge">RSA 21</span></div>
     <input class="header-search" type="text" id="addressInput" placeholder="Adresse suchen…">
+    <div class="header-actions">
+      <button class="mc-btn" onclick="getGPSLocation()" title="GPS-Standort">📍</button>
+      <button class="mc-btn" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
+    </div>
   </div>
 
   <div class="sidebar" id="sidebar">
@@ -213,7 +236,13 @@ select.param-input{cursor:pointer}
       <input type="range" min="10" max="100" value="70" oninput="setRPOverlayOpacity(this.value/100)">
     </div>
     <div class="status-bar"><span class="dot"></span><span id="stCoord">—</span><span id="stZoom">Z17</span></div>
-    <div class="bau-info" id="bauInfo" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:700;background:var(--sf);border:2px solid var(--orange);border-radius:12px;padding:6px 14px;font:600 11px 'IBM Plex Mono',monospace;color:var(--orange);box-shadow:var(--shadow-md);align-items:center;gap:6px;max-width:90vw;white-space:nowrap">📏 <span id="bauLaenge">—</span> | 🚗 <span id="restFahrbahn">—</span></div>
+    <div class="bau-info" id="bauInfo" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:700;background:var(--sf);border:2px solid var(--orange);border-radius:12px;padding:6px 14px;font:600 11px 'IBM Plex Mono',monospace;color:var(--orange);box-shadow:var(--shadow-md);align-items:center;gap:8px;max-width:90vw;white-space:nowrap">
+      📏 <span id="bauLaenge">—</span>
+      <span>•</span>
+      🚶 <span id="restBreite">—</span>
+      <span>•</span>
+      🚗 <span id="restFahrbahn">—</span>
+    </div>
   </div>
 
   <div class="panel" id="panelRP">
@@ -821,10 +850,20 @@ function updateBauInfo(restBreite){
     laengeEl.textContent=len<100?len.toFixed(1)+'m':(len/1000).toFixed(2)+'km';
   }
 
+  // Restbreite
+  var rbEl=document.getElementById('restBreite');
+  if(rbEl&&restBreite!==null&&restBreite!==undefined){
+    rbEl.textContent=restBreite.toFixed(2)+'m';
+  }
+
   // Restfahrbahnbreite
   var rfEl=document.getElementById('restFahrbahn');
-  if(rfEl&&detectedRestFahrbahn!==null){
-    rfEl.textContent=detectedRestFahrbahn.toFixed(1)+'m';
+  if(rfEl){
+    if(detectedRestFahrbahn!==null&&detectedRestFahrbahn!==undefined){
+      rfEl.textContent=detectedRestFahrbahn.toFixed(1)+'m';
+    } else {
+      rfEl.textContent='—';
+    }
   }
 
   el.style.display='flex';
