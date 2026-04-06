@@ -173,6 +173,12 @@ select.param-input{cursor:pointer}
       </div>
     </div>
     <div class="section" style="margin-top:16px;padding-bottom:16px">
+      <div class="section-label">Projekt</div>
+      <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektName" placeholder="Projektname"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="saveProject()">💾 Speichern</button>
+        <button class="btn btn-secondary" onclick="loadProject()">📂 Laden</button>
+      </div>
       <div class="section-label">Export</div>
       <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjekt" placeholder="z.B. Glasfaser Tiefbau"></div>
       <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErsteller" value="QFM GmbH"></div>
@@ -191,6 +197,7 @@ select.param-input{cursor:pointer}
     <div class="map-controls">
       <button class="mc-btn active" id="mcRP" onclick="toggleLayer('rp')" title="Regelplan">📐</button>
       <button class="mc-btn" id="mcImg" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
+      <button class="mc-btn" onclick="getGPSLocation()" title="GPS-Standort">📍</button>
     </div>
     <div class="instruction-banner" id="instrBanner">
       <span class="ib-step" id="instrStep">1</span>
@@ -206,7 +213,7 @@ select.param-input{cursor:pointer}
       <input type="range" min="10" max="100" value="70" oninput="setRPOverlayOpacity(this.value/100)">
     </div>
     <div class="status-bar"><span class="dot"></span><span id="stCoord">—</span><span id="stZoom">Z17</span></div>
-    <div class="bau-info" id="bauInfo" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:700;background:var(--sf);border:2px solid var(--orange);border-radius:12px;padding:6px 14px;font:600 11px 'IBM Plex Mono',monospace;color:var(--orange);box-shadow:var(--shadow-md);align-items:center;gap:6px;max-width:90vw;white-space:nowrap">📏 <span id="bauLaenge">—</span></div>
+    <div class="bau-info" id="bauInfo" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:700;background:var(--sf);border:2px solid var(--orange);border-radius:12px;padding:6px 14px;font:600 11px 'IBM Plex Mono',monospace;color:var(--orange);box-shadow:var(--shadow-md);align-items:center;gap:6px;max-width:90vw;white-space:nowrap">📏 <span id="bauLaenge">—</span> | 🚗 <span id="restFahrbahn">—</span></div>
   </div>
 
   <div class="panel" id="panelRP">
@@ -226,6 +233,14 @@ select.param-input{cursor:pointer}
 
   <div class="panel" id="panelExport">
     <div class="panel-header"><h2>📄 Export</h2><button class="ph-close" onclick="closePanel()">✕</button></div>
+    <div class="section">
+      <div class="section-label">Projekt</div>
+      <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektNameM" placeholder="Projektname"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="saveProject()">💾 Speichern</button>
+        <button class="btn btn-secondary" onclick="loadProject()">📂 Laden</button>
+      </div>
+    </div>
     <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjektM" placeholder="z.B. Glasfaser Tiefbau"></div>
     <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErstellerM" value="QFM GmbH"></div>
     <button class="btn btn-primary btn-block" onclick="exportPDF()" style="margin-top:10px">📄 PDF exportieren</button>
@@ -241,6 +256,10 @@ select.param-input{cursor:pointer}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/leaflet-imageoverlay-rotated.js"></script>
+<script src="js/regelplan-catalog-v2.js"></script>
+<script src="js/regelplan-geometry-v2.js"></script>
+<script src="js/regelplan-layout-v2.js"></script>
+<script src="js/regelplan-renderer-leaflet-v2.js"></script>
 <script src="js/regelplan-templates.js"></script>
 <script src="js/massketten.js"></script>
 <script src="js/drag-handles.js"></script>
@@ -328,6 +347,63 @@ function searchAddress(q){
     .then(function(r){return r.json()})
     .then(function(d){if(d.length){map.setView([parseFloat(d[0].lat),parseFloat(d[0].lon)],18);toast('📍 '+d[0].display_name.split(',').slice(0,2).join(', '))}else toast('Adresse nicht gefunden')})
     .catch(function(e){console.error(e)});
+}
+
+function getGPSLocation(){
+  if(!navigator.geolocation){
+    toast('❌ GPS nicht unterstützt');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude, lng=pos.coords.longitude;
+    map.setView([lat, lng], 18);
+    toast('📍 Standort gefunden: '+lat.toFixed(5)+'°N '+lng.toFixed(5)+'°E');
+  }, function(err){
+    toast('❌ GPS-Fehler: '+err.message);
+  }, {enableHighAccuracy:true, timeout:10000});
+}
+
+// ═══ PROJECT SAVE/LOAD ═══
+function saveProject(){
+  var name=document.getElementById('projektName').value || document.getElementById('projektNameM').value;
+  if(!name.trim()){toast('❌ Projektname eingeben');return;}
+  var state={
+    name:name,
+    activeRP:activeRP,
+    seite:seite,
+    tempo:tempo,
+    drawnLine:drawnLine,
+    placementPoints:placementPoints,
+    mapCenter:map.getCenter(),
+    mapZoom:map.getZoom(),
+    breite:document.getElementById('breiteInput').value,
+    pdfProjekt:document.getElementById('pdfProjekt').value,
+    pdfErsteller:document.getElementById('pdfErsteller').value
+  };
+  localStorage.setItem('vzp_project_'+name, JSON.stringify(state));
+  toast('💾 Projekt "'+name+'" gespeichert');
+}
+
+function loadProject(){
+  var name=document.getElementById('projektName').value || document.getElementById('projektNameM').value;
+  if(!name.trim()){toast('❌ Projektname eingeben');return;}
+  var data=localStorage.getItem('vzp_project_'+name);
+  if(!data){toast('❌ Projekt nicht gefunden');return;}
+  try{
+    var state=JSON.parse(data);
+    activeRP=state.activeRP;seite=state.seite;tempo=state.tempo;
+    drawnLine=state.drawnLine;placementPoints=state.placementPoints;
+    document.getElementById('breiteInput').value=state.breite;
+    document.getElementById('breiteInputM').value=state.breite;
+    document.getElementById('pdfProjekt').value=state.pdfProjekt;
+    document.getElementById('pdfProjektM').value=state.pdfProjekt;
+    document.getElementById('pdfErsteller').value=state.pdfErsteller;
+    document.getElementById('pdfErstellerM').value=state.pdfErsteller;
+    renderRPGrid();setSide(seite);setTempo(tempo);
+    if(state.mapCenter)map.setView(state.mapCenter, state.mapZoom);
+    if(drawnLine)reapply();
+    toast('📂 Projekt "'+name+'" geladen');
+  }catch(e){toast('❌ Fehler beim Laden');}
 }
 
 // ═══ RP GRID ═══
@@ -745,14 +821,10 @@ function updateBauInfo(restBreite){
     laengeEl.textContent=len<100?len.toFixed(1)+'m':(len/1000).toFixed(2)+'km';
   }
 
-  // Restgehwegbreite
-  var gwEl=document.getElementById('bauGW');
-  var gwWrap=document.getElementById('bauGWWrap');
-  if(gwEl&&restBreite!==null&&restBreite!==undefined){
-    gwEl.textContent=restBreite.toFixed(2)+'m';
-    if(gwWrap){
-      gwWrap.style.color=restBreite<1.30?'var(--red)':'var(--green)';
-    }
+  // Restfahrbahnbreite
+  var rfEl=document.getElementById('restFahrbahn');
+  if(rfEl&&detectedRestFahrbahn!==null){
+    rfEl.textContent=detectedRestFahrbahn.toFixed(1)+'m';
   }
 
   el.style.display='flex';

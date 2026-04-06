@@ -232,6 +232,9 @@ var RegelplanTemplates = (function() {
   // ═══ MAIN ═══
   function generateOverlay(map,lls,rpId,seite,opts){
     var plan=REGELPLÄNE[rpId];if(!plan)return null;
+    if(typeof RegelplanEngineV2!=='undefined'&&RegelplanEngineV2.supports(rpId)){
+      return RegelplanEngineV2.generateOverlay(map,lls,rpId,seite,opts);
+    }
     if(activeOverlay){activeOverlay.remove();activeOverlay=null;}
     opts=opts||{};
     var sf=seite==='links'?-1:1;
