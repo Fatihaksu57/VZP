@@ -236,7 +236,7 @@ const PDFExport = (() => {
         { label: 'Adresse', value: planDocument.site.adresse },
         { label: 'Seite', value: planDocument.site.seite === 'links' ? 'Links' : 'Rechts' },
         { label: 'Tempo', value: planDocument.site.tempo + ' km/h' },
-        { label: isPolygon ? 'Arbeitsbereich' : 'Arbeitsstelle', value: isPolygon ? 'Polygon / Rechteck' : planDocument.geometry.arbeitsstelleBreite.toFixed(1) + ' m' },
+        { label: isPolygon ? 'Arbeitsbereich' : 'Arbeitsstelle', value: isPolygon ? 'Polygon-Arbeitsbereich' : planDocument.geometry.arbeitsstelleBreite.toFixed(1) + ' m' },
         { label: isPolygon ? 'Flaeche' : 'Restbreite', value: isPolygon ? ((planDocument.geometry.polygonArea || 0).toFixed(1) + ' qm') : (planDocument.geometry.restbreite !== null ? planDocument.geometry.restbreite.toFixed(2) + ' m' : 'nicht gemessen') },
         { label: isPolygon ? 'Umfang' : 'Laenge', value: isPolygon ? ((planDocument.geometry.polygonPerimeter || 0).toFixed(1) + ' m') : (planDocument.geometry.baustellenLaenge ? planDocument.geometry.baustellenLaenge.toFixed(1) + ' m' : '-') },
         { label: 'Version', value: version }
@@ -315,7 +315,7 @@ const PDFExport = (() => {
       blockLabel(x1, bottomY + rowH * 2, 'FORMAT');
       blockValue(x1, bottomY + rowH * 2, columns[0], 'A3 Hochformat', 7, 'normal');
       blockLabel(x2, bottomY + rowH * 2, isPolygon ? 'ARBEITSBEREICH' : 'ARBEITSSTELLE');
-      blockValue(x2, bottomY + rowH * 2, columns[1], isPolygon ? 'Polygon / Rechteck' : planDocument.geometry.arbeitsstelleBreite.toFixed(1) + ' m', 7, 'normal');
+      blockValue(x2, bottomY + rowH * 2, columns[1], isPolygon ? 'Polygon-Arbeitsbereich' : planDocument.geometry.arbeitsstelleBreite.toFixed(1) + ' m', 7, 'normal');
       blockLabel(x3, bottomY + rowH * 2, isPolygon ? 'FLAECHE / UMFANG' : 'RESTBREITE');
       blockValue(x3, bottomY + rowH * 2, columns[2], isPolygon ? ((planDocument.geometry.polygonArea || 0).toFixed(1) + ' qm / ' + (planDocument.geometry.polygonPerimeter || 0).toFixed(1) + ' m') : (planDocument.geometry.restbreite !== null ? planDocument.geometry.restbreite.toFixed(2) + ' m' : 'nicht gemessen'), 7, 'normal');
       blockLabel(x4, bottomY + rowH * 2, 'VERSION');

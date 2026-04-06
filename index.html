@@ -715,7 +715,7 @@ function buildCurrentPlanDocument(){
     regelplan:{
       id:isPolygon?'CUSTOM_AREA':(rp.id||activeRP),
       name:isPolygon?'Arbeitsbereich':(rp.name||activeRP),
-      title:isPolygon?'Polygon / Rechteck':(rp.title||'')
+      title:isPolygon?'Polygon-Arbeitsbereich':(rp.title||'')
     },
     geometry:{
       mode:isPolygon?'polygon':'line',
@@ -751,7 +751,7 @@ function renderWizardSummary(planDocument){
     metrics=[
       'Umfang: '+(planDocument.geometry.polygonPerimeter ? planDocument.geometry.polygonPerimeter.toFixed(1)+' m' : '-'),
       'Flaeche: '+(planDocument.geometry.polygonArea ? planDocument.geometry.polygonArea.toFixed(1)+' qm' : '-'),
-      'Arbeitsstelle: Rechteckiger Arbeitsbereich',
+      'Arbeitsstelle: Polygon-Arbeitsbereich',
       'Tempo: '+planDocument.site.tempo+' km/h',
       'Seite: '+(planDocument.site.seite==='links'?'Links':'Rechts')
     ].join('<br>');
@@ -1071,7 +1071,7 @@ function toggleMeasureMode(){
   }else{
     measurePoints=[];
     if(measureDraftMarker&&measureGroup){measureGroup.removeLayer(measureDraftMarker);measureDraftMarker=null;}
-    document.getElementById('instrBanner').classList.remove('show');
+    updatePolygonPlacementUI();
     map.getContainer().style.cursor='';
   }
 }
@@ -1619,21 +1619,16 @@ function onMapClick(e){
   }
   if(polygonPlacementMode){
     var pl=[e.latlng.lat,e.latlng.lng];
-    polygonRectPoints.push(pl);
-    if(polygonRectPoints.length===1){
+    polygonPlacementPoints.push(pl);
+    if(polygonPlacementPoints.length===1){
       placementMarkers.push(L.marker(pl,{icon:L.divIcon({html:'<div class="placement-marker"></div>',iconSize:[16,16],iconAnchor:[8,8],className:''})}).addTo(map));
-      document.getElementById('instrStep').textContent='2';
-      document.getElementById('instrText').textContent='Tippe die gegenueberliegende Ecke des Arbeitsbereichs';
+      redrawPolygonPlacementDraft();
+      updatePolygonPlacementUI();
       return;
     }
     placementMarkers.push(L.marker(pl,{icon:L.divIcon({html:'<div class="placement-marker-done"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(map));
-    polygonPlacementMode=false;
-    document.getElementById('instrBanner').classList.remove('show');
-    map.getContainer().style.cursor='';
-    drawnPolygon=buildRectPolygonFromPoints(polygonRectPoints[0],polygonRectPoints[1]);
-    applyCurrentPlacement();
-    showClearButtons();
-    toast('✓ Arbeitsbereich gesetzt');
+    redrawPolygonPlacementDraft();
+    updatePolygonPlacementUI();
     return;
   }
   if(!placementMode)return;
@@ -1790,6 +1785,8 @@ function clearAll(){
   polygonHandles=null;
   placementMarkers.forEach(function(m){map.removeLayer(m)});
   placementMarkers=[];drawnLine=null;drawnPolygon=null;polygonPlacementPoints=[];hideClearButtons();
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
+  document.getElementById('instrFinishBtn').classList.remove('show');
   if(typeof RegelplanImageOverlay!=='undefined')RegelplanImageOverlay.hide();
   rpImageVisible=false;
   document.getElementById('mcImg').classList.remove('active');
@@ -1841,6 +1838,7 @@ function toast(msg){
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape')cancelPlacement();
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key==='Enter'&&polygonPlacementMode){finishPolygonPlacement();return;}
   if(e.key==='p')startPlacement();
   if(e.key==='Delete')clearAll();
 });
