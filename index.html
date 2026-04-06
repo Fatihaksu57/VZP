@@ -915,19 +915,43 @@ function toggleMeasureMode(){
   }
 }
 
+function getMeasurementDisplayGeometry(a,b){
+  var pa=map.latLngToLayerPoint(L.latLng(a));
+  var pb=map.latLngToLayerPoint(L.latLng(b));
+  var dx=pb.x-pa.x, dy=pb.y-pa.y;
+  var len=Math.sqrt(dx*dx+dy*dy);
+  if(!len)return null;
+  var nx=-dy/len, ny=dx/len;
+  var lineOffset=18;
+  var labelOffset=34;
+  var oa=L.point(pa.x+nx*lineOffset, pa.y+ny*lineOffset);
+  var ob=L.point(pb.x+nx*lineOffset, pb.y+ny*lineOffset);
+  var lm=L.point((pa.x+pb.x)/2+nx*labelOffset, (pa.y+pb.y)/2+ny*labelOffset);
+  return {
+    sourceA:pa,
+    sourceB:pb,
+    offsetA:map.layerPointToLatLng(oa),
+    offsetB:map.layerPointToLatLng(ob),
+    labelLatLng:map.layerPointToLatLng(lm)
+  };
+}
+
 function renderMeasurementItem(item){
   if(!measureGroup._map)measureGroup.addTo(map);
   var a=item.a, b=item.b;
   var pa=L.latLng(a), pb=L.latLng(b);
   var dist=pa.distanceTo(pb);
-  var line=L.polyline([a,b],{color:'#1565C0',weight:2,dashArray:'8,6'}).addTo(measureGroup);
+  var geom=getMeasurementDisplayGeometry(a,b);
+  if(!geom)return null;
+  var extA=L.polyline([a,geom.offsetA],{color:'#1565C0',weight:1.5,opacity:0.55}).addTo(measureGroup);
+  var extB=L.polyline([b,geom.offsetB],{color:'#1565C0',weight:1.5,opacity:0.55}).addTo(measureGroup);
+  var line=L.polyline([geom.offsetA,geom.offsetB],{color:'#1565C0',weight:2,dashArray:'8,6'}).addTo(measureGroup);
   var markerA=L.marker(a,{icon:L.divIcon({html:'<div class="measure-point"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(measureGroup);
   var markerB=L.marker(b,{icon:L.divIcon({html:'<div class="measure-point"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).addTo(measureGroup);
-  var mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
   var label=(dist<100?dist.toFixed(2):dist.toFixed(1))+' m';
-  var labelMarker=L.marker(mid,{icon:L.divIcon({html:'<div class="measure-label">'+label+'</div>',iconSize:[72,24],iconAnchor:[36,12],className:''})}).addTo(measureGroup);
+  var labelMarker=L.marker(geom.labelLatLng,{icon:L.divIcon({html:'<div class="measure-label">'+label+'</div>',iconSize:[72,24],iconAnchor:[36,12],className:''})}).addTo(measureGroup);
   item.distance=dist;
-  return {line:line,markerA:markerA,markerB:markerB,labelMarker:labelMarker};
+  return {line:line,extA:extA,extB:extB,markerA:markerA,markerB:markerB,labelMarker:labelMarker};
 }
 
 function addMeasurement(a,b){
@@ -1018,6 +1042,41 @@ function pickRestGehweg(res){
   if(res.restHaus!==null&&res.restHaus!==undefined&&res.restHaus>=0)return res.restHaus;
   if(res.restbreite!==null&&res.restbreite!==undefined&&res.restbreite>=0)return res.restbreite;
   return null;
+}
+
+function moveLatLngMeters(ll, dirRad, meters){
+  var R=6378137, d=meters/R;
+  var la=ll[0]*Math.PI/180, lo=ll[1]*Math.PI/180;
+  var la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(dirRad));
+  var lo2=lo+Math.atan2(Math.sin(dirRad)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));
+  return [la2*180/Math.PI, lo2*180/Math.PI];
+}
+
+function buildAutoRestPfeile(restBreite, baustellenBreite){
+  if(!drawnLine||drawnLine.length<2)return {pfeilFB:null,pfeilHaus:null};
+  if(restBreite===null||restBreite===undefined||restBreite<0)return {pfeilFB:null,pfeilHaus:null};
+  var start=drawnLine[0], end=drawnLine[drawnLine.length-1];
+  var mid=[(start[0]+end[0])/2,(start[1]+end[1])/2];
+  var dx=end[1]-start[1], dy=end[0]-start[0];
+  var bear=Math.atan2(dx,dy);
+  var sf=seite==='links'?-1:1;
+  var dirToBaufeld=bear+(sf>0?Math.PI/2:-Math.PI/2);
+  var dirToHaus=bear+(sf>0?-Math.PI/2:Math.PI/2);
+  var absRand=moveLatLngMeters(mid,dirToBaufeld,baustellenBreite);
+  var pfeilHaus={
+    startLL:absRand,
+    endLL:moveLatLngMeters(absRand,dirToHaus,restBreite),
+    dist:Math.round(restBreite*100)/100
+  };
+  var pfeilFB=null;
+  if(detectedRestFahrbahn!==null&&detectedRestFahrbahn!==undefined&&detectedRestFahrbahn>=0){
+    pfeilFB={
+      startLL:absRand,
+      endLL:moveLatLngMeters(absRand,dirToBaufeld,detectedRestFahrbahn),
+      dist:Math.round(detectedRestFahrbahn*100)/100
+    };
+  }
+  return {pfeilFB:pfeilFB,pfeilHaus:pfeilHaus};
 }
 
 // WFS-Abfrage für einen Layer, gibt Koordinaten-Arrays zurück
@@ -1331,9 +1390,11 @@ function detectGehwegSeitlich(mid, sf, breiteVal){
 function updateBauInfo(restBreite){
   // Massketten auf Karte aktualisieren
   if(showRestbreiteOnMap&&typeof Massketten!=='undefined'&&drawnLine&&drawnLine.length>=2&&overlayResult){
-    var sf3=seite==='links'?-1:1;
     var bv=parseFloat(document.getElementById('breiteInput').value)||2.0;
-    Massketten.update(drawnLine,overlayResult.baustellenLaenge,detectedPfeilFB,detectedPfeilHaus);
+    var autoPfeile=buildAutoRestPfeile(restBreite,bv);
+    var pfeilFB=detectedPfeilFB||autoPfeile.pfeilFB||null;
+    var pfeilHaus=detectedPfeilHaus||autoPfeile.pfeilHaus||null;
+    Massketten.update(drawnLine,overlayResult.baustellenLaenge,pfeilFB,pfeilHaus);
   }
   var el=document.getElementById('bauInfo');
   if(!el)return;
