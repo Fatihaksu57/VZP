@@ -14,6 +14,7 @@ API_URL="https://vzp.app/api/deploy"
 FALLBACK_URL="https://vzp-deploy.fatih-m-a.workers.dev/api/deploy"
 USER_AGENT="VZP-Deploy/1.0"
 BATCH_SIZE=10
+VERSION_FILE="js/version.js"
 
 # Farbcodes
 RED='\033[0;31m'
@@ -29,8 +30,32 @@ else
   FILES=$(find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.svg" -o -name "*.md" \) | sed 's|^\./||' | grep -v node_modules | grep -v .git | sort)
 fi
 
+BUILD_DATE=$(date +%Y%m%d-%H%M)
+GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || true)
+if [ -n "$GIT_SHA" ]; then
+  APP_VERSION="v${BUILD_DATE}-${GIT_SHA}"
+else
+  APP_VERSION="v${BUILD_DATE}"
+fi
+
+mkdir -p js
+cat > "$VERSION_FILE" <<EOF
+window.__VZP_BUILD__ = {
+  version: "$APP_VERSION",
+  builtAt: "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  commit: "$GIT_SHA"
+};
+window.APP_VERSION = window.__VZP_BUILD__.version;
+EOF
+
+case " $FILES " in
+  *" $VERSION_FILE "*) ;;
+  *) FILES="$VERSION_FILE $FILES" ;;
+esac
+
 echo -e "${YELLOW}═══ VZP Deploy ═══${NC}"
 echo "Dateien: $(echo "$FILES" | wc -w)"
+echo "Version: $APP_VERSION"
 
 # Batch-Deploy: Dateien in JSON-Payload packen
 BATCH_FILES=""

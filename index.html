@@ -398,6 +398,7 @@ var showRP=true, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
 var baseLayers={}, currentBaseMap='k5';
 var streetOverlay=null;
+var showRestbreiteOnMap=true;
 var detectedGehwegBreite=null, detectedSurface=null;
 var detectedRestFahrbahn=null, detectedRestHaus=null;
 var detectedPfeilFB=null, detectedPfeilHaus=null;
@@ -480,6 +481,7 @@ function initMap(){
 function switchBaseMap(key,btn){
   if(currentBaseMap===key)return;
   if(streetOverlay){map.removeLayer(streetOverlay);streetOverlay=null}
+  if(currentBaseMap==='sb' && baseLayers.k5)map.removeLayer(baseLayers.k5);
   if(baseLayers[currentBaseMap])map.removeLayer(baseLayers[currentBaseMap]);
 
   if(key==='sb'){
@@ -537,6 +539,14 @@ function bindPlanFields(){
       refreshPlanDocument();
     });
   });
+}
+
+function renderBuildInfo(){
+  var versionText=APP_VERSION||'v-local';
+  var chip=document.getElementById('appVersionChip');
+  var status=document.getElementById('stVersion');
+  if(chip)chip.textContent=versionText;
+  if(status)status.textContent=versionText;
 }
 
 function syncAllProjectFields(sourceEl){
@@ -638,7 +648,9 @@ function buildCurrentPlanDocument(){
     exportMeta:{
       format:'A3',
       orientation:'portrait',
-      hasErrors:hasErrors
+      hasErrors:hasErrors,
+      version:APP_VERSION,
+      builtAt:BUILD_INFO.builtAt||''
     }
   };
 }
@@ -1170,7 +1182,7 @@ function detectGehwegSeitlich(mid, sf, breiteVal){
 
 function updateBauInfo(restBreite){
   // Massketten auf Karte aktualisieren
-  if(typeof Massketten!=='undefined'&&drawnLine&&drawnLine.length>=2&&overlayResult){
+  if(showRestbreiteOnMap&&typeof Massketten!=='undefined'&&drawnLine&&drawnLine.length>=2&&overlayResult){
     var sf3=seite==='links'?-1:1;
     var bv=parseFloat(document.getElementById('breiteInput').value)||2.0;
     Massketten.update(drawnLine,overlayResult.baustellenLaenge,detectedPfeilFB,detectedPfeilHaus);
@@ -1235,7 +1247,7 @@ function applyRegelplan(){
   var opts={speed:tempo,fahrbahnBreite:6.5,gehwegBreite:breite,arbeitsstelleBreite:breite};
   if(showRP)overlayResult=RegelplanTemplates.generateOverlay(map,drawnLine,activeRP,seite,opts);
   // Massketten auf Karte aktualisieren — Länge sofort, Restbreite kommt via updateBauInfo
-  if(typeof Massketten!=='undefined'&&overlayResult){
+  if(showRestbreiteOnMap&&typeof Massketten!=='undefined'&&overlayResult){
     var sf2=seite==='links'?-1:1;
     Massketten.update(drawnLine,overlayResult.baustellenLaenge,detectedPfeilFB,detectedPfeilHaus);
   }

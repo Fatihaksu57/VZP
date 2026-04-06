@@ -1,4 +1,4 @@
-// VZP Editor - PDF Export v7
+// VZP Editor - PDF Export v8
 
 const PDFExport = (() => {
   async function loadLib(url, check) {
@@ -12,7 +12,7 @@ const PDFExport = (() => {
     });
   }
 
-  function drawNordpfeil(doc, x, y, size) {
+  function drawNorthArrow(doc, x, y, size) {
     var cx = x + size / 2;
     var cy = y + size / 2 + 4;
     doc.setDrawColor(0);
@@ -23,7 +23,7 @@ const PDFExport = (() => {
     doc.triangle(cx, cy + size * 0.55, cx - size * 0.22, cy + size * 0.1, cx + size * 0.22, cy + size * 0.1, 'FD');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6);
-    doc.text('N', cx - 1.4, cy - size * 0.6);
+    doc.text('N', cx - 1.5, cy - size * 0.6);
     doc.circle(cx, cy, size * 0.65, 'S');
   }
 
@@ -43,7 +43,8 @@ const PDFExport = (() => {
 
     doc.setLineWidth(0.25);
     for (var i = 0; i < 4; i++) {
-      doc.setFillColor(i % 2 === 0 ? 0 : 255, i % 2 === 0 ? 0 : 255, i % 2 === 0 ? 0 : 255);
+      var fill = i % 2 === 0 ? 0 : 255;
+      doc.setFillColor(fill, fill, fill);
       doc.rect(x + i * (barMm / 4), y, barMm / 4, 2.4, 'FD');
     }
     doc.setFont('helvetica', 'normal');
@@ -54,21 +55,21 @@ const PDFExport = (() => {
   }
 
   function collectLegend(items) {
-    var kinds = {};
-    items.forEach(function(item) {
-      if (item.kind === 'barrier') kinds.barrier = 'Absperrschranke / Quersperre';
-      if (item.kind === 'beacon') kinds.beacon = 'Leitbake / Leitbakenreihe';
-      if (item.kind === 'sign') kinds.sign = 'Verkehrszeichen / Vorwarnung';
+    var seen = {};
+    (items || []).forEach(function(item) {
+      if (item.kind === 'barrier') seen.barrier = 'Absperrschranke / Quersperre';
+      if (item.kind === 'beacon') seen.beacon = 'Leitbake / Leitbakenreihe';
+      if (item.kind === 'sign') seen.sign = 'Verkehrszeichen / Vorwarnung';
     });
-    return Object.keys(kinds).map(function(key) { return kinds[key]; });
+    return Object.keys(seen).map(function(key) { return seen[key]; });
   }
 
-  async function captureMap(map) {
+  async function captureMap() {
     await loadLib('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js', function() {
       return window.domtoimage;
     });
 
-    var selectors = '.map-switcher,.map-controls,.instruction-banner,.rp-preview,.rp-overlay-controls,.status-bar,.leaflet-control-zoom,.leaflet-control-attribution,.leaflet-control-scale,.toast,.tab-bar,.panel';
+    var selectors = '.map-switcher,.map-controls,.instruction-banner,.rp-preview,.rp-overlay-controls,.status-bar,.toast,.tab-bar,.panel,.search-strip';
     var hidden = [];
     var mapDiv = document.getElementById('map');
 
@@ -114,7 +115,7 @@ const PDFExport = (() => {
 
   function renderValidationBlock(doc, x, y, w, validations) {
     var lineY = y;
-    var items = validations && validations.length ? validations : [{ severity: 'ok', message: 'Keine blockierenden Prüfhinweise.' }];
+    var items = validations && validations.length ? validations : [{ severity: 'ok', message: 'Keine blockierenden Pruefhinweise.' }];
 
     items.forEach(function(item) {
       var fill = item.severity === 'error'
@@ -146,12 +147,8 @@ const PDFExport = (() => {
   }
 
   async function exportPlan(planDocument, mapContext) {
-    if (!planDocument) {
-      throw new Error('Kein Plan zum Export vorhanden');
-    }
-    if (planDocument.exportMeta && planDocument.exportMeta.hasErrors) {
-      throw new Error('Plan hat blockierende Prüfhinweise');
-    }
+    if (!planDocument) throw new Error('Kein Plan zum Export vorhanden');
+    if (planDocument.exportMeta && planDocument.exportMeta.hasErrors) throw new Error('Plan hat blockierende Pruefhinweise');
 
     if (typeof UI !== 'undefined' && UI.toast) UI.toast('PDF wird erstellt...');
     else if (typeof toast === 'function') toast('PDF wird erstellt...');
@@ -163,7 +160,7 @@ const PDFExport = (() => {
 
       var map = mapContext && mapContext.map;
       var mapDiv = document.getElementById('map');
-      var mapImg = await captureMap(map);
+      var mapImg = await captureMap();
       var jsPDF = window.jspdf.jsPDF;
       var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a3' });
       var W = doc.internal.pageSize.getWidth();
@@ -181,6 +178,7 @@ const PDFExport = (() => {
       var aspect = mapDiv.offsetWidth / mapDiv.offsetHeight;
       var fitW = mapW;
       var fitH = fitW / aspect;
+      var version = (planDocument.exportMeta && planDocument.exportMeta.version) || 'v-local';
 
       if (fitH > mapH) {
         fitH = mapH;
@@ -219,7 +217,7 @@ const PDFExport = (() => {
         var mapWidthM = bounds.getNorthWest().distanceTo(bounds.getNorthEast());
         drawScaleBar(doc, mapOx + 4, mapOy + fitH - 10, fitW * 0.25, mapWidthM * (fitW / mapDiv.offsetWidth));
       }
-      drawNordpfeil(doc, mapOx + fitW - 22, mapOy + 4, 16);
+      drawNorthArrow(doc, mapOx + fitW - 22, mapOy + 4, 16);
 
       doc.setFillColor(247, 245, 241);
       doc.rect(sideX, sideY, sideW, mapH, 'F');
@@ -229,7 +227,7 @@ const PDFExport = (() => {
       doc.setTextColor(20);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.text('Planübersicht', sideX + 3, sideY + 5);
+      doc.text('Planuebersicht', sideX + 3, sideY + 5);
 
       var infoEnd = renderInfoTable(doc, sideX + 3, sideY + 8, sideW - 6, [
         { label: 'Regelplan', value: planDocument.regelplan.name + (planDocument.regelplan.title ? ' - ' + planDocument.regelplan.title : '') },
@@ -239,7 +237,8 @@ const PDFExport = (() => {
         { label: 'Tempo', value: planDocument.site.tempo + ' km/h' },
         { label: 'Arbeitsstelle', value: planDocument.geometry.arbeitsstelleBreite.toFixed(1) + ' m' },
         { label: 'Restbreite', value: planDocument.geometry.restbreite !== null ? planDocument.geometry.restbreite.toFixed(2) + ' m' : 'nicht gemessen' },
-        { label: 'Länge', value: planDocument.geometry.baustellenLaenge ? planDocument.geometry.baustellenLaenge.toFixed(1) + ' m' : '-' }
+        { label: 'Laenge', value: planDocument.geometry.baustellenLaenge ? planDocument.geometry.baustellenLaenge.toFixed(1) + ' m' : '-' },
+        { label: 'Version', value: version }
       ]);
 
       var legend = collectLegend(planDocument.scene.items || []);
@@ -256,10 +255,10 @@ const PDFExport = (() => {
         doc.text('- Kartenansicht mit aktuellem Regelplan', sideX + 4, infoEnd + 12);
       }
 
-      var validationStart = Math.min(sideY + mapH - 42, infoEnd + 24);
+      var validationStart = Math.min(sideY + mapH - 42, infoEnd + 28);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.text('Prüfhinweise', sideX + 3, validationStart);
+      doc.text('Pruefhinweise', sideX + 3, validationStart);
       renderValidationBlock(doc, sideX + 3, validationStart + 3, sideW - 6, planDocument.scene.validations || []);
 
       var bottomY = H - M - bottomH;
@@ -318,8 +317,8 @@ const PDFExport = (() => {
       blockValue(x2, bottomY + rowH * 2, columns[1], planDocument.geometry.arbeitsstelleBreite.toFixed(1) + ' m', 7, 'normal');
       blockLabel(x3, bottomY + rowH * 2, 'RESTBREITE');
       blockValue(x3, bottomY + rowH * 2, columns[2], planDocument.geometry.restbreite !== null ? planDocument.geometry.restbreite.toFixed(2) + ' m' : 'nicht gemessen', 7, 'normal');
-      blockLabel(x4, bottomY + rowH * 2, 'PLANSTATUS');
-      blockValue(x4, bottomY + rowH * 2, columns[3], planDocument.scene.validations.length ? 'Mit Hinweisen' : 'Freigegeben', 7, 'bold');
+      blockLabel(x4, bottomY + rowH * 2, 'VERSION');
+      blockValue(x4, bottomY + rowH * 2, columns[3], version, 6, 'normal');
 
       doc.setFillColor(230, 81, 0);
       doc.rect(M, H - M - 3, bottomW, 3, 'F');

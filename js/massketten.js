@@ -202,9 +202,9 @@ const Massketten = (() => {
     // Maß am Pfeil
     const mx = (pA.x+pB.x)/2, my = (pA.y+pB.y)/2;
     const angle = Math.atan2(dy, dx) * 180/Math.PI;
-    const label = pfeil.dist.toFixed(2) + 'm';
+    const label = 'Rest ' + pfeil.dist.toFixed(2) + 'm';
     const grp = el('g', { transform: `translate(${mx},${my}) rotate(${angle})` });
-    grp.appendChild(el('rect', { x:-16, y:-9, width:32, height:11,
+    grp.appendChild(el('rect', { x:-28, y:-9, width:56, height:11,
       fill:'#fff', stroke:color, 'stroke-width':0.6, rx:2, opacity:0.92 }));
     const txt = el('text', { x:0, y:0, 'text-anchor':'middle',
       'dominant-baseline':'middle', 'font-size':8,
