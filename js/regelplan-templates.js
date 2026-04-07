@@ -91,6 +91,34 @@ var RegelplanTemplates = (function() {
     return layer;
   }
 
+  function mkTextLabel(map,grp,ll,text,rot,z){
+    var m=L.marker(ll,{interactive:false,icon:L.divIcon({
+      html:'<div style="padding:3px 8px;border:1px solid rgba(230,81,0,.55);border-radius:999px;background:rgba(255,255,255,.92);color:#d32f00;font:700 11px Arial,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.18);transform:rotate('+rot+'deg)">'+text+'</div>',
+      iconSize:[110,22],iconAnchor:[55,11],className:''
+    }),zIndexOffset:z||650});
+    grp.addLayer(m);return m;
+  }
+
+  function notwegFahrbahn(map,grp,lls,sf,tL,mk){
+    var width=1.3,steps=Math.max(8,Math.ceil(tL/3)),poly=[],labelPos=pt(lls,0.5,-width*0.5*sf,0);
+    for(var i=0;i<=steps;i++)poly.push(pt(lls,i/steps,0,0).p);
+    for(var j=steps;j>=0;j--)poly.push(pt(lls,j/steps,-width*sf,0).p);
+    grp.addLayer(L.polygon(poly,{fillColor:'#fff6e8',fillOpacity:0.35,color:'#e65100',weight:1.4,dashArray:'7,5',interactive:false}));
+    mk.push(absperrLinie(map,grp,lls,sf,tL,-width,0,tL,'notweg_aussenkante'));
+    mk.push(mkTextLabel(map,grp,labelPos.p,'Notweg 1,30 m',labelPos.b-90,660));
+  }
+
+  function diagonalEndabschluss(map,grp,lls,sf,asB,tN,dir,mk){
+    var a=pt(lls,tN,0,dir*1.2).p;
+    var b=pt(lls,tN,asB*sf,-dir*1.2).p;
+    var line=[a,b];
+    var base=L.polyline(line,{color:'#1f1b14',weight:7,opacity:0.45,lineCap:'butt',interactive:false});
+    var white=L.polyline(line,{color:'#fff',weight:5,opacity:1,lineCap:'butt',interactive:false});
+    var red=L.polyline(line,{color:'#d71920',weight:5,opacity:1,dashArray:'8 6',lineCap:'butt',interactive:false});
+    var layer=L.layerGroup([base,white,red]);
+    grp.addLayer(layer);mk.push(layer);
+  }
+
   // ═══ LEITBAKEN-REIHE — v34 FIX ═══
   // Leitbaken stehen IMMER senkrecht (rot=0).
   // Seite bestimmt welches SVG: rechts → bake_rechts, links → bake_links
@@ -173,6 +201,9 @@ var RegelplanTemplates = (function() {
   function placeBII4(map,grp,lls,sf,asB,gwB,tL,speed){
     var mk=[];
     vorUndNachwarnung(map,grp,lls,sf,tL,speed,mk);
+    notwegFahrbahn(map,grp,lls,sf,tL,mk);
+    diagonalEndabschluss(map,grp,lls,sf,asB,0,1,mk);
+    diagonalEndabschluss(map,grp,lls,sf,asB,1,-1,mk);
     diagBaken(map,grp,lls,sf,asB,0,1,mk);
     diagBaken(map,grp,lls,sf,asB,1,-1,mk);
     querGW(map,grp,lls,sf,asB,0,4.5,mk);
