@@ -1958,11 +1958,18 @@ function createLineHandles(){
 }
 
 // ═══ LAYERS ═══
+function getPolygonCenter(points){
+  var sumLat=0,sumLng=0,count=Math.max(1,points.length);
+  points.forEach(function(p){sumLat+=p[0];sumLng+=p[1];});
+  return L.latLng(sumLat/count,sumLng/count);
+}
+
 function createPolygonHandles(){
   if(polygonHandles){polygonHandles.remove();polygonHandles=null;}
   if(!drawnPolygon||drawnPolygon.length<4)return;
   var handles=[], isDragging=false, dragIndex=null;
   var openPoints=drawnPolygon.slice(0,-1);
+  var dragStartLatLng=null, originalOpenPoints=null;
   function eventLatLng(e){
     if(e.latlng)return e.latlng;
     if(e.originalEvent&&e.originalEvent.touches&&e.originalEvent.touches[0]){
@@ -1974,10 +1981,17 @@ function createPolygonHandles(){
     if(!isDragging||dragIndex===null)return;
     var ll=eventLatLng(e);
     if(!ll)return;
-    openPoints[dragIndex]=[ll.lat,ll.lng];
+    if(dragIndex==='center'){
+      var dLat=ll.lat-dragStartLatLng.lat, dLng=ll.lng-dragStartLatLng.lng;
+      openPoints=originalOpenPoints.map(function(p){return[p[0]+dLat,p[1]+dLng]});
+      handles.forEach(function(h,idx){if(idx<openPoints.length)h.setLatLng(L.latLng(openPoints[idx]));});
+    }else{
+      openPoints[dragIndex]=[ll.lat,ll.lng];
+      handles[dragIndex].setLatLng(ll);
+    }
     drawnPolygon=normalizePolygonPoints(openPoints);
     polygonPlacementPoints=openPoints.map(function(p){return[p[0],p[1]]});
-    handles[dragIndex].setLatLng(ll);
+    if(handles.center)handles.center.setLatLng(getPolygonCenter(openPoints));
     applyPolygonWorkspace();
   }
   function onEnd(){
@@ -1993,11 +2007,11 @@ function createPolygonHandles(){
   }
   openPoints.forEach(function(ll,index){
     var h=L.circleMarker(L.latLng(ll),{
-      radius:7,
+      radius:11,
       color:'#dd5a12',
-      fillColor:'#fff',
+      fillColor:'#FFD54F',
       fillOpacity:1,
-      weight:2.5,
+      weight:3,
       className:'drag-handle drag-handle-corner'
     }).addTo(map);
     h.on('mousedown touchstart',function(e){
@@ -2005,6 +2019,8 @@ function createPolygonHandles(){
       L.DomEvent.preventDefault(e);
       isDragging=true;
       dragIndex=index;
+      dragStartLatLng=eventLatLng(e);
+      originalOpenPoints=openPoints.map(function(p){return[p[0],p[1]]});
       map.dragging.disable();
       map.getContainer().style.cursor='grab';
       map.on('mousemove',onMove);
@@ -2013,13 +2029,39 @@ function createPolygonHandles(){
       map.on('touchend',onEnd);
     });
     h.on('mouseover',function(){
-      if(!isDragging){h.setStyle({fillColor:'#FFE0B2',radius:9});map.getContainer().style.cursor='grab';}
+      if(!isDragging){h.setStyle({fillColor:'#FFE0B2',radius:13});map.getContainer().style.cursor='grab';}
     });
     h.on('mouseout',function(){
-      if(!isDragging){h.setStyle({fillColor:'#fff',radius:7});map.getContainer().style.cursor='';}
+      if(!isDragging){h.setStyle({fillColor:'#FFD54F',radius:11});map.getContainer().style.cursor='';}
     });
     handles.push(h);
   });
+  var center=L.circleMarker(getPolygonCenter(openPoints),{
+    radius:15,
+    color:'#1565C0',
+    fillColor:'#E3F2FD',
+    fillOpacity:1,
+    weight:3,
+    className:'drag-handle drag-handle-center'
+  }).addTo(map);
+  center.on('mousedown touchstart',function(e){
+    L.DomEvent.stopPropagation(e);
+    L.DomEvent.preventDefault(e);
+    isDragging=true;
+    dragIndex='center';
+    dragStartLatLng=eventLatLng(e);
+    originalOpenPoints=openPoints.map(function(p){return[p[0],p[1]]});
+    map.dragging.disable();
+    map.getContainer().style.cursor='grabbing';
+    map.on('mousemove',onMove);
+    map.on('mouseup',onEnd);
+    map.on('touchmove',onMove);
+    map.on('touchend',onEnd);
+  });
+  center.on('mouseover',function(){if(!isDragging){center.setStyle({radius:17});map.getContainer().style.cursor='grab';}});
+  center.on('mouseout',function(){if(!isDragging){center.setStyle({radius:15});map.getContainer().style.cursor='';}});
+  handles.push(center);
+  handles.center=center;
   polygonHandles={
     handles:handles,
     remove:function(){

@@ -12,27 +12,27 @@ const DragHandles = (() => {
 
   const HANDLE_STYLES = {
     endpoint: {
-      radius: 7,
+      radius: 10,
       color: '#FF6D00',
       fillColor: '#FFF',
       fillOpacity: 1,
-      weight: 2.5,
+      weight: 3,
       className: 'drag-handle drag-handle-endpoint',
     },
     center: {
-      radius: 8,
+      radius: 14,
       color: '#1565C0',
       fillColor: '#E3F2FD',
-      fillOpacity: 0.9,
-      weight: 2.5,
+      fillOpacity: 1,
+      weight: 3,
       className: 'drag-handle drag-handle-center',
     },
     corner: {
-      radius: 6,
+      radius: 11,
       color: '#FF6D00',
-      fillColor: '#FFF3E0',
+      fillColor: '#FFD54F',
       fillOpacity: 1,
-      weight: 2,
+      weight: 3,
       className: 'drag-handle drag-handle-corner',
     },
   };
@@ -170,7 +170,7 @@ const DragHandles = (() => {
 
       h.on('mouseover', () => {
         if (!isDragging) {
-          h.setStyle({ fillColor: '#FFE0B2', radius: h._handleType === 'center' ? 10 : 9 });
+          h.setStyle({ fillColor: '#FFE0B2', radius: h._handleType === 'center' ? 16 : 12 });
           const cursor = h._handleType === 'center' ? 'grab' : 'col-resize';
           map.getContainer().style.cursor = cursor;
         }
@@ -411,13 +411,18 @@ const DragHandles = (() => {
       .drag-handle {
         z-index: 900 !important;
         transition: fill-opacity 0.15s, r 0.15s;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.36));
       }
       .drag-handle:hover {
         filter: drop-shadow(0 2px 8px rgba(255,109,0,0.4));
       }
       .drag-handle-center {
         filter: drop-shadow(0 2px 6px rgba(21,101,192,0.4));
+      }
+      .drag-handle-center::after {
+        content: 'MOVE';
+        color: #1565C0;
+        font: 700 8px Arial, sans-serif;
       }
       .leaflet-container.dragging-active {
         cursor: grabbing !important;
