@@ -1,0 +1,10 @@
+2026/04/07-07:37:52.378 1e54 Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/04/07-07:37:52.378 1e54 Recovering log #4
+2026/04/07-07:37:52.380 1e54 Level-0 table #7: started
+2026/04/07-07:37:52.385 1e54 Level-0 table #7: 682208 bytes OK
+2026/04/07-07:37:52.386 1e54 Recovering log #7
+2026/04/07-07:37:52.387 1e54 Reusing old log c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\EdgeCoupons/coupons_data.db/000007.log 
+2026/04/07-07:37:52.392 1e54 Delete type=0 #4
+2026/04/07-07:37:52.392 1e54 Delete type=2 #8
+2026/04/07-07:37:52.394 55d0 Level-0 table #9: started
+2026/04/07-07:37:52.399 55d0 Level-0 table #9: 682208 bytes OK

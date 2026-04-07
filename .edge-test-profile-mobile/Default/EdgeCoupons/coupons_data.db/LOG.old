@@ -1,0 +1,10 @@
+2026/04/07-07:37:08.535 1f5c Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-mobile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/04/07-07:37:08.536 1f5c Recovering log #12
+2026/04/07-07:37:08.537 1f5c Level-0 table #14: started
+2026/04/07-07:37:08.544 1f5c Level-0 table #14: 682208 bytes OK
+2026/04/07-07:37:08.545 1f5c Recovering log #14
+2026/04/07-07:37:08.545 1f5c Reusing old log c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-mobile\Default\EdgeCoupons/coupons_data.db/000014.log 
+2026/04/07-07:37:08.549 1f5c Delete type=0 #12
+2026/04/07-07:37:08.549 1f5c Delete type=2 #13
+2026/04/07-07:37:08.550 5e40 Compacting 6@0 + 0@1 files
+2026/04/07-07:37:08.555 5e40 compacted to: files[ 6 0 0 0 0 0 0 ]

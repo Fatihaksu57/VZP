@@ -1,0 +1,5 @@
+2026/04/07-00:02:43.805 5cac Creating DB c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-live\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/04/07-00:02:43.895 5cac Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-live\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/04/07-00:02:44.535 65b0 Level-0 table #5: started
+2026/04/07-00:02:44.545 65b0 Level-0 table #5: 682105 bytes OK
+2026/04/07-00:02:44.550 65b0 Delete type=0 #3

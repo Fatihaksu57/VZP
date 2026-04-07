@@ -82,8 +82,8 @@ body{
 .map-switcher{position:absolute;top:18px;left:18px;z-index:700;display:flex;gap:0;padding:6px;border-radius:22px;box-shadow:var(--shadow-sm);border:1px solid rgba(255,255,255,.72);background:rgba(255,253,250,.90);backdrop-filter:blur(12px)}
 .ms-btn{padding:12px 16px;border:none;cursor:pointer;font:700 12px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--text-soft);transition:all .15s;white-space:nowrap;border-radius:16px}
 .ms-btn.active{background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff;box-shadow:0 8px 18px rgba(221,90,18,.18)}
-.map-controls{position:absolute;top:18px;right:18px;z-index:700;display:flex;flex-direction:column;gap:10px;padding:10px;border-radius:24px;background:rgba(255,253,250,.90);border:1px solid rgba(255,255,255,.75);box-shadow:var(--shadow-sm);backdrop-filter:blur(12px)}
-.mc-btn{width:48px;height:48px;border-radius:16px;background:linear-gradient(180deg,#fffdfa,#f3ede4);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;color:var(--text-soft)}
+.map-controls{position:absolute;top:18px;right:18px;z-index:700;display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:22px;background:rgba(255,253,250,.90);border:1px solid rgba(255,255,255,.75);box-shadow:var(--shadow-sm);backdrop-filter:blur(12px)}
+.mc-btn{width:48px;height:44px;border-radius:15px;background:linear-gradient(180deg,#fffdfa,#f3ede4);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Sans',sans-serif;cursor:pointer;transition:all .15s;color:var(--text-soft)}
 .mc-btn:active{transform:scale(.94)}
 .mc-btn.active{border-color:rgba(221,90,18,.30);color:var(--orange);background:linear-gradient(180deg,#fff8f3,#fdeee4)}
 .instruction-banner{position:absolute;top:92px;left:50%;transform:translateX(-50%);z-index:800;display:none;align-items:center;gap:10px;background:rgba(255,253,250,.94);border:1.5px solid rgba(221,90,18,.28);border-radius:20px;padding:10px 14px;box-shadow:var(--shadow-md);max-width:92vw;backdrop-filter:blur(10px)}
@@ -100,7 +100,7 @@ body{
 .rp-preview.active{border-color:rgba(221,90,18,.32)}
 .rp-preview img{width:100%;display:block;max-height:132px;object-fit:cover;object-position:center 40%}
 .rp-preview .rp-tag{padding:6px;font:700 10px 'IBM Plex Mono',monospace;color:var(--orange-strong);background:var(--orange-soft);text-align:center}
-.tab-bar{height:var(--tab-h);padding-bottom:var(--safe-b);background:rgba(255,253,250,.94);border-top:1px solid rgba(255,255,255,.72);display:flex;align-items:stretch;z-index:900;flex-shrink:0;box-shadow:0 -10px 24px rgba(26,20,14,.08);border-radius:24px 24px 0 0}
+.tab-bar{grid-area:tab;height:var(--tab-h);padding-bottom:var(--safe-b);background:rgba(255,253,250,.94);border-top:1px solid rgba(255,255,255,.72);display:flex;align-items:stretch;z-index:900;flex-shrink:0;box-shadow:0 -10px 24px rgba(26,20,14,.08);border-radius:24px 24px 0 0}
 .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--text-muted);font:700 10px 'IBM Plex Sans',sans-serif;cursor:pointer;transition:color .15s;position:relative}
 .tab-item .ti-icon{font-size:20px;line-height:1}
 .tab-item.active{color:var(--orange)}
@@ -111,35 +111,35 @@ body{
 .panel-header h2{font:700 18px 'IBM Plex Sans',sans-serif;color:var(--text);flex:1;letter-spacing:-.02em}
 .ph-close{width:34px;height:34px;border-radius:12px;border:1px solid var(--line);background:var(--surface-soft);color:var(--text-muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .sidebar{grid-area:sidebar;min-width:0;min-height:0;overflow:auto;padding-right:6px}
-.sidebar .section{background:linear-gradient(180deg,rgba(255,255,255,.90),rgba(246,242,235,.96));border:1px solid rgba(255,255,255,.82);border-radius:20px;padding:12px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+.sidebar .section{background:linear-gradient(180deg,rgba(255,255,255,.90),rgba(246,242,235,.96));border:1px solid rgba(255,255,255,.82);border-radius:18px;padding:10px;margin-bottom:8px;box-shadow:var(--shadow-sm)}
 .sidebar>.section{margin-top:0!important}
 .sidebar>.section:nth-of-type(4){display:none}
 .sidebar .section:last-child{margin-bottom:0}
 .section{margin-bottom:14px}
-.section-label{display:block;margin-bottom:8px;font:700 10px 'IBM Plex Mono',monospace;color:var(--orange);text-transform:uppercase;letter-spacing:.12em}
-.section-title{font:700 17px 'IBM Plex Sans',sans-serif;line-height:1.1;letter-spacing:-.03em;color:var(--text);margin-bottom:4px}
+.section-label{display:block;margin-bottom:6px;font:700 10px 'IBM Plex Mono',monospace;color:var(--orange);text-transform:uppercase;letter-spacing:.12em}
+.section-title{font:700 15px 'IBM Plex Sans',sans-serif;line-height:1.1;letter-spacing:-.03em;color:var(--text);margin-bottom:3px}
 .sidebar .section-copy{display:none}
 .section-copy{font:500 12px 'IBM Plex Sans',sans-serif;color:var(--text-soft);line-height:1.45;margin-bottom:14px}
-.rp-grid{display:flex;flex-direction:column;gap:6px}
-.rp-card{padding:8px;background:rgba(255,255,255,.68);border:1.5px solid var(--line);border-radius:16px;cursor:pointer;transition:all .16s ease;display:flex;align-items:center;gap:10px}
+.rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.rp-card{padding:7px;background:rgba(255,255,255,.68);border:1.5px solid var(--line);border-radius:15px;cursor:pointer;transition:all .16s ease;display:flex;align-items:center;gap:7px;min-width:0}
 .rp-card:hover{transform:translateY(-1px)}
 .rp-card:active{transform:scale(.985)}
 .rp-card.selected{border-color:rgba(221,90,18,.34);background:linear-gradient(180deg,rgba(255,246,240,.96),rgba(255,250,245,.92));box-shadow:0 10px 24px rgba(221,90,18,.12)}
-.rp-card .rp-thumb{width:42px;height:54px;border-radius:12px;overflow:hidden;border:1px solid var(--line);flex-shrink:0;background:#fff}
+.rp-card .rp-thumb{width:34px;height:42px;border-radius:10px;overflow:hidden;border:1px solid var(--line);flex-shrink:0;background:#fff}
 .rp-card .rp-thumb img{width:100%;height:100%;object-fit:cover;object-position:center 40%}
 .rp-card .rp-info{flex:1;min-width:0}
-.rp-card .rp-name{font:700 13px 'IBM Plex Sans',sans-serif;color:var(--text);letter-spacing:-.02em}
-.rp-card .rp-desc{font:500 11px 'IBM Plex Sans',sans-serif;color:var(--text-soft);margin-top:2px;line-height:1.25}
-.param-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.param-label{width:82px;font:600 12px 'IBM Plex Sans',sans-serif;color:var(--text-soft);flex-shrink:0}
-.param-input{flex:1;height:40px;padding:0 12px;background:linear-gradient(180deg,#fffdfa,#f7f2eb);border:1.5px solid var(--line-strong);border-radius:14px;color:var(--text);font:500 13px 'IBM Plex Sans',sans-serif;outline:none}
+.rp-card .rp-name{font:700 12px 'IBM Plex Sans',sans-serif;color:var(--text);letter-spacing:-.02em;line-height:1.15}
+.rp-card .rp-desc{display:none}
+.param-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.param-label{width:72px;font:600 12px 'IBM Plex Sans',sans-serif;color:var(--text-soft);flex-shrink:0}
+.param-input{flex:1;height:36px;padding:0 11px;background:linear-gradient(180deg,#fffdfa,#f7f2eb);border:1.5px solid var(--line-strong);border-radius:13px;color:var(--text);font:500 13px 'IBM Plex Sans',sans-serif;outline:none}
 .param-input:focus{border-color:rgba(221,90,18,.42);box-shadow:0 0 0 4px rgba(221,90,18,.10)}
 select.param-input{cursor:pointer}
 .seg-control{display:flex;gap:0;border-radius:15px;overflow:hidden;border:1.5px solid var(--line);flex:1;background:rgba(255,255,255,.72)}
-.seg-btn{flex:1;height:40px;border:none;cursor:pointer;font:700 12px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--text-soft);transition:all .15s;display:flex;align-items:center;justify-content:center}
+.seg-btn{flex:1;height:36px;border:none;cursor:pointer;font:700 12px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--text-soft);transition:all .15s;display:flex;align-items:center;justify-content:center}
 .seg-btn+.seg-btn{border-left:1px solid var(--line)}
 .seg-btn.active{background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff}
-.btn{height:42px;padding:0 14px;border:none;border-radius:14px;font:700 12px 'IBM Plex Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.btn{height:40px;padding:0 14px;border:none;border-radius:14px;font:700 12px 'IBM Plex Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:linear-gradient(135deg,var(--orange),var(--orange-strong));color:#fff;box-shadow:0 14px 28px rgba(221,90,18,.22)}
 .btn-danger{background:var(--red-soft);color:var(--red);border:1.5px solid rgba(186,54,54,.20)}
@@ -147,9 +147,9 @@ select.param-input{cursor:pointer}
 .btn-block{width:100%}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap}
 .sidebar .btn-row .btn{flex:1;min-width:0}
-.action-card{background:linear-gradient(180deg,rgba(255,248,236,.94),rgba(253,242,218,.92));border:1.5px solid rgba(186,130,0,.28);border-radius:18px;padding:12px}
-.action-card .ac-title{font:700 15px 'IBM Plex Sans',sans-serif;color:var(--text);margin-bottom:4px;letter-spacing:-.02em}
-.action-card .ac-desc{font:500 11px 'IBM Plex Sans',sans-serif;color:var(--text-soft);margin-bottom:8px;line-height:1.35}
+.action-card{background:linear-gradient(180deg,rgba(255,248,236,.94),rgba(253,242,218,.92));border:1.5px solid rgba(186,130,0,.28);border-radius:17px;padding:10px}
+.action-card .ac-title{font:700 14px 'IBM Plex Sans',sans-serif;color:var(--text);margin-bottom:3px;letter-spacing:-.02em}
+.action-card .ac-desc{font:500 11px 'IBM Plex Sans',sans-serif;color:var(--text-soft);margin-bottom:7px;line-height:1.3}
 .wizard-steps{display:flex;gap:8px;margin-bottom:12px}
 .wizard-step{flex:1;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.72);border:1px solid var(--line);font:700 10px 'IBM Plex Mono',monospace;color:var(--text-muted);text-align:center}
 .wizard-step.active{background:var(--orange-soft);border-color:rgba(221,90,18,.26);color:var(--orange-strong)}
@@ -167,11 +167,26 @@ select.param-input{cursor:pointer}
 .sidebar [data-wizard-steps="desktop"],
 .sidebar [data-wizard-pane="desktop"],
 .sidebar .wizard-actions,
-.sidebar button.btn-block[onclick="exportPDF()"]{display:none!important}
+.sidebar button.btn-block[onclick="exportPDF()"],
+.sidebar button.btn-block[onclick="openExportFlow()"]{display:none!important}
 .helper-text{font:500 12px 'IBM Plex Sans',sans-serif;color:var(--text-muted);line-height:1.5;margin:4px 0 10px}
 
 .toast{position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-100px);z-index:10000;padding:12px 18px;border-radius:16px;background:#211b14;color:#fff;font:600 13px 'IBM Plex Sans',sans-serif;box-shadow:var(--shadow-lg);transition:transform .3s cubic-bezier(.4,0,.2,1);white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+.export-modal{position:fixed;inset:0;z-index:9800;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(33,27,20,.34);backdrop-filter:blur(10px)}
+.export-modal.open{display:flex}
+.export-sheet{width:min(560px,100%);max-height:min(760px,92vh);overflow:auto;border-radius:26px;background:linear-gradient(180deg,#fffdfa,#f4eee5);border:1px solid rgba(255,255,255,.82);box-shadow:var(--shadow-lg);padding:18px}
+.export-sheet-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.export-sheet-title{flex:1;min-width:0}
+.export-sheet-title h2{font:700 20px 'IBM Plex Sans',sans-serif;letter-spacing:-.03em;color:var(--text);margin-bottom:4px}
+.export-sheet-title p{font:500 12px 'IBM Plex Sans',sans-serif;color:var(--text-soft);line-height:1.45}
+.export-close{width:38px;height:38px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.70);color:var(--text-soft);font:700 15px 'IBM Plex Sans',sans-serif;cursor:pointer}
+.export-modal .param-row{margin-bottom:8px}
+.export-modal .param-label{width:98px}
+.export-modal .wizard-summary{margin-top:10px}
+.export-modal-actions{display:flex;gap:10px;margin-top:14px}
+.export-modal-actions .btn{flex:1}
 
 .rp-overlay-controls{position:absolute;bottom:126px;right:18px;z-index:750;background:rgba(255,253,250,.94);border:1px solid rgba(255,255,255,.74);border-radius:18px;padding:10px 12px;box-shadow:var(--shadow-sm);display:none;min-width:140px}
 .rp-overlay-controls.show{display:block}
@@ -197,28 +212,38 @@ select.param-input{cursor:pointer}
 }
 @media(min-width:769px){.tab-bar{display:none}.panel{display:none!important}}
 @media(max-width:768px){
-  .app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"header" "map" "tab";gap:10px;padding:10px 10px 0}
-  .header{min-height:64px;padding:10px 12px;border-radius:22px;flex-wrap:wrap}
+  html,body,.app{width:100%;max-width:100%;overflow:hidden}
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"header" "map" "tab";gap:10px;padding:10px 10px 0}
+  .header{width:100%;max-width:100%;min-width:0;min-height:64px;padding:10px 12px;border-radius:22px;flex-wrap:wrap;overflow:hidden}
   .header-left{gap:10px}
   .header-logo::before{width:36px;height:36px;border-radius:12px}
   .header-logo .logo-title{font-size:18px}
   .header-logo .logo-sub{font-size:10px}
   .header-meta .meta-pill{display:none}
   .header-actions{gap:8px}
-  .search-strip{order:3;flex-basis:100%;max-width:none;min-width:0}
-  .search-shell{grid-template-columns:minmax(0,1fr) auto}
-  .search-btn{width:auto}
+  .search-strip{order:3;flex:0 0 100%;width:100%;max-width:100%;min-width:0}
+  .search-shell{display:block;position:relative;width:100%;min-width:0}
+  .header-search{padding-right:58px}
+  .search-btn{position:absolute;right:72px;top:4px;width:48px;height:34px;padding:0 8px;border-radius:12px;font-size:0}
+  .search-btn::after{content:'Go';font:700 12px 'IBM Plex Sans',sans-serif}
   .sidebar{display:none}
-  .map-area{border-radius:24px}
+  .map-area{width:100%;max-width:100%;min-width:0;border-radius:24px}
   .map-switcher{top:12px;left:12px;right:74px;overflow:auto;padding:5px}
   .ms-btn{padding:10px 12px;font-size:11px}
   .map-controls{top:12px;right:12px;gap:8px;padding:8px;border-radius:20px}
-  .mc-btn{width:44px;height:44px;border-radius:14px}
+  .mc-btn{width:44px;height:42px;border-radius:14px}
   .instruction-banner{top:78px}
   .status-bar{left:12px;right:12px;bottom:82px;max-width:none}
   .bau-info{left:12px;right:12px;bottom:130px;transform:none;max-width:none;justify-content:center;overflow:auto}
   .rp-preview{bottom:82px;right:12px;width:82px}
   .rp-overlay-controls{right:12px;bottom:178px}
+  .tab-bar{width:100%;max-width:100%;min-width:0}
+  .tab-item{min-width:0;overflow:hidden;font-size:9px}
+  .tab-item:last-child{transform:translateX(-26px)}
+  .export-modal{align-items:flex-end;padding:10px}
+  .export-sheet{max-height:86vh;border-radius:26px 26px 12px 12px}
+  .export-modal .param-row{align-items:flex-start;flex-direction:column;gap:5px}
+  .export-modal .param-label{width:auto}
 }
 .bau-info{border-radius:999px;letter-spacing:.02em}
 </style>
@@ -237,18 +262,11 @@ select.param-input{cursor:pointer}
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-primary header-export-btn" onclick="exportPDF()">PDF</button>
+      <button class="btn btn-primary header-export-btn" onclick="openExportFlow()">PDF</button>
       <button class="mc-btn" onclick="getGPSLocation()" title="GPS-Standort">📍</button>
       <button class="mc-btn" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
     </div>
   </div>
-  <div class="search-strip">
-    <div class="search-shell">
-      <input class="header-search" type="text" id="addressInput" placeholder="Adresse oder Straße suchen…">
-      <button class="search-btn" onclick="searchAddress(document.getElementById('addressInput').value)">Suchen</button>
-    </div>
-  </div>
-
   <div class="sidebar" id="sidebar">
     <div class="section" style="padding-top:16px">
       <div class="section-title">Regelplan waehlen</div>
@@ -330,7 +348,7 @@ select.param-input{cursor:pointer}
       </div>
       <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjekt" placeholder="z.B. Glasfaser Tiefbau"></div>
       <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErsteller" value="QFM GmbH"></div>
-      <button class="btn btn-primary btn-block" onclick="exportPDF()">📄 PDF exportieren</button>
+      <button class="btn btn-primary btn-block" onclick="openExportFlow()">PDF exportieren</button>
     </div>
   </div>
 
@@ -428,16 +446,40 @@ select.param-input{cursor:pointer}
     </div>
     <div class="param-row"><span class="param-label">Projekt</span><input class="param-input" type="text" id="pdfProjektM" placeholder="z.B. Glasfaser Tiefbau"></div>
     <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" id="pdfErstellerM" value="QFM GmbH"></div>
-    <button class="btn btn-primary btn-block" onclick="exportPDF()" style="margin-top:10px">📄 PDF exportieren</button>
+    <button class="btn btn-primary btn-block" onclick="openExportFlow()" style="margin-top:10px">PDF exportieren</button>
   </div>
 
   <div class="tab-bar">
     <button class="tab-item active" onclick="switchTab('map',this)"><span class="ti-icon">🗺</span>Karte</button>
     <button class="tab-item" onclick="switchTab('rp',this)"><span class="ti-icon">📐</span>Regelplan</button>
-    <button class="tab-item" onclick="exportPDF()"><span class="ti-icon">📄</span>PDF</button>
+    <button class="tab-item" onclick="openExportFlow()"><span class="ti-icon">📄</span>PDF</button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="export-modal" id="exportModal" aria-hidden="true">
+  <div class="export-sheet" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+    <div class="export-sheet-head">
+      <div class="export-sheet-title">
+        <h2 id="exportModalTitle">PDF vorbereiten</h2>
+        <p>Fehlende Projektangaben werden hier kurz gesammelt. Danach startet der Export direkt.</p>
+      </div>
+      <button class="export-close" type="button" onclick="closeExportPanel()" aria-label="Exportdialog schliessen">X</button>
+    </div>
+    <div class="param-row"><span class="param-label">Adresse</span><input class="param-input" type="text" data-plan-field="adresse" placeholder="Baustelle / Strasse"></div>
+    <div class="param-row"><span class="param-label">Bauvorhaben</span><input class="param-input" type="text" data-plan-field="bauvorhaben" placeholder="z.B. Glasfaser Tiefbau"></div>
+    <div class="param-row"><span class="param-label">Auftraggeber</span><input class="param-input" type="text" data-plan-field="auftraggeber" placeholder="Auftraggeber"></div>
+    <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" data-plan-field="ersteller" value="QFM GmbH"></div>
+    <div class="param-row"><span class="param-label">Plan-Nr.</span><input class="param-input" type="text" data-plan-field="planNummer" placeholder="optional"></div>
+    <div class="section-label" style="margin-top:14px">Pruefung</div>
+    <div class="validation-list" id="exportModalValidations"></div>
+    <div class="section-label" style="margin-top:14px">Vorschau</div>
+    <div class="wizard-summary" id="exportModalSummary"></div>
+    <div class="export-modal-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeExportPanel()">Abbrechen</button>
+      <button class="btn btn-primary" type="button" onclick="proceedExportFromPanel()">PDF starten</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="js/version.js"></script>
@@ -496,6 +538,8 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('addressInput').addEventListener('keydown',function(e){if(e.key==='Enter')searchAddress(e.target.value)});
   document.getElementById('addressInput').addEventListener('input',function(e){projectState.adresse=e.target.value;syncAllProjectFields();refreshPlanDocument();});
   bindPlanFields();
+  var exportModal=document.getElementById('exportModal');
+  if(exportModal)exportModal.addEventListener('click',function(e){if(e.target===exportModal)closeExportPanel();});
   hideLegacyExportFields();
   syncAllProjectFields();
   updatePlacementModeUI();
@@ -517,15 +561,15 @@ function applyUIChrome(){
     bauInfo.innerHTML='LEN <span id="bauLaenge">-</span><span>&bull;</span>GW <span id="restBreite">-</span><span>&bull;</span>FB <span id="restFahrbahn">-</span>';
   }
   var headerButtons=document.querySelectorAll('.header-actions .mc-btn');
-  if(headerButtons[0])headerButtons[0].textContent='G';
-  if(headerButtons[1])headerButtons[1].textContent='R';
+  if(headerButtons[0])headerButtons[0].textContent='GPS';
+  if(headerButtons[1])headerButtons[1].textContent='RSA';
   var mapButtons=document.querySelectorAll('.map-controls .mc-btn');
-  ['P','M','R','G'].forEach(function(label,index){
+  ['Plan','Mass','RSA','GPS'].forEach(function(label,index){
     if(mapButtons[index])mapButtons[index].textContent=label;
   });
   document.querySelectorAll('button[onclick=\"saveProject()\"]').forEach(function(btn){btn.textContent='Speichern';});
   document.querySelectorAll('button[onclick=\"loadProject()\"]').forEach(function(btn){btn.textContent='Laden';});
-  document.querySelectorAll('button.btn-block[onclick=\"exportPDF()\"]').forEach(function(btn){btn.textContent='PDF exportieren';});
+  document.querySelectorAll('button.btn-block[onclick=\"exportPDF()\"],button.btn-block[onclick=\"openExportFlow()\"]').forEach(function(btn){btn.textContent='PDF exportieren';});
 }
 
 function initMap(){
@@ -795,6 +839,8 @@ function renderWizardSummary(planDocument){
     var el=document.getElementById(id);
     if(el)el.innerHTML=html;
   });
+  var modalSummary=document.getElementById('exportModalSummary');
+  if(modalSummary)modalSummary.innerHTML=html;
 }
 
 function renderWizardValidations(validations){
@@ -810,6 +856,8 @@ function renderWizardValidations(validations){
     var el=document.getElementById(id);
     if(el)el.innerHTML=html;
   });
+  var modalValidations=document.getElementById('exportModalValidations');
+  if(modalValidations)modalValidations.innerHTML=html;
 }
 
 function updatePlanDisplays(){
@@ -1898,14 +1946,64 @@ function clearAll(){
 }
 
 // ═══ EXPORT ═══
+function getBlockingProjectIssues(){
+  refreshPlanDocument();
+  var requiredCodes={ADDRESS_MISSING:true,PROJECT_MISSING:true,AUTHOR_MISSING:true};
+  return ((currentPlanDocument&&currentPlanDocument.scene&&currentPlanDocument.scene.validations)||[])
+    .filter(function(v){return v.severity==='error'&&requiredCodes[v.code];});
+}
+
+function openExportPanel(){
+  refreshPlanDocument();
+  exportWizardStep=2;
+  updateExportWizard();
+  syncAllProjectFields();
+  var modal=document.getElementById('exportModal');
+  if(modal){
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    setTimeout(function(){
+      var target=modal.querySelector('[data-plan-field="bauvorhaben"]');
+      if(target&&!target.value)target.focus();
+    },30);
+  }
+}
+
+function closeExportPanel(){
+  var modal=document.getElementById('exportModal');
+  if(modal){
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+  }
+}
+
+function openExportFlow(){
+  refreshPlanDocument();
+  if(getBlockingProjectIssues().length){
+    openExportPanel();
+    toast('Projektangaben fuer den PDF-Export ergaenzen');
+    return;
+  }
+  exportPDF();
+}
+
+function proceedExportFromPanel(){
+  refreshPlanDocument();
+  if(getBlockingProjectIssues().length){
+    openExportPanel();
+    toast('Bitte Pflichtfelder im Exportdialog ausfuellen');
+    return;
+  }
+  closeExportPanel();
+  exportPDF();
+}
+
 function exportPDF(){
   refreshPlanDocument();
   if(currentPlanDocument&&currentPlanDocument.exportMeta&&currentPlanDocument.exportMeta.hasErrors){
     exportWizardStep=3;
     updateExportWizard();
     toast('Export blockiert - bitte Pflichtangaben und Pruefhinweise pruefen');
-    return;
-    toast('âŒ Export blockiert â€” bitte Pflichtangaben und Prüfhinweise prüfen');
     return;
   }
   if(typeof PDFExport!=='undefined'&&currentPlanDocument)PDFExport.exportPlan(currentPlanDocument,{map:map});
@@ -1918,7 +2016,7 @@ function switchTab(tab,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('open')});
   el.classList.add('active');
   if(tab==='rp')document.getElementById('panelRP').classList.add('open');
-  else if(tab==='export')document.getElementById('panelExport').classList.add('open');
+  else if(tab==='export')openExportPanel();
 }
 function closePanel(){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('open')});
@@ -1934,7 +2032,10 @@ function toast(msg){
 
 // ═══ KEYBOARD ═══
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')cancelPlacement();
+  if(e.key==='Escape'){
+    closeExportPanel();
+    cancelPlacement();
+  }
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
   if(e.key==='Enter'&&polygonPlacementMode){finishPolygonPlacement();return;}
   if(e.key==='p')startPlacement();
