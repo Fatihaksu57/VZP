@@ -70,28 +70,25 @@ var RegelplanTemplates = (function() {
 
   // Schrankengitter OHNE Leuchten (Fahrbahnseitig)
   function schrankenReihe(map,grp,lls,sf,tL,offM,startM,endM,mk){
-    var SEG=2.0,GAP=0.05,len=endM-startM;
-    var n=Math.max(1,Math.floor(len/(SEG+GAP)));
-    var used=n*SEG+(n-1)*GAP,pad=(len-used)/2;
-    var w=schW(map),h=schH(map);
-    for(var j=0;j<n;j++){
-      var along=startM+pad+j*(SEG+GAP)+SEG/2;
-      var pos=ptM(lls,along,tL,offM*sf,0);
-      mk.push(mkSVG(map,grp,pos,'absperrschranke.svg',w,h,pos.b-90,510));
-    }
+    mk.push(absperrLinie(map,grp,lls,sf,tL,offM,startM,endM,'roadside_barrier'));
   }
 
   // Schrankengitter MIT Leuchten (Gehwegseite)
   function schrankenReiheLeuchte(map,grp,lls,sf,tL,offM,startM,endM,mk){
-    var SEG=2.0,GAP=0.05,len=endM-startM;
-    var n=Math.max(1,Math.floor(len/(SEG+GAP)));
-    var used=n*SEG+(n-1)*GAP,pad=(len-used)/2;
-    var w=schW(map),h=Math.max(6,Math.round(schW(map)*0.28));
-    for(var j=0;j<n;j++){
-      var along=startM+pad+j*(SEG+GAP)+SEG/2;
-      var pos=ptM(lls,along,tL,offM*sf,0);
-      mk.push(mkSVG(map,grp,pos,'absperrschranke_leuchte.svg',w,h,pos.b-90,512));
+    mk.push(absperrLinie(map,grp,lls,sf,tL,offM,startM,endM,'site_barrier'));
+  }
+
+  function absperrLinie(map,grp,lls,sf,tL,offM,startM,endM,role){
+    var steps=Math.max(2,Math.ceil((endM-startM)/4)),line=[];
+    for(var i=0;i<=steps;i++){
+      line.push(ptM(lls,startM+(endM-startM)*i/steps,tL,offM*sf,0).p);
     }
+    var base=L.polyline(line,{color:'#1f1b14',weight:7,opacity:0.45,lineCap:'butt',lineJoin:'miter',interactive:false});
+    var white=L.polyline(line,{color:'#fff',weight:5,opacity:1,lineCap:'butt',lineJoin:'miter',interactive:false});
+    var red=L.polyline(line,{color:'#d71920',weight:5,opacity:1,dashArray:'8 6',lineCap:'butt',lineJoin:'miter',interactive:false});
+    var layer=L.layerGroup([base,white,red]);
+    grp.addLayer(layer);
+    return layer;
   }
 
   // ═══ LEITBAKEN-REIHE — v34 FIX ═══
@@ -237,7 +234,7 @@ var RegelplanTemplates = (function() {
   function outwardBearing(a,b,centroid){var m=edgeMid(a,b,0.5),br=bear(a,b),p1=oLL(m,br+90,1.5),p2=oLL(m,br-90,1.5),c=L.latLng(centroid);return L.latLng(p1).distanceTo(c)>L.latLng(p2).distanceTo(c)?br+90:br-90}
   function ensureHatchPattern(map){setTimeout(function(){var svg=map.getPanes().overlayPane.querySelector('svg');if(!svg||svg.querySelector('#vzp-workarea-hatch'))return;var defs=svg.querySelector('defs')||document.createElementNS('http://www.w3.org/2000/svg','defs');if(!defs.parentNode)svg.insertBefore(defs,svg.firstChild);var p=document.createElementNS('http://www.w3.org/2000/svg','pattern');p.setAttribute('id','vzp-workarea-hatch');p.setAttribute('patternUnits','userSpaceOnUse');p.setAttribute('width','8');p.setAttribute('height','8');p.setAttribute('patternTransform','rotate(45)');var bg=document.createElementNS('http://www.w3.org/2000/svg','rect');bg.setAttribute('width','8');bg.setAttribute('height','8');bg.setAttribute('fill','#e65100');bg.setAttribute('fill-opacity','0.07');var line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1','0');line.setAttribute('y1','0');line.setAttribute('x2','0');line.setAttribute('y2','8');line.setAttribute('stroke','#e02f00');line.setAttribute('stroke-opacity','0.52');line.setAttribute('stroke-width','2');p.appendChild(bg);p.appendChild(line);defs.appendChild(p);},0)}
   function polygonBarrierRow(map,grp,a,b,mk,scene){var len=edgeLen(a,b),seg=2.0,gap=0.05,count=Math.max(1,Math.floor(len/(seg+gap))),used=count*seg+(count-1)*gap,pad=(len-used)/2,w=schW(map),h=Math.max(6,Math.round(schW(map)*0.28)),br=bear(a,b);for(var i=0;i<count;i++){var along=pad+i*(seg+gap)+seg/2,pos=edgeMid(a,b,Math.max(0,Math.min(1,along/len)));mk.push(mkSVG(map,grp,{p:pos,b:br},'absperrschranke_leuchte.svg',w,h,br-90,520));if(scene)scene.items.push({kind:'barrier',role:'polygon_edge_barrier',asset:'absperrschranke_leuchte.svg',point:pos,bearing:br,orientation:'longitudinal',widthMeters:seg});}}
-  function polygonBarrierLine(map,grp,poly,scene){var line=poly.slice();if(line.length<2)return;var base=L.polyline(line,{color:'#1f1b14',weight:12,opacity:0.50,lineCap:'butt',lineJoin:'miter',interactive:false});var white=L.polyline(line,{color:'#ffffff',weight:10,opacity:1,lineCap:'butt',lineJoin:'miter',interactive:false});var red=L.polyline(line,{color:'#d71920',weight:10,opacity:1,dashArray:'14 10',lineCap:'butt',lineJoin:'miter',interactive:false});grp.addLayer(base);grp.addLayer(white);grp.addLayer(red);if(scene)scene.items.push({kind:'barrier',role:'polygon_continuous_barrier',asset:'continuous_red_white_line',polygon:line,lengthMeters:polygonPerimeter(line)});}
+  function polygonBarrierLine(map,grp,poly,scene){var line=poly.slice();if(line.length<2)return;var base=L.polyline(line,{color:'#1f1b14',weight:7,opacity:0.45,lineCap:'butt',lineJoin:'miter',interactive:false});var white=L.polyline(line,{color:'#ffffff',weight:5,opacity:1,lineCap:'butt',lineJoin:'miter',interactive:false});var red=L.polyline(line,{color:'#d71920',weight:5,opacity:1,dashArray:'8 6',lineCap:'butt',lineJoin:'miter',interactive:false});grp.addLayer(base);grp.addLayer(white);grp.addLayer(red);if(scene)scene.items.push({kind:'barrier',role:'polygon_continuous_barrier',asset:'continuous_red_white_line',polygon:line,lengthMeters:polygonPerimeter(line)});}
   function polygonWarningSigns(map,grp,poly,mk,scene){var centroid=polygonCentroid(poly),lengths=[],maxLen=0;for(var i=0;i<poly.length-1;i++){var len=edgeLen(poly[i],poly[i+1]);lengths.push({index:i,len:len});if(len>maxLen)maxLen=len}lengths.forEach(function(entry){if(entry.len<8||entry.len<maxLen*0.98)return;var a=poly[entry.index],b=poly[entry.index+1],br=bear(a,b),outBr=outwardBearing(a,b,centroid),pStart={p:oLL(edgeMid(a,b,0.15),outBr,2.5),b:br},pEnd={p:oLL(edgeMid(a,b,0.85),outBr,2.5),b:br};var s1=mkVZ(map,grp,pStart,'123',0,700),s2=mkVZ(map,grp,pEnd,'123',180,700);if(s1)mk.push(s1);if(s2)mk.push(s2);if(scene){scene.items.push({kind:'sign',role:'polygon_warning_start',sign:'123',point:pStart.p,rotation:0});scene.items.push({kind:'sign',role:'polygon_warning_end',sign:'123',point:pEnd.p,rotation:180});}});}
   function generatePolygonOverlay(map,polygon,opts){if(!polygon||polygon.length<4)return null;if(activeOverlay){activeOverlay.remove();activeOverlay=null;}opts=opts||{};ensureHatchPattern(map);var grp=L.layerGroup().addTo(map),markers=[],perimeter=polygonPerimeter(polygon);var scene={planId:'CUSTOM_AREA',baustellenLaenge:perimeter,polygonPerimeter:perimeter,polygonArea:polygonAreaSquareMeters(polygon),workZonePolygon:polygon.slice(),items:[],dimensions:[{kind:'perimeter',value:perimeter}],validations:[{code:'POLYGON_SIGNS_REVIEW',severity:'warning',message:'Verkehrszeichenlogik fuer Polygon-Arbeitsbereich pruefen'}]};function render(){grp.clearLayers();scene.items=[];ensureHatchPattern(map);var area=L.polygon(polygon,{fillColor:'#e65100',fillOpacity:0.13,color:'#d32f00',weight:2.5,dashArray:'4,4',interactive:false});grp.addLayer(area);scene.items.push({kind:'workarea',role:'polygon_work_area',areaSquareMeters:scene.polygonArea});setTimeout(function(){var el=area.getElement&&area.getElement();if(el)el.setAttribute('fill','url(#vzp-workarea-hatch)');},0);markers=[];polygonBarrierLine(map,grp,polygon,scene);if(opts.enableWarnings!==false)polygonWarningSigns(map,grp,polygon,markers,scene);}render();var onZoom=function(){render()};map.on('zoomend',onZoom);activeOverlay={overlay:grp,group:grp,scene:scene,markers:markers,baustellenLaenge:perimeter,validations:scene.validations,remove:function(){map.removeLayer(grp);map.off('zoomend',onZoom);activeOverlay=null}};return activeOverlay}
 

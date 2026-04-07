@@ -58,8 +58,10 @@ const PDFExport = (() => {
     var seen = {};
     (items || []).forEach(function(item) {
       if (item.kind === 'barrier') seen.barrier = 'Absperrschranke / Quersperre';
+      if (item.kind === 'barrier_line') seen.barrier = 'Durchgehende rot-weisse Absperrlinie';
       if (item.kind === 'beacon') seen.beacon = 'Leitbake / Leitbakenreihe';
       if (item.kind === 'sign') seen.sign = 'Verkehrszeichen / Vorwarnung';
+      if (item.role && item.role.indexOf('parking_prohibition') === 0) seen.parking = 'Parkverbot-Paar, Pfeile zueinander';
       if (item.kind === 'workarea') seen.workarea = 'Rot schraffierter Arbeitsbereich';
     });
     return Object.keys(seen).map(function(key) { return seen[key]; });

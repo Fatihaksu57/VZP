@@ -203,6 +203,15 @@ select.param-input{cursor:pointer}
 .placement-marker-done{width:14px;height:14px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .measure-point{width:14px;height:14px;border-radius:50%;background:#1565C0;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)}
 .measure-label{padding:4px 8px;border-radius:999px;background:#fff;border:1.5px solid rgba(21,101,192,.28);box-shadow:0 2px 8px rgba(0,0,0,.14);font:700 11px 'IBM Plex Mono',monospace;color:#1565C0;white-space:nowrap}
+.parking-sign{width:40px;height:54px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.28))}
+.parking-sign-face{width:32px;height:32px;border-radius:50%;background:#1565c0;border:3px solid #d71920;position:relative;box-shadow:0 0 0 2px #fff}
+.parking-sign-face::before,.parking-sign-face::after{content:'';position:absolute;left:50%;top:50%;width:30px;height:4px;background:#d71920;border-radius:999px;transform-origin:center}
+.parking-sign-face::before{transform:translate(-50%,-50%) rotate(45deg)}
+.parking-sign-face::after{transform:translate(-50%,-50%) rotate(-45deg)}
+.parking-arrow{width:26px;height:16px;position:relative;transform-origin:center}
+.parking-arrow::before{content:'';position:absolute;left:2px;right:6px;top:7px;border-top:3px solid #1f1b14}
+.parking-arrow::after{content:'';position:absolute;right:2px;top:3px;border-left:8px solid #1f1b14;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.parking-line{stroke:#d71920;stroke-width:2;stroke-dasharray:7 5;stroke-linecap:round}
 
 @media(max-width:1024px){
   .app{grid-template-columns:360px minmax(0,1fr);gap:0 14px;padding:14px}
@@ -363,6 +372,7 @@ select.param-input{cursor:pointer}
     <div class="map-controls">
       <button class="mc-btn active" id="mcRP" onclick="toggleLayer('rp')" title="Regelplan">📐</button>
       <button class="mc-btn" id="mcMeasure" onclick="toggleMeasureMode()" title="Bemaßung">📏</button>
+      <button class="mc-btn" id="mcParking" onclick="toggleParkingMode()" title="Parkverbot-Paar">HV</button>
       <button class="mc-btn" id="mcImg" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
       <button class="mc-btn" onclick="getGPSLocation()" title="GPS-Standort">📍</button>
     </div>
@@ -504,6 +514,7 @@ var polygonPlacementMode=false, polygonPlacementPoints=[], drawnPolygon=null, po
 var showRP=true, rpImageVisible=false;
 var placementMode=false, placementPoints=[], placementMarkers=[];
 var measureMode=false, measurePoints=[], measureGroup=null, measureItems=[], measureDraftMarker=null;
+var parkingMode=false, parkingPoints=[], parkingGroup=null, parkingPairs=[], parkingDraftMarker=null;
 var baseLayers={}, currentBaseMap='k5';
 var streetOverlay=null;
 var showRestbreiteOnMap=true;
@@ -568,7 +579,7 @@ function applyUIChrome(){
   if(headerButtons[0])headerButtons[0].textContent='GPS';
   if(headerButtons[1])headerButtons[1].textContent='RSA';
   var mapButtons=document.querySelectorAll('.map-controls .mc-btn');
-  ['Plan','Mass','RSA','GPS'].forEach(function(label,index){
+  ['Plan','Mass','HV','RSA','GPS'].forEach(function(label,index){
     if(mapButtons[index])mapButtons[index].textContent=label;
   });
   document.querySelectorAll('button[onclick=\"saveProject()\"]').forEach(function(btn){btn.textContent='Speichern';});
@@ -579,6 +590,7 @@ function applyUIChrome(){
 function initMap(){
   map=L.map('map',{center:[52.4730,13.4430],zoom:17,doubleClickZoom:false,zoomControl:true,maxZoom:20});
   measureGroup=L.layerGroup();
+  parkingGroup=L.layerGroup();
 
   // Geoportal Berlin: K5 Farbe (Gebäude, Straßennamen, Hausnummern)
   baseLayers.k5=L.tileLayer.wms('https://gdi.berlin.de/services/wms/k5_farbe',{
@@ -779,6 +791,11 @@ function buildCurrentPlanDocument(){
   }
   var polygonPerimeter=(scene&&scene.polygonPerimeter)||0;
   var polygonArea=(scene&&scene.polygonArea)||0;
+  var sceneItems=((scene&&scene.items)||[]).slice();
+  parkingPairs.forEach(function(pair,index){
+    sceneItems.push({kind:'sign',role:'parking_prohibition_pair_start',sign:'283',point:pair.a,pairIndex:index});
+    sceneItems.push({kind:'sign',role:'parking_prohibition_pair_end',sign:'283',point:pair.b,pairIndex:index});
+  });
 
   return {
     project:{
@@ -812,7 +829,7 @@ function buildCurrentPlanDocument(){
       restfahrbahn:detectedRestFahrbahn
     },
     scene:{
-      items:(scene&&scene.items)||[],
+      items:sceneItems,
       workZonePolygon:(scene&&scene.workZonePolygon)||[],
       dimensions:(scene&&scene.dimensions)||[],
       validations:validations
@@ -945,6 +962,7 @@ function saveProject(){
     mapZoom:map.getZoom(),
     breite:document.getElementById('breiteInput').value,
     measureItems:measureItems,
+    parkingPairs:parkingPairs,
     projectState:projectState,
     currentPlanDocument:currentPlanDocument
   };
@@ -964,12 +982,14 @@ function loadProject(){
     drawnLine=state.drawnLine;drawnPolygon=state.drawnPolygon||null;polygonPlacementPoints=state.polygonPlacementPoints||state.polygonRectPoints||[];
     placementPoints=state.placementPoints;
     measureItems=Array.isArray(state.measureItems)?state.measureItems:[];
+    parkingPairs=Array.isArray(state.parkingPairs)?state.parkingPairs:[];
     projectState=Object.assign({},projectState,state.projectState||{}, { name: state.name || (state.projectState&&state.projectState.name) || name });
     syncAllProjectFields();
     setMirroredInputValue('breiteInput','breiteInputM',state.breite||2.0);
     renderRPGrid();setPlacementType(placementType);setSide(seite);setTempo(tempo);
     if(state.mapCenter)map.setView(state.mapCenter, state.mapZoom);
     redrawMeasurements();
+    redrawParkingPairs();
     if(drawnLine||drawnPolygon){
       reapply();
       if(placementType==='regelplan_line')createLineHandles();
@@ -1149,6 +1169,7 @@ function setTempo(val){
 
 function toggleMeasureMode(){
   measureMode=!measureMode;
+  parkingMode=false;
   placementMode=false;
   polygonPlacementMode=false;
   placementPoints=[];
@@ -1158,6 +1179,8 @@ function toggleMeasureMode(){
   if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
   document.getElementById('instrFinishBtn').classList.remove('show');
   document.getElementById('mcMeasure').classList.toggle('active',measureMode);
+  var mcParking=document.getElementById('mcParking');
+  if(mcParking)mcParking.classList.remove('active');
   if(measureMode){
     document.getElementById('instrStep').textContent='M';
     document.getElementById('instrText').textContent='Tippe zwei Punkte fuer die Bemaßung';
@@ -1234,9 +1257,99 @@ function clearMeasurements(){
 }
 
 // ═══ 2-POINT PLACEMENT ═══
+function bearingBetween(a,b){
+  var lat1=a[0]*Math.PI/180, lat2=b[0]*Math.PI/180, dLng=(b[1]-a[1])*Math.PI/180;
+  var y=Math.sin(dLng)*Math.cos(lat2);
+  var x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLng);
+  return Math.atan2(y,x)*180/Math.PI;
+}
+
+function makeParkingIcon(rotation){
+  var cssRotation=rotation-90;
+  return L.divIcon({
+    html:'<div class="parking-sign"><div class="parking-sign-face"></div><div class="parking-arrow" style="transform:rotate('+cssRotation+'deg)"></div></div>',
+    iconSize:[40,54],
+    iconAnchor:[20,27],
+    className:''
+  });
+}
+
+function renderParkingPair(pair){
+  if(!parkingGroup._map)parkingGroup.addTo(map);
+  var line=L.polyline([pair.a,pair.b],{color:'#d71920',weight:2,dashArray:'7,5',opacity:0.75,interactive:false}).addTo(parkingGroup);
+  var markerA=L.marker(pair.a,{draggable:true,icon:makeParkingIcon(bearingBetween(pair.a,pair.b)),zIndexOffset:760}).addTo(parkingGroup);
+  var markerB=L.marker(pair.b,{draggable:true,icon:makeParkingIcon(bearingBetween(pair.b,pair.a)),zIndexOffset:760}).addTo(parkingGroup);
+  function update(){
+    pair.a=[markerA.getLatLng().lat,markerA.getLatLng().lng];
+    pair.b=[markerB.getLatLng().lat,markerB.getLatLng().lng];
+    line.setLatLngs([pair.a,pair.b]);
+    markerA.setIcon(makeParkingIcon(bearingBetween(pair.a,pair.b)));
+    markerB.setIcon(makeParkingIcon(bearingBetween(pair.b,pair.a)));
+    refreshPlanDocument();
+  }
+  markerA.on('drag',update);
+  markerB.on('drag',update);
+}
+
+function addParkingPair(a,b){
+  parkingPairs.push({a:a,b:b,type:'VZ283_pair'});
+  redrawParkingPairs();
+  refreshPlanDocument();
+}
+
+function redrawParkingPairs(){
+  if(!parkingGroup)return;
+  parkingGroup.clearLayers();
+  if(!parkingPairs.length)return;
+  if(!parkingGroup._map)parkingGroup.addTo(map);
+  parkingPairs.forEach(function(pair){renderParkingPair(pair);});
+}
+
+function clearParkingPairs(){
+  parkingPoints=[];
+  parkingDraftMarker=null;
+  parkingPairs=[];
+  if(parkingGroup)parkingGroup.clearLayers();
+  if(parkingGroup&&parkingGroup._map)map.removeLayer(parkingGroup);
+}
+
+function toggleParkingMode(){
+  parkingMode=!parkingMode;
+  measureMode=false;
+  placementMode=false;
+  polygonPlacementMode=false;
+  measurePoints=[];
+  placementPoints=[];
+  polygonPlacementPoints=[];
+  placementMarkers.forEach(function(m){map.removeLayer(m)});
+  placementMarkers=[];
+  if(measureDraftMarker&&measureGroup){measureGroup.removeLayer(measureDraftMarker);measureDraftMarker=null;}
+  if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
+  document.getElementById('instrFinishBtn').classList.remove('show');
+  var mcMeasure=document.getElementById('mcMeasure');
+  if(mcMeasure)mcMeasure.classList.remove('active');
+  var mcParking=document.getElementById('mcParking');
+  if(mcParking)mcParking.classList.toggle('active',parkingMode);
+  if(parkingMode){
+    document.getElementById('instrStep').textContent='HV';
+    document.getElementById('instrText').textContent='1. Parkverbot setzen, dann 2. Parkverbot setzen';
+    document.getElementById('instrBanner').classList.add('show');
+    map.getContainer().style.cursor='crosshair';
+    toast('Parkverbot-Paar aktiv');
+  }else{
+    parkingPoints=[];
+    if(parkingDraftMarker&&parkingGroup){parkingGroup.removeLayer(parkingDraftMarker);parkingDraftMarker=null;}
+    document.getElementById('instrBanner').classList.remove('show');
+    map.getContainer().style.cursor='';
+  }
+}
+
 function startPlacement(){
   measureMode=false;
+  parkingMode=false;
   document.getElementById('mcMeasure').classList.remove('active');
+  var mcParking=document.getElementById('mcParking');
+  if(mcParking)mcParking.classList.remove('active');
   clearAll();
   placementMode=placementType==='regelplan_line';
   polygonPlacementMode=placementType==='arbeitsbereich_polygon';
@@ -1253,6 +1366,9 @@ function startPlacement(){
 function cancelPlacement(){
   placementMode=false;placementPoints=[];
   polygonPlacementMode=false;polygonPlacementPoints=[];
+  parkingMode=false;parkingPoints=[];
+  if(parkingDraftMarker&&parkingGroup){parkingGroup.removeLayer(parkingDraftMarker);parkingDraftMarker=null;}
+  var mcParking=document.getElementById('mcParking');if(mcParking)mcParking.classList.remove('active');
   placementMarkers.forEach(function(m){map.removeLayer(m)});placementMarkers=[];
   if(polygonDraftLayer){map.removeLayer(polygonDraftLayer);polygonDraftLayer=null;}
   document.getElementById('instrBanner').classList.remove('show');
@@ -1694,6 +1810,25 @@ function updateBauInfo(restBreite){
 }
 
 function onMapClick(e){
+  if(parkingMode){
+    var hp=[e.latlng.lat,e.latlng.lng];
+    parkingPoints.push(hp);
+    if(parkingPoints.length===1){
+      if(!parkingGroup._map)parkingGroup.addTo(map);
+      if(parkingDraftMarker)parkingGroup.removeLayer(parkingDraftMarker);
+      parkingDraftMarker=L.marker(hp,{icon:makeParkingIcon(0),zIndexOffset:760}).addTo(parkingGroup);
+      document.getElementById('instrStep').textContent='2';
+      document.getElementById('instrText').textContent='2. Parkverbot setzen - die Schilder schauen zueinander';
+      return;
+    }
+    if(parkingDraftMarker){parkingGroup.removeLayer(parkingDraftMarker);parkingDraftMarker=null;}
+    addParkingPair(parkingPoints[0],parkingPoints[1]);
+    parkingPoints=[];
+    document.getElementById('instrStep').textContent='HV';
+    document.getElementById('instrText').textContent='Weiteres Parkverbot-Paar setzen oder HV beenden';
+    toast('Parkverbot-Paar gesetzt');
+    return;
+  }
   if(measureMode){
     var ml=[e.latlng.lat,e.latlng.lng];
     measurePoints.push(ml);
@@ -1947,9 +2082,13 @@ function setRPOverlayOpacity(val){
 function clearAll(){
   cancelPlacement();
   measureMode=false;
+  parkingMode=false;
   measurePoints=[];
+  parkingPoints=[];
   var mcMeasure=document.getElementById('mcMeasure');
   if(mcMeasure)mcMeasure.classList.remove('active');
+  var mcParking=document.getElementById('mcParking');
+  if(mcParking)mcParking.classList.remove('active');
   if(overlayResult){overlayResult.remove();overlayResult=null}
   if(lineHandles){lineHandles.remove();lineHandles=null}
   if(polygonHandles){polygonHandles.remove();polygonHandles=null;}
@@ -1966,6 +2105,7 @@ function clearAll(){
   detectedGehwegBreite=null; detectedSurface=null; detectedRestFahrbahn=null; detectedRestHaus=null; detectedPfeilFB=null; detectedPfeilHaus=null;
   if(typeof Massketten!=='undefined')Massketten.remove();
   clearMeasurements();
+  clearParkingPairs();
   refreshPlanDocument();
 }
 

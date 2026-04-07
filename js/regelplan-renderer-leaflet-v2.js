@@ -87,12 +87,52 @@ var RegelplanLeafletRendererV2 = (function() {
     return marker;
   }
 
+  function makeBarrierLine(layerGroup, item) {
+    var line = item.line || [];
+    if (line.length < 2) return null;
+
+    var base = L.polyline(line, {
+      color: '#1f1b14',
+      weight: 7,
+      opacity: 0.45,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+      interactive: false
+    });
+    var white = L.polyline(line, {
+      color: '#ffffff',
+      weight: 5,
+      opacity: 1,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+      interactive: false
+    });
+    var red = L.polyline(line, {
+      color: '#d71920',
+      weight: 5,
+      opacity: 1,
+      dashArray: '8 6',
+      lineCap: 'butt',
+      lineJoin: 'miter',
+      interactive: false
+    });
+
+    layerGroup.addLayer(base);
+    layerGroup.addLayer(white);
+    layerGroup.addLayer(red);
+    return { base: base, white: white, red: red };
+  }
+
   function renderItem(map, layerGroup, item) {
     var widthPx;
     var heightPx;
 
     if (item.kind === 'sign') {
       return makeSignMarker(map, layerGroup, item);
+    }
+
+    if (item.kind === 'barrier_line') {
+      return makeBarrierLine(layerGroup, item);
     }
 
     if (item.kind === 'beacon') {

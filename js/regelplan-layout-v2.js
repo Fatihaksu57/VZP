@@ -89,35 +89,21 @@ var RegelplanLayoutV2 = (function() {
   }
 
   function buildLongitudinalBarrierRow(scene, context, element) {
-    var segmentLength = 2.0;
-    var gap = 0.05;
-    var runLength = context.totalLength;
-    var count = Math.max(1, Math.floor(runLength / (segmentLength + gap)));
-    var usedLength = count * segmentLength + (count - 1) * gap;
-    var padding = (runLength - usedLength) / 2;
     var sideOffset = resolveSideOffset(context, element.sideRef, element.offset);
-    var index;
 
-    for (index = 0; index < count; index++) {
-      var along = padding + index * (segmentLength + gap) + segmentLength / 2;
-      var placement = RegelplanGeometryV2.pointAtMeters(
-        context.referenceLine,
-        along,
-        context.totalLength,
-        sideOffset,
-        0
-      );
-
-      scene.items.push({
-        kind: 'barrier',
-        role: element.role,
-        asset: element.asset,
-        point: placement.p,
-        bearing: placement.b,
-        orientation: 'longitudinal',
-        widthMeters: segmentLength
-      });
-    }
+    scene.items.push({
+      kind: 'barrier_line',
+      role: element.role,
+      asset: element.asset,
+      line: context.referenceLine.map(function(point) {
+        return RegelplanGeometryV2.offsetLatLng(point, RegelplanGeometryV2.bearing(
+          context.referenceLine[0],
+          context.referenceLine[Math.min(1, context.referenceLine.length - 1)]
+        ) + 90, sideOffset);
+      }),
+      orientation: 'longitudinal',
+      lengthMeters: context.totalLength
+    });
   }
 
   function buildBeaconRow(scene, context, element) {

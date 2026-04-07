@@ -1,10 +1,8 @@
-2026/04/07-08:30:03.302 1eac Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
-2026/04/07-08:30:03.303 1eac Recovering log #7
-2026/04/07-08:30:03.305 1eac Level-0 table #9: started
-2026/04/07-08:30:03.320 1eac Level-0 table #9: 682208 bytes OK
-2026/04/07-08:30:03.321 1eac Recovering log #8
-2026/04/07-08:30:03.322 1eac Reusing old log c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\EdgeCoupons/coupons_data.db/000008.log 
-2026/04/07-08:30:03.329 1eac Delete type=0 #7
-2026/04/07-08:30:03.343 2378 Level-0 table #11: started
-2026/04/07-08:30:03.354 2378 Level-0 table #11: 682208 bytes OK
-2026/04/07-08:30:03.362 2378 Delete type=0 #8
+2026/04/07-09:50:39.569 1f10 Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/04/07-09:50:39.572 1f10 Recovering log #10
+2026/04/07-09:50:39.573 1f10 Reusing old log c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\EdgeCoupons/coupons_data.db/000010.log 
+2026/04/07-09:50:39.698 39a4 Level-0 table #14: started
+2026/04/07-09:50:39.709 39a4 Level-0 table #14: 682208 bytes OK
+2026/04/07-09:50:39.715 39a4 Delete type=0 #10
+2026/04/07-09:50:39.717 1754 Compacting 4@0 + 0@1 files
+2026/04/07-09:50:39.725 1754 compacted to: files[ 4 0 1 0 0 0 0 ]

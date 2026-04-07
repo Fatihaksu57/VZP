@@ -1,2 +1,3 @@
-2026/04/07-08:30:02.144 5ffc Creating DB c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\Asset Store\assets.db since it was missing.
-2026/04/07-08:30:02.682 5ffc Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\Asset Store\assets.db/MANIFEST-000001
+2026/04/07-09:50:39.502 3fa0 Reusing MANIFEST c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\Asset Store\assets.db/MANIFEST-000001
+2026/04/07-09:50:39.541 3fa0 Recovering log #3
+2026/04/07-09:50:39.548 3fa0 Reusing old log c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\Asset Store\assets.db/000003.log 
