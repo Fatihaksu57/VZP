@@ -93,8 +93,8 @@ var RegelplanTemplates = (function() {
 
   function mkTextLabel(map,grp,ll,text,rot,z){
     var m=L.marker(ll,{interactive:false,icon:L.divIcon({
-      html:'<div style="padding:3px 8px;border:1px solid rgba(230,81,0,.55);border-radius:999px;background:rgba(255,255,255,.92);color:#d32f00;font:700 11px Arial,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.18);transform:rotate('+rot+'deg)">'+text+'</div>',
-      iconSize:[110,22],iconAnchor:[55,11],className:''
+      html:'<div style="padding:3px 8px;border:1px solid rgba(230,81,0,.55);border-radius:999px;background:rgba(255,255,255,.94);color:#d32f00;font:700 11px Arial,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.18);transform:rotate('+rot+'deg)">'+text+'</div>',
+      iconSize:[150,22],iconAnchor:[75,11],className:''
     }),zIndexOffset:z||650});
     grp.addLayer(m);return m;
   }
@@ -106,6 +106,14 @@ var RegelplanTemplates = (function() {
     grp.addLayer(L.polygon(poly,{fillColor:'#fff6e8',fillOpacity:0.35,color:'#e65100',weight:1.4,dashArray:'7,5',interactive:false}));
     mk.push(absperrLinie(map,grp,lls,sf,tL,-width,0,tL,'notweg_aussenkante'));
     mk.push(mkTextLabel(map,grp,labelPos.p,'Notweg 1,30 m',labelPos.b-90,660));
+  }
+
+  function gehwegSperrungBeschilderung(map,grp,lls,sf,asB,mk){
+    var start=pt(lls,0,asB*sf,2.2),end=pt(lls,1,asB*sf,-2.2),mid=pt(lls,0.5,(asB/2)*sf,0);
+    var zStart=mkVZ(map,grp,start,'259',0,720),zEnd=mkVZ(map,grp,end,'259',180,720);
+    if(zStart)mk.push(zStart);
+    if(zEnd)mk.push(zEnd);
+    mk.push(mkTextLabel(map,grp,mid.p,'Gehweg gesperrt',mid.b-90,665));
   }
 
   function diagonalEndabschluss(map,grp,lls,sf,asB,tN,dir,mk){
@@ -155,12 +163,13 @@ var RegelplanTemplates = (function() {
 
   // 3 diagonale Leitbaken (B II/4)
   function diagBaken(map,grp,lls,sf,asB,tN,dir,mk){
-    var N=3,AL=1.5,AQ=0.8;
+    var N=3;
     var w=bakeW(map),h=bakeH(map);
     for(var i=0;i<N;i++){
-      var pos=pt(lls,tN,i*AQ*sf,i*AL*dir);
+      var r=N===1?0.5:i/(N-1);
+      var pos=pt(lls,tN,(0.25+asB*r)*sf,(1.4-r*2.8)*dir);
       // Diagonale Baken: leicht geneigt (45° zur Fahrbahn)
-      mk.push(mkSVG(map,grp,pos,'bake_rechts_leuchte.svg',w,h,pos.b*0.5,560));
+      mk.push(mkSVG(map,grp,pos,'bake_rechts_leuchte.svg',w,h,pos.b+dir*35,560));
     }
   }
 
@@ -202,6 +211,7 @@ var RegelplanTemplates = (function() {
     var mk=[];
     vorUndNachwarnung(map,grp,lls,sf,tL,speed,mk);
     notwegFahrbahn(map,grp,lls,sf,tL,mk);
+    gehwegSperrungBeschilderung(map,grp,lls,sf,asB,mk);
     diagonalEndabschluss(map,grp,lls,sf,asB,0,1,mk);
     diagonalEndabschluss(map,grp,lls,sf,asB,1,-1,mk);
     diagBaken(map,grp,lls,sf,asB,0,1,mk);
