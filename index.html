@@ -470,6 +470,8 @@ select.param-input{cursor:pointer}
     <div class="param-row"><span class="param-label">Auftraggeber</span><input class="param-input" type="text" data-plan-field="auftraggeber" placeholder="Auftraggeber"></div>
     <div class="param-row"><span class="param-label">Ersteller</span><input class="param-input" type="text" data-plan-field="ersteller" value="QFM GmbH"></div>
     <div class="param-row"><span class="param-label">Plan-Nr.</span><input class="param-input" type="text" data-plan-field="planNummer" placeholder="optional"></div>
+    <div class="param-row"><span class="param-label">Hinweis 1</span><input class="param-input" type="text" data-plan-field="hinweisZugaenge" placeholder="Haus- und Grundstückszugänge bleiben frei"></div>
+    <div class="param-row"><span class="param-label">Hinweis 2</span><input class="param-input" type="text" data-plan-field="hinweisSicherung" placeholder="Zugang zu Hauseingängen wird gewährleistet"></div>
     <div class="section-label" style="margin-top:14px">Pruefung</div>
     <div class="validation-list" id="exportModalValidations"></div>
     <div class="section-label" style="margin-top:14px">Vorschau</div>
@@ -518,7 +520,9 @@ var projectState={
   bauvorhaben:'',
   auftraggeber:'',
   ersteller:'QFM GmbH',
-  planNummer:''
+  planNummer:'',
+  hinweisZugaenge:'',
+  hinweisSicherung:''
 };
 
 var RP_DEFS={
@@ -715,6 +719,24 @@ function getOrtFromAdresse(adresse){
   return parts.length>1 ? parts[1] : parts[0];
 }
 
+function buildAuthorityNotes(isPolygon){
+  var notes=[
+    projectState.hinweisZugaenge,
+    projectState.hinweisSicherung
+  ].map(function(text){return (text||'').trim();}).filter(Boolean);
+  if(notes.length)return notes;
+  if(isPolygon){
+    return [
+      'Haus- und Grundstueckszugaenge werden nicht beeintraechtigt und bei Bedarf mit Bruecken versehen.',
+      'Zugang zu den Hauseingaengen wird jederzeit gewaehrleistet.'
+    ];
+  }
+  return [
+    'Restgehwegbreite und Absperrung sind im Plan zu pruefen.',
+    'Zugaenge bleiben, soweit erforderlich, gesichert.'
+  ];
+}
+
 function collectPlanValidations(sceneValidations){
   var validations=(sceneValidations||[]).slice();
   var breite=getArbeitsstellenBreite();
@@ -801,7 +823,8 @@ function buildCurrentPlanDocument(){
       hasErrors:hasErrors,
       version:APP_VERSION,
       builtAt:BUILD_INFO.builtAt||''
-    }
+    },
+    authorityNotes:buildAuthorityNotes(isPolygon)
   };
 }
 
@@ -830,7 +853,8 @@ function renderWizardSummary(planDocument){
     'Auftraggeber: '+(planDocument.project.auftraggeber||'-'),
     'Ersteller: '+(planDocument.project.ersteller||'-'),
     'Plan-Nr.: '+(planDocument.project.planNummer||'-'),
-    'Adresse: '+(planDocument.site.adresse||'-')
+    'Adresse: '+(planDocument.site.adresse||'-'),
+    'Hinweise: '+((planDocument.authorityNotes||[]).join(' / ')||'-')
   ].join('<br>');
   var html='<div class="summary-card"><div class="summary-title">Plan</div><div class="summary-body">'+rpText+'<br>'+metrics+'</div></div>'
     +'<div class="summary-card"><div class="summary-title">Projekt</div><div class="summary-body">'+project+'</div></div>';

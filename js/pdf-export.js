@@ -60,8 +60,25 @@ const PDFExport = (() => {
       if (item.kind === 'barrier') seen.barrier = 'Absperrschranke / Quersperre';
       if (item.kind === 'beacon') seen.beacon = 'Leitbake / Leitbakenreihe';
       if (item.kind === 'sign') seen.sign = 'Verkehrszeichen / Vorwarnung';
+      if (item.kind === 'workarea') seen.workarea = 'Rot schraffierter Arbeitsbereich';
     });
     return Object.keys(seen).map(function(key) { return seen[key]; });
+  }
+
+  function collectAuthorityNotes(planDocument) {
+    var notes = (planDocument && planDocument.authorityNotes) || [];
+    notes = notes.map(function(text) { return (text || '').trim(); }).filter(Boolean);
+    if (notes.length) return notes;
+    var isPolygon = planDocument && planDocument.geometry && planDocument.geometry.mode === 'polygon';
+    return isPolygon
+      ? [
+          'Haus- und Grundstueckszugaenge werden nicht beeintraechtigt und bei Bedarf mit Bruecken versehen.',
+          'Zugang zu den Hauseingaengen wird jederzeit gewaehrleistet.'
+        ]
+      : [
+          'Restgehwegbreite und Absperrung sind im Plan zu pruefen.',
+          'Zugaenge bleiben, soweit erforderlich, gesichert.'
+        ];
   }
 
   async function captureMap() {
@@ -144,6 +161,23 @@ const PDFExport = (() => {
     });
 
     return lineY;
+  }
+
+  function renderAuthorityNotes(doc, x, y, w, notes) {
+    var lineY = y;
+    doc.setDrawColor(230, 81, 0);
+    doc.setFillColor(255, 246, 240);
+    doc.roundedRect(x, lineY, w, 9 + Math.min(2, notes.length) * 8, 1.2, 1.2, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(214, 55, 0);
+    doc.text('BEHOERDENHINWEISE', x + 2, lineY + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    notes.slice(0, 2).forEach(function(note, index) {
+      doc.text(note, x + 2, lineY + 10 + index * 7, { maxWidth: w - 4 });
+    });
+    return lineY + 11 + Math.min(2, notes.length) * 8;
   }
 
   async function exportPlan(planDocument, mapContext) {
@@ -256,7 +290,10 @@ const PDFExport = (() => {
         doc.text('- Kartenansicht mit aktuellem Regelplan', sideX + 4, infoEnd + 12);
       }
 
-      var validationStart = Math.min(sideY + mapH - 42, infoEnd + 28);
+      var notesStart = infoEnd + 27;
+      var notesEnd = renderAuthorityNotes(doc, sideX + 3, notesStart, sideW - 6, collectAuthorityNotes(planDocument));
+
+      var validationStart = Math.min(sideY + mapH - 42, notesEnd + 4);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.text('Pruefhinweise', sideX + 3, validationStart);

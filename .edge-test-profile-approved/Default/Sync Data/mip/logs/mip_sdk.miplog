@@ -172,3 +172,19 @@ Info	2026-04-07 07:37:50.966	storage_manager.cpp:89	msedge (11580)	"Protection s
 Info	2026-04-07 07:37:50.966	protection_profile_impl.cpp:208	msedge (11580)	"Protection API configured to use default HttpDelegate"	mipns::ProtectionProfileImpl::ProtectionProfileImpl	10812
 Info	2026-04-07 07:37:50.966	protection_profile_impl.cpp:214	msedge (11580)	"Protection API configured to use default TaskDispatcherDelegate"	mipns::ProtectionProfileImpl::ProtectionProfileImpl	10812
 Info	2026-04-07 07:37:50.966	protection_profile_impl.cpp:182	msedge (11580)	"Ended API call: protection_profile_load"	mipns::ProtectionProfile::Load	10812
+Info	2026-04-07 08:29:58.045	default_logger_delegate.cpp:238	msedge (20340)	"Logger initialized with default format:%level	%datetime{%Y-%M-%d %H:%m:%s.%g}	%fbase:%line	msedge (20340)	""%msg""	%func	%thread"	mipns::DefaultLoggerDelegate::InitHelper	8560
+Info	2026-04-07 08:29:58.046	default_logger_delegate.cpp:239	msedge (20340)	"Logger initialized with cached log format:%level	%msg"	mipns::DefaultLoggerDelegate::InitHelper	8560
+Info	2026-04-07 08:29:58.046	default_logger_delegate.cpp:240	msedge (20340)	"Log file:c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\Sync Data\mip\logs\mip_sdk.miplog"	mipns::DefaultLoggerDelegate::InitHelper	8560
+Info	2026-04-07 08:29:58.046	default_logger_delegate.cpp:241	msedge (20340)	"Machine name: [BLN-N16109], User name: [fatih.aksu]"	mipns::DefaultLoggerDelegate::InitHelper	8560
+Warning	2026-04-07 08:29:58.046	diagnostic_factory.cpp:365	msedge (20340)	"CreateEventContextInternal: Provided Cloud type is invalid - using the default cloud and databoundary"	mipns::CreateEventContextInternal	8560
+Info	2026-04-07 08:29:58.046	mip_core_context_impl.cpp:187	msedge (20340)	"Loading context for application: [Microsoft Edge (stable) (RustyMIP=1)], Application version: [146.0.3856.97], Application ID: [ecd6b820-32c2-49b6-98a6-444530e5a77a], Process name: [msedge], MIP SDK version: [1.17.0], Path: [c:\Users\fatih.aksu\Desktop\vzp\VZP\.edge-test-profile-approved\Default\Sync Data\mip]"	mipns::MipCoreContextImpl::MipCoreContextImpl	8560
+Warning	2026-04-07 08:29:58.046	protection_profile_impl_cc.cpp:99	msedge (20340)	"Deprecated API call - please provide the auth delegate when creating the protection engine instead"	MIP_CC_CreateProtectionProfileSettings	8560
+Info	2026-04-07 08:29:58.046	protection_profile_impl.cpp:65	msedge (20340)	"Starting API call: protection_profile_pre_initialize"	mipns::PreInitializeProtection	8560
+Info	2026-04-07 08:29:58.046	protection_profile_impl.cpp:58	msedge (20340)	"Loading protection profile. EUL caching state: [1]"	mipns::PreInitializeProtection(const ProtectionProfile::Settings &)::(lambda)::operator()	8560
+Info	2026-04-07 08:29:58.046	protection_profile_impl.cpp:65	msedge (20340)	"Ended API call: protection_profile_pre_initialize"	mipns::PreInitializeProtection	8560
+Info	2026-04-07 08:29:58.046	protection_profile_impl.cpp:182	msedge (20340)	"Starting API call: protection_profile_load"	mipns::ProtectionProfile::Load	8560
+Info	2026-04-07 08:29:58.048	storage_manager.cpp:80	msedge (20340)	"StorageManager configured to use in-memory caching."	mipns::StorageManager::StorageManager	8560
+Info	2026-04-07 08:29:58.048	storage_manager.cpp:89	msedge (20340)	"Protection storage path: :memory:"	mipns::StorageManager::StorageManager	8560
+Info	2026-04-07 08:29:58.048	protection_profile_impl.cpp:208	msedge (20340)	"Protection API configured to use default HttpDelegate"	mipns::ProtectionProfileImpl::ProtectionProfileImpl	8560
+Info	2026-04-07 08:29:58.048	protection_profile_impl.cpp:214	msedge (20340)	"Protection API configured to use default TaskDispatcherDelegate"	mipns::ProtectionProfileImpl::ProtectionProfileImpl	8560
+Info	2026-04-07 08:29:58.048	protection_profile_impl.cpp:182	msedge (20340)	"Ended API call: protection_profile_load"	mipns::ProtectionProfile::Load	8560
