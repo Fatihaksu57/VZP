@@ -1,4 +1,14 @@
+// ═══════════════════════════════════════════════════════════════
+// VZP Editor — Regelplan Leaflet Renderer v2.1
+// ═══════════════════════════════════════════════════════════════
+// Rendert eine Szene aus RegelplanLayoutV2 auf eine Leaflet-Karte.
+// Ein Item hat ein kind-Feld, das auf einen der unten definierten
+// Renderer zeigt.
+// ═══════════════════════════════════════════════════════════════
+
 var RegelplanLeafletRendererV2 = (function() {
+
+  // ─── Hilfen: Meter → Pixel, Groessen ─────────────────────────
   function metersToPixels(map, meters) {
     var center = map.getCenter();
     var startPoint = map.latLngToContainerPoint(center);
@@ -7,30 +17,24 @@ var RegelplanLeafletRendererV2 = (function() {
     );
     return Math.abs(endPoint.x - startPoint.x);
   }
-
   function barrierWidthPx(map, widthMeters) {
     return Math.max(18, Math.round(metersToPixels(map, widthMeters || 2.0)));
   }
-
   function barrierHeightPx(map, asset, widthPx) {
     if (asset === 'absperrschranke_leuchte.svg') {
       return Math.max(6, Math.round(widthPx * 0.28));
     }
     return Math.max(5, Math.round(widthPx * 0.22));
   }
-
   function beaconHeightPx(map) {
     return Math.max(20, Math.round(metersToPixels(map, 1.1)));
   }
-
   function beaconWidthPx(map, heightPx) {
     return Math.max(6, Math.round(heightPx * 0.3));
   }
-
   function signSizePx(map) {
     return Math.max(18, Math.round(metersToPixels(map, 1.0)));
   }
-
   function rotatedBoundingBox(widthPx, heightPx, rotationDeg) {
     var rad = rotationDeg * Math.PI / 180;
     return {
@@ -39,12 +43,14 @@ var RegelplanLeafletRendererV2 = (function() {
     };
   }
 
+  // ─── Marker-Fabriken ─────────────────────────────────────────
   function makeSvgMarker(map, layerGroup, item, widthPx, heightPx, rotationDeg, zIndex) {
     var bb = rotatedBoundingBox(widthPx, heightPx, rotationDeg);
     var marker = L.marker(item.point, {
       draggable: true,
       icon: L.divIcon({
-        html: '<div style="width:' + bb.w + 'px;height:' + bb.h + 'px;display:flex;align-items:center;justify-content:center"><img src="assets/svg/' + item.asset + '" style="width:' + widthPx + 'px;height:' + heightPx + 'px;transform:rotate(' + rotationDeg + 'deg);flex-shrink:0" draggable="false"></div>',
+        html: '<div style="width:' + bb.w + 'px;height:' + bb.h + 'px;display:flex;align-items:center;justify-content:center">' +
+              '<img src="assets/svg/' + item.asset + '" style="width:' + widthPx + 'px;height:' + heightPx + 'px;transform:rotate(' + rotationDeg + 'deg);flex-shrink:0" draggable="false"></div>',
         iconSize: [bb.w, bb.h],
         iconAnchor: [bb.w / 2, bb.h / 2],
         className: ''
@@ -65,15 +71,10 @@ var RegelplanLeafletRendererV2 = (function() {
       '306': 'vz_306.svg',
       '308': 'vz_308.svg'
     }[item.sign];
-    var sizePx;
-    var marker;
+    if (!fileName) return null;
 
-    if (!fileName) {
-      return null;
-    }
-
-    sizePx = signSizePx(map);
-    marker = L.marker(item.point, {
+    var sizePx = signSizePx(map);
+    var marker = L.marker(item.point, {
       draggable: true,
       icon: L.divIcon({
         html: '<img src="assets/svg/' + fileName + '" style="width:' + sizePx + 'px;height:' + sizePx + 'px;background:#fff;border-radius:2px;padding:1px;box-shadow:0 1px 3px rgba(0,0,0,.3);transform:rotate(' + (item.rotation || 0) + 'deg)" draggable="false">',
@@ -92,29 +93,16 @@ var RegelplanLeafletRendererV2 = (function() {
     if (line.length < 2) return null;
 
     var base = L.polyline(line, {
-      color: '#1f1b14',
-      weight: 7,
-      opacity: 0.45,
-      lineCap: 'butt',
-      lineJoin: 'miter',
-      interactive: false
+      color: '#1f1b14', weight: 7, opacity: 0.45,
+      lineCap: 'butt', lineJoin: 'miter', interactive: false
     });
     var white = L.polyline(line, {
-      color: '#ffffff',
-      weight: 5,
-      opacity: 1,
-      lineCap: 'butt',
-      lineJoin: 'miter',
-      interactive: false
+      color: '#ffffff', weight: 5, opacity: 1,
+      lineCap: 'butt', lineJoin: 'miter', interactive: false
     });
     var red = L.polyline(line, {
-      color: '#d71920',
-      weight: 5,
-      opacity: 1,
-      dashArray: '8 6',
-      lineCap: 'butt',
-      lineJoin: 'miter',
-      interactive: false
+      color: '#d71920', weight: 5, opacity: 1, dashArray: '8 6',
+      lineCap: 'butt', lineJoin: 'miter', interactive: false
     });
 
     layerGroup.addLayer(base);
@@ -123,6 +111,38 @@ var RegelplanLeafletRendererV2 = (function() {
     return { base: base, white: white, red: red };
   }
 
+  function makeNotwegPolygon(layerGroup, item) {
+    if (!item.polygon || item.polygon.length < 3) return null;
+    var layer = L.polygon(item.polygon, {
+      fillColor: '#fff6e8',
+      fillOpacity: 0.35,
+      color: '#e65100',
+      weight: 1.4,
+      dashArray: '7,5',
+      interactive: false
+    });
+    layerGroup.addLayer(layer);
+    return layer;
+  }
+
+  function makeTextLabel(layerGroup, item) {
+    var rot = (item.bearing || 0) - 90;
+    var marker = L.marker(item.point, {
+      interactive: false,
+      icon: L.divIcon({
+        html: '<div style="padding:3px 8px;border:1px solid rgba(230,81,0,.55);border-radius:999px;background:rgba(255,255,255,.94);color:#d32f00;font:700 11px Arial,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.18);transform:rotate(' + rot + 'deg)">' +
+              item.text + '</div>',
+        iconSize: [150, 22],
+        iconAnchor: [75, 11],
+        className: ''
+      }),
+      zIndexOffset: 660
+    });
+    layerGroup.addLayer(marker);
+    return marker;
+  }
+
+  // ─── Dispatcher ──────────────────────────────────────────────
   function renderItem(map, layerGroup, item) {
     var widthPx;
     var heightPx;
@@ -130,11 +150,15 @@ var RegelplanLeafletRendererV2 = (function() {
     if (item.kind === 'sign') {
       return makeSignMarker(map, layerGroup, item);
     }
-
     if (item.kind === 'barrier_line') {
       return makeBarrierLine(layerGroup, item);
     }
-
+    if (item.kind === 'notweg_polygon') {
+      return makeNotwegPolygon(layerGroup, item);
+    }
+    if (item.kind === 'text_label') {
+      return makeTextLabel(layerGroup, item);
+    }
     if (item.kind === 'beacon') {
       heightPx = beaconHeightPx(map);
       widthPx = beaconWidthPx(map, heightPx);
@@ -144,31 +168,23 @@ var RegelplanLeafletRendererV2 = (function() {
         right: 'bake_rechts.svg',
         right_light: 'bake_rechts_leuchte.svg'
       }[item.variant] || 'bake_rechts.svg';
-      return makeSvgMarker(map, layerGroup, item, widthPx, heightPx, 0, 555);
+      return makeSvgMarker(map, layerGroup, item, widthPx, heightPx, item.rotation || 0, 555);
     }
-
     if (item.kind === 'barrier') {
       widthPx = barrierWidthPx(map, item.widthMeters);
       heightPx = barrierHeightPx(map, item.asset, widthPx);
       return makeSvgMarker(
-        map,
-        layerGroup,
-        item,
-        widthPx,
-        heightPx,
+        map, layerGroup, item,
+        widthPx, heightPx,
         item.orientation === 'cross' ? item.bearing : item.bearing - 90,
         item.orientation === 'cross' ? 570 : 510
       );
     }
-
     return null;
   }
 
   function renderScene(map, scene, layerGroup) {
-    var rendered = {
-      markers: [],
-      polygons: []
-    };
+    var rendered = { markers: [], polygons: [] };
     var polygonLayer;
     var marker;
     var i;
@@ -201,6 +217,9 @@ var RegelplanLeafletRendererV2 = (function() {
   };
 })();
 
+// ═══════════════════════════════════════════════════════════════
+// RegelplanEngineV2 — oeffentliche Fassade
+// ═══════════════════════════════════════════════════════════════
 var RegelplanEngineV2 = (function() {
   var activeOverlay = null;
 
@@ -234,9 +253,7 @@ var RegelplanEngineV2 = (function() {
       opts: opts || {}
     });
 
-    if (!scene) {
-      return null;
-    }
+    if (!scene) return null;
 
     layerGroup = L.layerGroup().addTo(map);
 
@@ -249,9 +266,7 @@ var RegelplanEngineV2 = (function() {
     }
 
     render();
-    onZoom = function() {
-      render();
-    };
+    onZoom = function() { render(); };
     map.on('zoomend', onZoom);
 
     overlay = {
