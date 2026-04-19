@@ -86,6 +86,10 @@ const MapModule = (() => {
   // Called once after init from outside
   function postInit() {
     updateScaleDisplay();
+    // Straßen/Gehweg-Erkennung per Overpass API
+    if (typeof StreetDetect !== 'undefined') {
+      StreetDetect.init(map);
+    }
   }
 
   function switchLayer(layerName) {
