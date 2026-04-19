@@ -22,7 +22,7 @@
   --r:6px;--r2:10px;--tab-h:56px;--safe-b:env(safe-area-inset-bottom,0px);
   --shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow-md:0 4px 12px rgba(0,0,0,.08);--shadow-lg:0 10px 32px rgba(0,0,0,.12);
 }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body{height:100%;overflow:hidden;touch-action:manipulation}
 body{
   font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;
@@ -292,6 +292,296 @@ select.param-input{cursor:pointer}
   .export-modal .param-label{width:auto}
 }
 
+
+/* ─── iOS MOBILE ENHANCEMENTS ─── */
+/* ═══════════════════════════════════════════════════
+   iOS MOBILE EXPERIENCE — VZP Editor
+   Haptic-ready, spring animations, native feel
+═══════════════════════════════════════════════════ */
+
+/* ─── Touch Targets ─────────────────────────────── */
+@media(max-width:768px){
+
+  /* Mindest-Tappgröße 44px überall */
+  .tab-item { min-height: 52px; flex: 1; }
+  .mc-btn { width: 44px !important; height: 44px !important; font-size: 18px; border-radius: 12px !important; }
+  .ms-btn { padding: 8px 12px !important; font-size: 11px !important; min-height: 36px; border-radius: 8px !important; }
+  .btn { min-height: 44px; border-radius: 12px !important; font-size: 15px; }
+  .seg-btn { min-height: 36px; font-size: 13px; }
+  .ph-close { width: 44px; height: 44px; font-size: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .ib-cancel { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+  .param-input { min-height: 44px; font-size: 16px !important; /* prevents iOS zoom */ border-radius: 10px !important; padding: 0 12px; }
+
+  /* ─── Spring Press States ────────────────────── */
+  .mc-btn, .ms-btn, .tab-item, .btn, .seg-btn, .ph-close, .ib-cancel, .ib-finish, .rp-grid-item {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: transform 0.08s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                opacity 0.08s ease,
+                background 0.1s ease !important;
+  }
+  .mc-btn:active, .ms-btn:active, .btn:active, .seg-btn:active,
+  .ph-close:active, .ib-cancel:active, .ib-finish:active, .rp-grid-item:active {
+    transform: scale(0.94);
+    opacity: 0.82;
+  }
+  .tab-item:active { transform: scale(0.96); }
+
+  /* ─── Tab Bar — iOS Native Style ────────────── */
+  .tab-bar {
+    height: 64px;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    background: rgba(18, 20, 30, 0.92) !important;
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 -1px 0 rgba(0,0,0,0.2), 0 -8px 24px rgba(0,0,0,0.15);
+  }
+  .tab-item {
+    color: rgba(255,255,255,0.45) !important;
+    font-size: 10px !important;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 0 !important;
+    padding: 8px 4px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    position: relative;
+    background: transparent !important;
+    border: none !important;
+  }
+  .tab-item.active { color: var(--accent) !important; }
+  .tab-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 2.5px;
+    background: var(--accent);
+    border-radius: 0 0 2px 2px;
+  }
+  .ti-icon { font-size: 22px; line-height: 1; }
+  .tab-item:last-child { transform: none !important; } /* undo the translateX fix */
+
+  /* ─── Panels — iOS Bottom Sheet ─────────────── */
+  .panel {
+    background: rgba(28, 30, 40, 0.97) !important;
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border-radius: 20px 20px 0 0 !important;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 -4px 40px rgba(0,0,0,0.4);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    max-height: 75vh;
+  }
+  .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(28,30,40,0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-header::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+  }
+  .panel-header h2 { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.92); }
+  .ph-close {
+    background: rgba(255,255,255,0.1) !important;
+    color: rgba(255,255,255,0.6) !important;
+    border: none !important;
+  }
+
+  /* Panel slide-up animation */
+  .panel { animation: slideUpPanel 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes slideUpPanel {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* ─── Map Controls — iOS-style ───────────────── */
+  .map-controls {
+    gap: 6px !important;
+    background: rgba(18,20,30,0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 14px;
+    padding: 6px !important;
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .mc-btn {
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    color: rgba(255,255,255,0.8) !important;
+    border-radius: 10px !important;
+  }
+  .mc-btn.active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.4);
+  }
+
+  /* ─── Map Switcher ───────────────────────────── */
+  .map-switcher {
+    background: rgba(18,20,30,0.75) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    padding: 4px !important;
+    gap: 2px;
+  }
+  .ms-btn { color: rgba(255,255,255,0.7) !important; background: transparent !important; }
+  .ms-btn.active {
+    background: rgba(255,255,255,0.15) !important;
+    color: #fff !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  /* ─── Instruction Banner ─────────────────────── */
+  .instruction-banner {
+    background: rgba(18,20,30,0.9) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 14px;
+    border: 1px solid rgba(37,99,235,0.35);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+    left: 12px !important; right: 12px !important;
+    padding: 12px 16px;
+    min-height: 52px;
+  }
+  .ib-text { color: rgba(255,255,255,0.9) !important; font-size: 14px; font-weight: 500; }
+  .ib-finish {
+    background: var(--accent) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    min-height: 36px !important;
+    padding: 0 14px !important;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff !important;
+  }
+
+  /* ─── Status Bar ─────────────────────────────── */
+  .status-bar {
+    background: rgba(18,20,30,0.75) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  /* ─── Toast — iOS style ──────────────────────── */
+  .toast {
+    bottom: 80px !important;
+    left: 16px !important; right: 16px !important;
+    background: rgba(28,30,40,0.95) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 13px 18px !important;
+    text-align: center;
+    animation: toastPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  @keyframes toastPop {
+    from { transform: translateY(16px) scale(0.95); opacity: 0; }
+    to   { transform: translateY(0)    scale(1);    opacity: 1; }
+  }
+
+  /* ─── Bau-Info Strip ─────────────────────────── */
+  .bau-info {
+    background: rgba(18,20,30,0.80) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px;
+    padding: 8px 14px;
+    gap: 10px;
+  }
+
+  /* ─── Export Sheet ───────────────────────────── */
+  .export-sheet {
+    border-radius: 20px 20px 0 0 !important;
+    background: rgba(28,30,40,0.97) !important;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding-bottom: env(safe-area-inset-bottom,16px);
+  }
+  .export-sheet-head { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 20px 16px 14px; }
+  .export-sheet-head::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+  .export-close {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,0.10) !important;
+    border-radius: 50% !important;
+    border: none !important;
+    color: rgba(255,255,255,0.6) !important;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .export-modal .param-input { background: rgba(255,255,255,0.07) !important; border: 1px solid rgba(255,255,255,0.10) !important; color: rgba(255,255,255,0.9) !important; }
+  .export-modal .param-label { color: rgba(255,255,255,0.5) !important; }
+  .export-modal .section-label { color: rgba(255,255,255,0.35) !important; }
+
+  /* ─── Param Inputs dark ──────────────────────── */
+  .panel .param-input, .panel .seg-btn {
+    background: rgba(255,255,255,0.07) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    color: rgba(255,255,255,0.9) !important;
+    border-radius: 10px !important;
+  }
+  .panel .seg-btn.active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #fff !important;
+  }
+  .panel .param-label { color: rgba(255,255,255,0.45) !important; font-size: 12px; }
+  .panel .section-label { color: rgba(255,255,255,0.3) !important; font-size: 10px; }
+  .panel .btn-primary { background: var(--accent) !important; border-radius: 12px !important; font-weight: 700; font-size: 15px; min-height: 48px; }
+  .panel .btn-danger { border-radius: 12px !important; min-height: 48px; }
+  .panel .action-card { background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 14px !important; }
+  .panel .ac-title { color: rgba(255,255,255,0.85) !important; }
+  .panel .ac-desc { color: rgba(255,255,255,0.45) !important; }
+  .panel .rp-grid-item { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.10) !important; border-radius: 12px !important; color: rgba(255,255,255,0.85) !important; min-height: 56px; }
+  .panel .rp-grid-item.active { border-color: var(--accent) !important; background: rgba(37,99,235,0.18) !important; }
+
+  /* ─── Header on Mobile ───────────────────────── */
+  .header { background: rgba(12,14,20,0.95) !important; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .header-export-btn { border-radius: 10px !important; min-height: 34px; font-size: 12px !important; }
+  
+} /* end @media */
+
 </style>
 </head>
 <body>
@@ -309,7 +599,6 @@ select.param-input{cursor:pointer}
     </div>
     <div class="header-actions">
       <button class="btn header-export-btn" id="gehwegToggleBtn" onclick="toggleGehwegOverlay()" style="background:rgba(255,255,255,.12);color:var(--toolbar-text);border:1px solid rgba(255,255,255,.18)" title="Gehwegbreiten einblenden (nur Berlin)">📏 Gehwege</button>
-      <button class="btn header-export-btn" id="streetDetectBtn" onclick="toggleStreetDetect()" style="background:rgba(255,255,255,.12);color:var(--toolbar-text);border:1px solid rgba(255,255,255,.18)" title="Straße / Gehweg erkennen (Overpass)">🔍 Straße</button>
       <button class="btn btn-primary header-export-btn" onclick="openExportFlow()">PDF Export</button>
 
     </div>
@@ -573,7 +862,6 @@ select.param-input{cursor:pointer}
 <script src="js/regelplan-image-overlay.js"></script>
 <script src="js/gehweg-overlay.js"></script>
 <script src="js/pdf-export.js"></script>
-<script src="js/street-detect.js"></script>
 <script src="js/vz-catalog-v2.js"></script>
 <script src="js/vz-search-ui.js"></script>
 <script>
@@ -2425,38 +2713,191 @@ try {
 </script>
 
 <script>
-function toggleStreetDetect() {
-  var btn = document.getElementById('streetDetectBtn');
-  if (typeof StreetDetect === 'undefined') return;
-  var active = StreetDetect.getLastDetection !== undefined;
-  // toggle
-  var wasActive = btn.dataset.active === '1';
-  if (wasActive) {
-    StreetDetect.setActive(false);
-    btn.dataset.active = '0';
-    btn.style.background = 'rgba(255,255,255,.12)';
-    btn.style.borderColor = 'rgba(255,255,255,.18)';
-    btn.textContent = '🔍 Straße';
-  } else {
-    StreetDetect.setActive(true);
-    btn.dataset.active = '1';
-    btn.style.background = 'rgba(37,99,235,.7)';
-    btn.style.borderColor = 'rgba(37,99,235,.9)';
-    btn.textContent = '🔍 aktiv…';
-    if (typeof UI !== 'undefined') UI.toast('Klicke auf Straße oder Gehweg');
-  }
-}
-// Listen for confirmed detection → auto-fill vzul in regelplan params
-document.addEventListener('streetDetectionConfirmed', function(e) {
-  var d = e.detail;
-  // Fill vzul input if present
-  var vzulInput = document.querySelector('[data-param="vzul"], [name="vzul"], #vzul');
-  if (vzulInput && d.vzul) vzulInput.value = d.vzul;
-  if (typeof UI !== 'undefined') {
-    UI.toast(d.classification.label + ' · vzul ' + d.vzul + ' km/h übernommen');
-  }
-});
-</script>
+/* ═══════════════════════════════════════════════
+   iOS HAPTIC + TOUCH ENHANCEMENT — VZP Editor
+   Vibration API (Android) + visual spring (iOS)
+═══════════════════════════════════════════════ */
+(function() {
 
+  // ─── Haptic Utility ───────────────────────────
+  var Haptic = {
+    // Leichter Tap (Buttons, Tab-Items)
+    light: function() {
+      try { navigator.vibrate && navigator.vibrate(8); } catch(e){}
+    },
+    // Mittlerer Tap (Aktionen, Platzierung)
+    medium: function() {
+      try { navigator.vibrate && navigator.vibrate(18); } catch(e){}
+    },
+    // Stark (Erfolg, Fehler)
+    heavy: function() {
+      try { navigator.vibrate && navigator.vibrate([12,40,12]); } catch(e){}
+    },
+    // Erfolg-Pattern
+    success: function() {
+      try { navigator.vibrate && navigator.vibrate([8,60,12]); } catch(e){}
+    },
+    // Fehler-Pattern
+    error: function() {
+      try { navigator.vibrate && navigator.vibrate([20,30,20,30,20]); } catch(e){}
+    }
+  };
+  window.Haptic = Haptic;
+
+  // ─── Auto-Haptic auf Touch-Elemente ──────────
+  function attachHaptic(selector, intensity) {
+    document.querySelectorAll(selector).forEach(function(el) {
+      el.addEventListener('touchstart', function(e) {
+        Haptic[intensity || 'light']();
+        // iOS spring visual: scale runter sofort
+        el.style.transition = 'transform 0.06s ease';
+        el.style.transform = 'scale(0.94)';
+      }, { passive: true });
+      el.addEventListener('touchend', function() {
+        // Spring zurück
+        el.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        el.style.transform = 'scale(1)';
+      }, { passive: true });
+      el.addEventListener('touchcancel', function() {
+        el.style.transform = 'scale(1)';
+      }, { passive: true });
+    });
+  }
+
+  function initHaptics() {
+    attachHaptic('.tab-item', 'light');
+    attachHaptic('.mc-btn', 'light');
+    attachHaptic('.ms-btn', 'light');
+    attachHaptic('.btn-primary', 'medium');
+    attachHaptic('.btn-danger', 'medium');
+    attachHaptic('.btn-secondary', 'light');
+    attachHaptic('.seg-btn', 'light');
+    attachHaptic('.ph-close', 'light');
+    attachHaptic('.ib-finish', 'medium');
+    attachHaptic('.ib-cancel', 'light');
+    attachHaptic('.rp-grid-item', 'light');
+    attachHaptic('.header-export-btn', 'light');
+    attachHaptic('.search-btn', 'light');
+  }
+
+  // ─── Haptic bei UI-Events ─────────────────────
+  // Erfolg beim Platzieren
+  document.addEventListener('regelplanPlaced', function() { Haptic.success(); });
+  document.addEventListener('streetDetected', function() { Haptic.light(); });
+  document.addEventListener('streetDetectionConfirmed', function() { Haptic.medium(); });
+
+  // ─── Panel Swipe-to-Close (iOS feel) ─────────
+  function initSwipeClose() {
+    var panels = document.querySelectorAll('.panel');
+    panels.forEach(function(panel) {
+      var startY = 0, startTime = 0, isDragging = false;
+      var dragIndicator = panel.querySelector('.panel-header');
+      if (!dragIndicator) return;
+
+      dragIndicator.addEventListener('touchstart', function(e) {
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+        isDragging = true;
+        panel.style.transition = 'none';
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function(e) {
+        if (!isDragging) return;
+        var dy = e.touches[0].clientY - startY;
+        if (dy > 0) {
+          panel.style.transform = 'translateY(' + dy + 'px)';
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchend', function(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        var dy = e.changedTouches[0].clientY - startY;
+        var dt = Date.now() - startTime;
+        var velocity = dy / dt;
+
+        panel.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        if (dy > 100 || velocity > 0.5) {
+          // Schließen
+          panel.style.transform = 'translateY(100%)';
+          Haptic.light();
+          setTimeout(function() {
+            panel.style.transform = '';
+            if (typeof closePanel === 'function') closePanel();
+          }, 300);
+        } else {
+          // Zurück
+          panel.style.transform = 'translateY(0)';
+        }
+      }, { passive: true });
+    });
+  }
+
+  // ─── Input Zoom-Prevention (iOS 16-Fix) ──────
+  // font-size:16px via CSS reicht nicht immer — auch meta user-scalable
+  function fixInputZoom() {
+    var inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(function(inp) {
+      inp.addEventListener('focus', function() {
+        // Kurz warten damit iOS das Scroll nicht abbricht
+        setTimeout(function() {
+          window.scrollTo(0,0);
+        }, 50);
+      });
+    });
+  }
+
+  // ─── Toast mit Haptic ─────────────────────────
+  // Überschreibe UI.toast wenn vorhanden
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      initHaptics();
+      initSwipeClose();
+      fixInputZoom();
+
+      // MutationObserver: Haptic auch für dynamisch erzeugte Buttons
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.addedNodes.length) {
+            setTimeout(initHaptics, 100);
+          }
+        });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // Haptic beim Tab-Wechsel
+      var origSwitchTab = window.switchTab;
+      if (origSwitchTab) {
+        window.switchTab = function(tab, el) {
+          Haptic.light();
+          return origSwitchTab.call(this, tab, el);
+        };
+      }
+
+      // Haptic beim Platzieren
+      var origStartPlacement = window.startPlacement;
+      if (origStartPlacement) {
+        window.startPlacement = function() {
+          Haptic.medium();
+          return origStartPlacement.apply(this, arguments);
+        };
+      }
+
+      // Haptic beim Löschen
+      var origClearAll = window.clearAll;
+      if (origClearAll) {
+        window.clearAll = function() {
+          Haptic.heavy();
+          return origClearAll.apply(this, arguments);
+        };
+      }
+
+      console.log('[Haptic] iOS-Enhancements aktiv');
+    }, 500);
+  });
+
+})();
+
+</script>
 </body>
 </html>
