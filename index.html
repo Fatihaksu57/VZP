@@ -7,628 +7,64 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>VZP Editor — RSA 21</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#eceef1;--surface:#fff;--surface-soft:#f6f7f9;--surface-muted:#eceef1;
-  --line:rgba(0,0,0,.07);--line-strong:rgba(0,0,0,.12);
-  --text:#111827;--text-soft:#4b5563;--text-muted:#9ca3af;
-  --accent:#2563eb;--accent-strong:#1e40af;--accent-soft:rgba(37,99,235,.07);
-  --accent2:#0891b2;--accent2-soft:rgba(8,145,178,.07);
-  --yellow:#d97706;--yellow-soft:rgba(217,119,6,.07);
-  --green:#059669;--green-soft:rgba(5,150,105,.07);
-  --red:#dc2626;--red-soft:rgba(220,38,38,.06);
-  --toolbar:#111827;--toolbar-text:#f9fafb;--toolbar-muted:#9ca3af;
-  --r:6px;--r2:10px;--tab-h:56px;--safe-b:env(safe-area-inset-bottom,0px);
-  --shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow-md:0 4px 12px rgba(0,0,0,.08);--shadow-lg:0 10px 32px rgba(0,0,0,.12);
-}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-touch-callout:none}
-html,body{height:100%;overflow:hidden;touch-action:manipulation;overscroll-behavior:none}
-body{
-  font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  font-size:13px;
-}
-
-/* ═══ LAYOUT ═══ */
-.app{
-  height:100vh;height:100dvh;
-  display:grid;
-  grid-template-columns:320px minmax(0,1fr);
-  grid-template-rows:48px minmax(0,1fr);
-  grid-template-areas:"header header" "sidebar map";
-  gap:0;
-  padding:0;
-}
-
-/* ═══ DARK HEADER / TOOLBAR ═══ */
-.header{
-  grid-area:header;
-  min-height:48px;
-  padding:0 16px;
-  background:var(--toolbar);
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  border:none;border-radius:0;box-shadow:none;
-  z-index:1000;
-}
-.header-left,.header-actions{display:flex;align-items:center}
-.header-left{gap:10px;min-width:0}
-.header-logo{display:flex;align-items:center;gap:8px;min-width:0;color:var(--toolbar-text);font:700 15px 'IBM Plex Sans',sans-serif;letter-spacing:-.02em}
-.header-logo::before{content:'';width:28px;height:28px;border-radius:6px;background:var(--accent);flex-shrink:0}
-.header-logo .logo-text{display:flex;flex-direction:column;min-width:0}
-.header-logo .logo-title{font:700 15px 'IBM Plex Sans',sans-serif;line-height:1;letter-spacing:-.02em;color:var(--toolbar-text)}
-.header-logo .logo-sub{font:500 9px 'IBM Plex Mono',monospace;color:var(--toolbar-muted);text-transform:uppercase;letter-spacing:.14em}
-.header-logo .badge{display:inline-flex;align-items:center;padding:2px 6px;border-radius:3px;font:700 9px 'IBM Plex Mono',monospace;white-space:nowrap;color:var(--accent);background:rgba(37,99,235,.15)}
-.version-chip,.meta-pill{display:inline-flex;align-items:center;padding:2px 6px;border-radius:3px;font:600 9px 'IBM Plex Mono',monospace;white-space:nowrap}
-.header-meta{display:flex;align-items:center;gap:6px;min-width:0}
-.meta-pill{color:var(--toolbar-muted);background:rgba(255,255,255,.08)}
-.version-chip{color:var(--toolbar-muted);background:rgba(255,255,255,.06)}
-.header-actions{gap:6px;flex-shrink:0}
-.header-export-btn{height:32px;padding:0 12px;border-radius:var(--r);white-space:nowrap;font-size:12px}
-
-/* ═══ SEARCH IN TOOLBAR ═══ */
-.search-strip{flex:1;max-width:400px;min-width:180px;display:flex;padding:0;border-radius:0;background:transparent;border:none;box-shadow:none}
-.app > .search-strip:not(.header-searchbar){display:none}
-.search-strip::before{display:none}
-.search-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;min-width:0;align-items:center}
-.search-strip .section-copy{display:none}
-.search-label{display:none}
-.header-search{width:100%;height:32px;padding:0 10px 0 32px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);border-radius:var(--r);color:var(--toolbar-text);font:400 12px 'IBM Plex Sans',sans-serif;outline:none;transition:all .15s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center}
-.header-search::placeholder{color:var(--toolbar-muted)}
-.header-search:focus{background:rgba(255,255,255,.14);border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
-.search-btn{height:32px;padding:0 10px;border:none;border-radius:var(--r);background:var(--accent);color:#fff;font:600 11px 'IBM Plex Sans',sans-serif;cursor:pointer;transition:all .1s}
-.search-btn:hover{background:var(--accent-strong)}
-
-/* ═══ SIDEBAR — TOOL PANEL ═══ */
-.sidebar{grid-area:sidebar;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;background:var(--surface);border-right:1px solid var(--line);padding:0}
-.sidebar::-webkit-scrollbar{width:3px}
-.sidebar::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:2px}
-.sidebar .section{background:transparent;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:14px 16px;margin-bottom:0;box-shadow:none}
-.sidebar .section:last-child{border-bottom:none}
-.sidebar>.section{margin-top:0!important}
-.sidebar .section-hidden{display:none}
-.section{margin-bottom:12px}
-.section-label{display:block;margin-bottom:5px;font:600 10px 'IBM Plex Mono',monospace;color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
-.section-title{font:600 11px 'IBM Plex Sans',sans-serif;line-height:1.3;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
-.sidebar .section-copy{display:none}
-.section-copy{font:400 12px 'IBM Plex Sans',sans-serif;color:var(--text-soft);line-height:1.4;margin-bottom:10px}
-
-/* ═══ REGELPLAN CARDS ═══ */
-.rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
-.rp-card{padding:6px 8px;background:var(--surface-soft);border:1px solid var(--line);border-radius:var(--r);cursor:pointer;transition:all .1s;display:flex;align-items:center;gap:6px;min-width:0}
-.rp-card:hover{background:var(--accent-soft);border-color:rgba(37,99,235,.2)}
-.rp-card:active{transform:scale(.98)}
-.rp-card.selected{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
-.rp-card .rp-thumb{width:28px;height:34px;border-radius:4px;overflow:hidden;border:1px solid var(--line);flex-shrink:0;background:var(--surface)}
-.rp-card .rp-thumb img{width:100%;height:100%;object-fit:cover;object-position:center 40%}
-.rp-card .rp-info{flex:1;min-width:0}
-.rp-card .rp-name{font:600 11px 'IBM Plex Sans',sans-serif;color:var(--text)}
-.rp-card .rp-desc{display:none}
-
-/* ═══ PARAMS ═══ */
-.param-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.param-label{width:64px;font:500 11px 'IBM Plex Sans',sans-serif;color:var(--text-muted);flex-shrink:0}
-.param-input{flex:1;height:30px;padding:0 8px;background:var(--surface-soft);border:1px solid var(--line-strong);border-radius:var(--r);color:var(--text);font:400 12px 'IBM Plex Sans',sans-serif;outline:none;transition:border-color .1s}
-.param-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.08)}
-select.param-input{cursor:pointer}
-.seg-control{display:flex;gap:0;border-radius:var(--r);overflow:hidden;border:1px solid var(--line-strong);flex:1;background:var(--surface-soft)}
-.seg-btn{flex:1;height:30px;border:none;cursor:pointer;font:600 11px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--text-soft);transition:all .1s;display:flex;align-items:center;justify-content:center}
-.seg-btn+.seg-btn{border-left:1px solid var(--line)}
-.seg-btn.active{background:var(--toolbar);color:#fff}
-.seg-btn:not(.active):hover{background:var(--surface-muted)}
-
-/* ═══ BUTTONS ═══ */
-.btn{height:30px;padding:0 12px;border:none;border-radius:var(--r);font:600 11px 'IBM Plex Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:all .1s}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{background:var(--accent-strong)}
-.btn-danger{background:var(--red-soft);color:var(--red);border:1px solid rgba(220,38,38,.12)}
-.btn-secondary{background:var(--surface-soft);color:var(--text-soft);border:1px solid var(--line-strong)}
-.btn-secondary:hover{background:var(--surface-muted)}
-.btn-block{width:100%}
-.btn-row{display:flex;gap:4px;flex-wrap:wrap}
-.sidebar .btn-row .btn{flex:1;min-width:0}
-
-/* ═══ ACTION CARD (placement CTA) ═══ */
-.action-card{background:var(--accent-soft);border:1px solid rgba(37,99,235,.12);border-radius:var(--r2);padding:10px}
-.action-card .ac-title{font:600 12px 'IBM Plex Sans',sans-serif;color:var(--text);margin-bottom:2px}
-.action-card .ac-desc{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--text-soft);margin-bottom:6px;line-height:1.3}
-
-/* ═══ MAP AREA ═══ */
-.map-area{grid-area:map;position:relative;overflow:hidden;min-height:0;border:none;border-radius:0;box-shadow:none;background:var(--surface-muted)}
-#map{width:100%;height:100%;background:#dde1e7}
-.map-switcher{position:absolute;top:10px;left:10px;z-index:700;display:flex;gap:0;padding:3px;border-radius:var(--r);box-shadow:var(--shadow-md);border:1px solid var(--line);background:rgba(255,255,255,.95);backdrop-filter:blur(8px)}
-.ms-btn{padding:6px 10px;border:none;cursor:pointer;font:600 10px 'IBM Plex Sans',sans-serif;background:transparent;color:var(--text-soft);transition:all .1s;white-space:nowrap;border-radius:4px}
-.ms-btn.active{background:var(--toolbar);color:#fff}
-.ms-btn:not(.active):hover{background:var(--surface-muted)}
-.map-controls{position:absolute;top:10px;right:10px;z-index:700;display:flex;flex-direction:column;gap:2px;padding:3px;border-radius:var(--r);background:rgba(255,255,255,.95);border:1px solid var(--line);box-shadow:var(--shadow-sm);backdrop-filter:blur(8px)}
-.mc-btn{width:34px;height:32px;border-radius:4px;background:transparent;border:none;display:flex;align-items:center;justify-content:center;font:600 11px 'IBM Plex Sans',sans-serif;cursor:pointer;transition:all .08s;color:var(--text-soft)}
-.mc-btn:hover{background:var(--surface-muted)}
-.mc-btn:active{transform:scale(.92)}
-.mc-btn.active{color:var(--accent);background:var(--accent-soft)}
-
-/* ═══ INSTRUCTION BANNER ═══ */
-.instruction-banner{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:800;display:none;align-items:center;gap:8px;background:var(--toolbar);color:var(--toolbar-text);border-radius:var(--r);padding:8px 12px;box-shadow:var(--shadow-lg);max-width:92vw}
-.instruction-banner.show{display:flex}
-.ib-step{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font:700 10px 'IBM Plex Sans',sans-serif;flex-shrink:0}
-.ib-text{font:500 12px 'IBM Plex Sans',sans-serif}
-.ib-cancel{width:24px;height:24px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--toolbar-muted);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.ib-finish{height:26px;padding:0 10px;border-radius:4px;border:none;background:var(--accent);color:#fff;font:600 11px 'IBM Plex Sans',sans-serif;cursor:pointer;display:none;align-items:center;flex-shrink:0}
-.ib-finish.show{display:inline-flex}
-
-/* ═══ STATUS BAR & INFO ═══ */
-.status-bar{position:absolute;left:10px;bottom:10px;z-index:700;background:rgba(17,24,39,.80);border:none;border-radius:4px;padding:4px 10px;font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:6px;max-width:calc(100% - 140px);overflow:auto;backdrop-filter:blur(6px)}
-.status-bar .dot{width:6px;height:6px;border-radius:50%;background:#34d399}
-.bau-info{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:700;background:rgba(17,24,39,.80);border:none;border-radius:4px;padding:5px 12px;font:500 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:8px;backdrop-filter:blur(6px);white-space:nowrap;letter-spacing:0}
-.rp-preview{position:absolute;bottom:10px;right:10px;z-index:700;width:72px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm);cursor:pointer;transition:all .1s}
-.rp-preview:active{transform:scale(.95)}
-.rp-preview.active{border-color:var(--accent)}
-.rp-preview img{width:100%;display:block;max-height:100px;object-fit:cover;object-position:center 40%}
-.rp-preview .rp-tag{padding:3px;font:700 8px 'IBM Plex Mono',monospace;color:var(--accent);background:var(--accent-soft);text-align:center}
-
-/* ═══ MOBILE TABS ═══ */
-.tab-bar{grid-area:tab;height:var(--tab-h);padding-bottom:var(--safe-b);background:var(--surface);border-top:1px solid var(--line);display:flex;align-items:stretch;z-index:900;flex-shrink:0}
-.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:var(--text-muted);font:600 9px 'IBM Plex Sans',sans-serif;cursor:pointer;transition:color .1s;position:relative}
-.tab-item .ti-icon{font-size:17px;line-height:1}
-.tab-item.active{color:var(--accent)}
-.tab-item.active::before{content:'';position:absolute;top:0;left:28%;right:28%;height:2px;background:var(--accent)}
-
-/* ═══ MOBILE PANELS ═══ */
-.panel{position:absolute;bottom:var(--tab-h);left:0;right:0;z-index:850;max-height:60vh;overflow-y:auto;background:var(--surface);border-top:1px solid var(--line);padding:14px 14px calc(var(--safe-b)+8px);-webkit-overflow-scrolling:touch;box-shadow:0 -4px 16px rgba(0,0,0,.06);border-radius:16px 16px 0 0;visibility:hidden;opacity:0;transform:translateY(24px);pointer-events:none;transition:opacity 0.28s cubic-bezier(0.32,0.72,0,1),transform 0.28s cubic-bezier(0.32,0.72,0,1),visibility 0s linear 0.28s;will-change:transform,opacity}
-.panel.open{visibility:visible;opacity:1;transform:translateY(0);pointer-events:auto;transition:opacity 0.32s cubic-bezier(0.34,1.56,0.64,1),transform 0.32s cubic-bezier(0.34,1.56,0.64,1),visibility 0s linear 0s}
-.panel-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
-.panel-header h2{font:600 15px 'IBM Plex Sans',sans-serif;color:var(--text);flex:1}
-.ph-close{width:28px;height:28px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface-soft);color:var(--text-muted);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-
-/* ═══ WIZARD / EXPORT ═══ */
-.wizard-steps{display:flex;gap:4px;margin-bottom:8px}
-.wizard-step{flex:1;padding:6px 8px;border-radius:var(--r);background:var(--surface-soft);border:1px solid var(--line);font:600 9px 'IBM Plex Mono',monospace;color:var(--text-muted);text-align:center;transition:all .1s}
-.wizard-step.active{background:var(--accent-soft);border-color:rgba(37,99,235,.18);color:var(--accent)}
-.wizard-pane{display:none}
-.wizard-pane.active{display:block}
-.wizard-summary,.validation-list{display:flex;flex-direction:column;gap:4px}
-.summary-card,.validation-item{padding:8px 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface-soft)}
-.summary-card .summary-title{font:600 9px 'IBM Plex Mono',monospace;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
-.summary-card .summary-body,.validation-item{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--text-soft);line-height:1.4}
-.validation-item.warning{background:var(--yellow-soft);border-color:rgba(217,119,6,.14);color:#92400e}
-.validation-item.error{background:var(--red-soft);border-color:rgba(220,38,38,.12);color:var(--red)}
-.validation-item.ok{background:var(--green-soft);border-color:rgba(5,150,105,.12);color:var(--green)}
-.wizard-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.wizard-actions .btn{flex:1}
-.sidebar [data-wizard-steps="desktop"],
-.sidebar [data-wizard-pane="desktop"],
-.sidebar .wizard-actions,
-.sidebar button.btn-block[onclick="exportPDF()"],
-.sidebar button.btn-block[onclick="openExportFlow()"]{display:none!important}
-.helper-text{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--text-muted);line-height:1.4;margin:2px 0 6px}
-
-/* ═══ TOAST & LOADING ═══ */
-.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-60px);z-index:10000;padding:8px 14px;border-radius:var(--r);background:var(--toolbar);color:var(--toolbar-text);font:500 12px 'IBM Plex Sans',sans-serif;box-shadow:var(--shadow-lg);transition:transform .2s cubic-bezier(.4,0,.2,1);white-space:nowrap}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.loading-overlay{position:fixed;inset:0;z-index:10000;background:rgba(17,24,39,.50);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .15s}
-.loading-overlay.show{opacity:1;pointer-events:auto}
-.loading-spinner{width:36px;height:36px;border:2.5px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-label{color:rgba(255,255,255,.8);font:500 12px 'IBM Plex Sans',sans-serif;margin-top:8px}
-
-/* ═══ EXPORT MODAL ═══ */
-.export-modal{position:fixed;inset:0;z-index:9800;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(17,24,39,.35);backdrop-filter:blur(6px)}
-.export-modal.open{display:flex}
-.export-sheet{width:min(480px,100%);max-height:min(680px,92vh);overflow:auto;border-radius:var(--r2);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-lg);padding:16px}
-.export-sheet-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
-.export-sheet-title{flex:1;min-width:0}
-.export-sheet-title h2{font:600 16px 'IBM Plex Sans',sans-serif;color:var(--text);margin-bottom:2px}
-.export-sheet-title p{font:400 11px 'IBM Plex Sans',sans-serif;color:var(--text-soft)}
-.export-close{width:28px;height:28px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface-soft);color:var(--text-muted);font:600 13px 'IBM Plex Sans',sans-serif;cursor:pointer}
-.export-modal .param-row{margin-bottom:6px}
-.export-modal .param-label{width:84px}
-.export-modal .wizard-summary{margin-top:6px}
-.export-modal-actions{display:flex;gap:6px;margin-top:10px}
-.export-modal-actions .btn{flex:1}
-
-/* ═══ RP OVERLAY ═══ */
-.rp-overlay-controls{position:absolute;bottom:96px;right:10px;z-index:750;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;box-shadow:var(--shadow-sm);display:none;min-width:120px}
-.rp-overlay-controls.show{display:block}
-.rp-overlay-controls label{font:500 9px 'IBM Plex Mono',monospace;color:var(--text-muted);display:block;margin-bottom:3px}
-.rp-overlay-controls input[type=range]{width:100%}
-
-/* ═══ LEAFLET OVERRIDES ═══ */
-.leaflet-control-zoom{border:1px solid var(--line)!important;border-radius:var(--r)!important;overflow:hidden;box-shadow:var(--shadow-sm)!important}
-.leaflet-control-zoom a{background:rgba(255,255,255,.95)!important;color:var(--text)!important;border-color:var(--line)!important;font-weight:600!important;width:30px!important;height:30px!important;line-height:30px!important;font-size:16px!important}
-.leaflet-control-scale-line{background:rgba(255,255,255,.9)!important;border-color:var(--text-muted)!important;color:var(--text-soft)!important;font:500 9px 'IBM Plex Mono',monospace!important}
-.leaflet-div-icon{background:none!important;border:none!important}
-
-/* ═══ MARKERS ═══ */
-@keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(37,99,235,.35)}70%{box-shadow:0 0 0 8px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
-.placement-marker{width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);animation:pulse-ring 1.5s infinite}
-.placement-marker-done{width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2)}
-.measure-point{width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2)}
-.measure-label{padding:2px 6px;border-radius:3px;background:#fff;border:1px solid rgba(37,99,235,.15);box-shadow:0 1px 3px rgba(0,0,0,.08);font:600 9px 'IBM Plex Mono',monospace;color:var(--accent);white-space:nowrap}
-.parking-sign{width:36px;height:36px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 3px rgba(0,0,0,.2))}
-.parking-sign img{width:32px;height:32px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px #fff}
-.parking-line{stroke:#dc2626;stroke-width:1.5;stroke-dasharray:5 4;stroke-linecap:round}
-
-/* ═══ RESPONSIVE ═══ */
-@media(max-width:1024px){
-  .app{grid-template-columns:300px minmax(0,1fr)}
-  .meta-pill{display:none}
-  .search-strip{max-width:340px}
-}
-@media(min-width:769px){.tab-bar{display:none}.panel{display:none!important}}
-@media(max-width:768px){
-  html,body,.app{width:100%;max-width:100%;overflow:hidden}
-  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:48px minmax(0,1fr) auto;grid-template-areas:"header" "map" "tab";gap:0;padding:0}
-  .header{min-height:48px;padding:env(safe-area-inset-top,0px) 10px 0;flex-wrap:wrap;border-radius:0}
-  .header-left{gap:6px}
-  .header-logo::before{width:24px;height:24px;border-radius:5px}
-  .header-logo .logo-title{font-size:14px}
-  .header-logo .logo-sub{display:none}
-  .header-meta .meta-pill{display:none}
-  .header-actions{gap:4px}
-  .search-strip{order:3;flex:0 0 100%;width:100%;max-width:100%;padding:0 0 6px}
-  .header-search{height:30px;font-size:12px}
-  .search-shell{display:block;position:relative;width:100%}
-  .header-search{padding-right:50px}
-  .search-btn{position:absolute;right:62px;top:2px;width:40px;height:26px;padding:0;border-radius:4px;font-size:0}
-  .search-btn::after{content:'Go';font:600 10px 'IBM Plex Sans',sans-serif}
-  .sidebar{display:none}
-  .map-area{border-radius:0}
-  .map-switcher{top:8px;left:8px;right:52px;overflow:auto;padding:3px}
-  .ms-btn{padding:6px 8px;font-size:10px}
-  .map-controls{top:8px;right:8px;gap:2px;padding:3px}
-  .mc-btn{width:32px;height:30px}
-  .instruction-banner{top:56px}
-  .status-bar{left:8px;right:8px;bottom:66px;max-width:none}
-  .bau-info{left:8px;right:8px;bottom:100px;transform:none;max-width:none;justify-content:center}
-  .rp-preview{bottom:66px;right:8px;width:64px}
-  .rp-overlay-controls{right:8px;bottom:140px}
-  .tab-bar{width:100%;max-width:100%}
-  .tab-item{min-width:0;overflow:hidden}
-  .tab-item:last-child{transform:none}
-  .export-modal{align-items:flex-end;padding:0}
-  .export-sheet{max-height:86vh;border-radius:12px 12px 0 0}
-  .export-modal .param-row{flex-direction:column;gap:3px}
-  .export-modal .param-label{width:auto}
-}
-
-
-/* ─── iOS MOBILE ENHANCEMENTS ─── */
-/* ═══════════════════════════════════════════════════
-   iOS MOBILE EXPERIENCE — VZP Editor
-   Haptic-ready, spring animations, native feel
-═══════════════════════════════════════════════════ */
-
-/* ─── Touch Targets ─────────────────────────────── */
-@media(max-width:768px){
-
-  /* Mindest-Tappgröße 44px überall */
-  .tab-item { min-height: 52px; flex: 1; }
-  .mc-btn { width: 44px !important; height: 44px !important; font-size: 18px; border-radius: 12px !important; }
-  .ms-btn { padding: 8px 12px !important; font-size: 11px !important; min-height: 36px; border-radius: 8px !important; }
-  .btn { min-height: 44px; border-radius: 12px !important; font-size: 15px; }
-  .seg-btn { min-height: 36px; font-size: 13px; }
-  .ph-close { width: 44px; height: 44px; font-size: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-  .ib-cancel { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
-  .param-input { min-height: 44px; font-size: 16px !important; /* prevents iOS zoom */ border-radius: 10px !important; padding: 0 12px; }
-
-  /* ─── Spring Press States ────────────────────── */
-  .mc-btn, .ms-btn, .tab-item, .btn, .seg-btn, .ph-close, .ib-cancel, .ib-finish, .rp-grid-item {
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    transition: transform 0.08s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                opacity 0.08s ease,
-                background 0.1s ease !important;
-  }
-  .mc-btn:active, .ms-btn:active, .btn:active, .seg-btn:active,
-  .ph-close:active, .ib-cancel:active, .ib-finish:active, .rp-grid-item:active {
-    transform: scale(0.94);
-    opacity: 0.82;
-  }
-  .tab-item:active { transform: scale(0.96); }
-
-  /* ─── Tab Bar — iOS Native Style ────────────── */
-  .tab-bar {
-    height: 64px;
-    padding-bottom: env(safe-area-inset-bottom, 8px);
-    background: rgba(18, 20, 30, 0.92) !important;
-    backdrop-filter: blur(20px) saturate(1.8);
-    -webkit-backdrop-filter: blur(20px) saturate(1.8);
-    border-top: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 -1px 0 rgba(0,0,0,0.2), 0 -8px 24px rgba(0,0,0,0.15);
-  }
-  .tab-item {
-    color: rgba(255,255,255,0.45) !important;
-    font-size: 10px !important;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    border-radius: 0 !important;
-    padding: 8px 4px 4px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    position: relative;
-    background: transparent !important;
-    border: none !important;
-  }
-  .tab-item.active { color: var(--accent) !important; }
-  .tab-item.active::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 20%; right: 20%;
-    height: 2.5px;
-    background: var(--accent);
-    border-radius: 0 0 2px 2px;
-  }
-  .ti-icon { font-size: 22px; line-height: 1; }
-  .tab-item:last-child { transform: none !important; } /* undo the translateX fix */
-
-  /* ─── Panels — iOS Bottom Sheet ─────────────── */
-  .panel {
-    background: rgba(28, 30, 40, 0.97) !important;
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    border-radius: 20px 20px 0 0 !important;
-    border-top: 1px solid rgba(255,255,255,0.10);
-    box-shadow: 0 -4px 40px rgba(0,0,0,0.4);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: env(safe-area-inset-bottom, 16px);
-    max-height: 75vh;
-  }
-  .panel-header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: rgba(28,30,40,0.97);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-    padding: 14px 16px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .panel-header::before {
-    content: '';
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 36px; height: 4px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 2px;
-  }
-  .panel-header h2 { font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.92); }
-  .ph-close {
-    background: rgba(255,255,255,0.1) !important;
-    color: rgba(255,255,255,0.6) !important;
-    border: none !important;
-  }
-
-  /* Panel slide-up animation */
-  .panel { animation: slideUpPanel 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  @keyframes slideUpPanel {
-    from { transform: translateY(100%); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-  }
-
-  /* ─── Map Controls — iOS-style ───────────────── */
-  .map-controls {
-    gap: 6px !important;
-    background: rgba(18,20,30,0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 14px;
-    padding: 6px !important;
-    border: 1px solid rgba(255,255,255,0.10);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  }
-  .mc-btn {
-    background: rgba(255,255,255,0.08) !important;
-    border: 1px solid rgba(255,255,255,0.10) !important;
-    color: rgba(255,255,255,0.8) !important;
-    border-radius: 10px !important;
-  }
-  .mc-btn.active {
-    background: var(--accent) !important;
-    border-color: var(--accent) !important;
-    color: #fff !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.4);
-  }
-
-  /* ─── Map Switcher ───────────────────────────── */
-  .map-switcher {
-    background: rgba(18,20,30,0.75) !important;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.10);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-    padding: 4px !important;
-    gap: 2px;
-  }
-  .ms-btn { color: rgba(255,255,255,0.7) !important; background: transparent !important; }
-  .ms-btn.active {
-    background: rgba(255,255,255,0.15) !important;
-    color: #fff !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  }
-
-  /* ─── Instruction Banner ─────────────────────── */
-  .instruction-banner {
-    background: rgba(18,20,30,0.9) !important;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 14px;
-    border: 1px solid rgba(37,99,235,0.35);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
-    left: 12px !important; right: 12px !important;
-    padding: 12px 16px;
-    min-height: 52px;
-  }
-  .ib-text { color: rgba(255,255,255,0.9) !important; font-size: 14px; font-weight: 500; }
-  .ib-finish {
-    background: var(--accent) !important;
-    border: none !important;
-    border-radius: 8px !important;
-    min-height: 36px !important;
-    padding: 0 14px !important;
-    font-weight: 600;
-    font-size: 14px;
-    color: #fff !important;
-  }
-
-  /* ─── Status Bar ─────────────────────────────── */
-  .status-bar {
-    background: rgba(18,20,30,0.75) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.08);
-    font-size: 11px;
-    padding: 6px 10px;
-  }
-
-  /* ─── Toast — iOS style ──────────────────────── */
-  .toast {
-    bottom: 80px !important;
-    left: 16px !important; right: 16px !important;
-    background: rgba(28,30,40,0.95) !important;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 14px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.35) !important;
-    font-size: 14px;
-    font-weight: 500;
-    padding: 13px 18px !important;
-    text-align: center;
-    animation: toastPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  }
-  @keyframes toastPop {
-    from { transform: translateY(16px) scale(0.95); opacity: 0; }
-    to   { transform: translateY(0)    scale(1);    opacity: 1; }
-  }
-
-  /* ─── Bau-Info Strip ─────────────────────────── */
-  .bau-info {
-    background: rgba(18,20,30,0.80) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.08);
-    font-size: 12px;
-    padding: 8px 14px;
-    gap: 10px;
-  }
-
-  /* ─── Export Sheet ───────────────────────────── */
-  .export-sheet {
-    border-radius: 20px 20px 0 0 !important;
-    background: rgba(28,30,40,0.97) !important;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    padding-bottom: env(safe-area-inset-bottom,16px);
-  }
-  .export-sheet-head { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 20px 16px 14px; }
-  .export-sheet-head::before {
-    content: '';
-    display: block;
-    width: 36px; height: 4px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 2px;
-    margin: 0 auto 14px;
-  }
-  .export-close {
-    width: 32px; height: 32px;
-    background: rgba(255,255,255,0.10) !important;
-    border-radius: 50% !important;
-    border: none !important;
-    color: rgba(255,255,255,0.6) !important;
-    font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .export-modal .param-input { background: rgba(255,255,255,0.07) !important; border: 1px solid rgba(255,255,255,0.10) !important; color: rgba(255,255,255,0.9) !important; }
-  .export-modal .param-label { color: rgba(255,255,255,0.5) !important; }
-  .export-modal .section-label { color: rgba(255,255,255,0.35) !important; }
-
-  /* ─── Param Inputs dark ──────────────────────── */
-  .panel .param-input, .panel .seg-btn {
-    background: rgba(255,255,255,0.07) !important;
-    border: 1px solid rgba(255,255,255,0.10) !important;
-    color: rgba(255,255,255,0.9) !important;
-    border-radius: 10px !important;
-  }
-  .panel .seg-btn.active {
-    background: var(--accent) !important;
-    border-color: var(--accent) !important;
-    color: #fff !important;
-  }
-  .panel .param-label { color: rgba(255,255,255,0.45) !important; font-size: 12px; }
-  .panel .section-label { color: rgba(255,255,255,0.3) !important; font-size: 10px; }
-  .panel .btn-primary { background: var(--accent) !important; border-radius: 12px !important; font-weight: 700; font-size: 15px; min-height: 48px; }
-  .panel .btn-danger { border-radius: 12px !important; min-height: 48px; }
-  .panel .action-card { background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 14px !important; }
-  .panel .ac-title { color: rgba(255,255,255,0.85) !important; }
-  .panel .ac-desc { color: rgba(255,255,255,0.45) !important; }
-  .panel .rp-grid-item { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.10) !important; border-radius: 12px !important; color: rgba(255,255,255,0.85) !important; min-height: 56px; }
-  .panel .rp-grid-item.active { border-color: var(--accent) !important; background: rgba(37,99,235,0.18) !important; }
-
-  /* ─── Header on Mobile ───────────────────────── */
-  .header { background: rgba(12,14,20,0.95) !important; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-  .header-export-btn { border-radius: 10px !important; min-height: 34px; font-size: 12px !important; }
-  
-} /* end @media */
-
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/vzp-ui.css">
 </head>
 <body>
 <div class="app">
-  <div class="header">
-    <div class="header-left">
-      <div class="header-logo"><div class="logo-text"><span class="logo-title">VZP</span><span class="logo-sub">RSA 21</span></div></div>
-      <span class="version-chip" id="appVersionChip">v-local</span>
-    </div>
-    <div class="search-strip header-searchbar">
-      <div class="search-shell">
-        <input class="header-search" type="text" id="addressInput" placeholder="Adresse oder Straße suchen…" autocomplete="street-address" autocorrect="off" autocapitalize="words" spellcheck="false">
-        <button class="search-btn" onclick="searchAddress(document.getElementById('addressInput').value)">Suchen</button>
+
+  <!-- ════ HEADER ═══════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark">VZP</div>
+      <div class="logo-text">
+        <span class="logo-name">VZP Editor</span>
+        <span class="logo-sub">RSA 21</span>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="btn header-export-btn" id="gehwegToggleBtn" onclick="toggleGehwegOverlay()" style="background:rgba(255,255,255,.12);color:var(--toolbar-text);border:1px solid rgba(255,255,255,.18)" title="Gehwegbreiten einblenden (nur Berlin)">📏 Gehwege</button>
-      <button class="btn btn-primary header-export-btn" onclick="openExportFlow()">PDF Export</button>
+    <span class="v-chip" id="appVersionChip">v-local</span>
 
+    <div class="header-search-wrap">
+      <span class="search-icon">⌕</span>
+      <input class="header-search" type="text" id="addressInput"
+        placeholder="Adresse suchen…"
+        autocomplete="street-address" autocorrect="off"
+        autocapitalize="words" spellcheck="false">
+      <button class="search-go" onclick="searchAddress(document.getElementById('addressInput').value)">Go</button>
     </div>
-  </div>
+
+    <div class="header-actions">
+      <button class="hdr-btn primary" onclick="openExportFlow()">↗ PDF</button>
+    </div>
+  </header>
+
+  <!-- ════ SIDEBAR ══════════════════════════════════════════════ -->
   <div class="sidebar" id="sidebar">
-    <div class="section">
+    <div class="sb-section">
       <div class="section-title">Regelplan waehlen</div>
       <div class="section-copy">Die Auswahl bleibt kompakt, zeigt aber klarer, welcher Plan aktiv ist und wofuer er gedacht ist.</div>
-      <div class="section-label">Regelplan wählen</div>
+      <div class="sb-label">Regelplan wählen</div>
       <div class="rp-grid" id="rpGrid"></div>
     </div>
-    <div class="section">
+    <div class="sb-section">
       <div class="section-title">Baustelle einstellen</div>
       <div class="section-copy">Seite, Arbeitsstellenbreite und Tempo steuern direkt die Platzierung und den Export.</div>
-      <div class="section-label">Parameter</div>
+      <div class="sb-label">Parameter</div>
       <div class="param-row"><span class="param-label">Modus</span>
-        <div class="seg-control">
+        <div class="seg">
           <button class="seg-btn active" data-placement-type="regelplan_line" onclick="setPlacementType('regelplan_line')">Regelplan</button>
           <button class="seg-btn" data-placement-type="arbeitsbereich_polygon" onclick="setPlacementType('arbeitsbereich_polygon')">Arbeitsbereich</button>
         </div>
       </div>
       <div class="param-row"><span class="param-label">Seite</span>
-        <div class="seg-control"><button class="seg-btn active" data-val="rechts" onclick="setSide('rechts')">→ Rechts</button><button class="seg-btn" data-val="links" onclick="setSide('links')">← Links</button></div>
+        <div class="seg"><button class="seg-btn active" data-val="rechts" onclick="setSide('rechts')">→ Rechts</button><button class="seg-btn" data-val="links" onclick="setSide('links')">← Links</button></div>
       </div>
       <div class="param-row"><span class="param-label">Breite (m)</span><input class="param-input" type="number" id="breiteInput" value="2.0" step="0.5" min="0.5" max="8" onchange="reapply()"></div>
       <div class="param-row"><span class="param-label">Tempo</span>
-        <div class="seg-control"><button class="seg-btn active" data-val="50" onclick="setTempo(50)">50 km/h</button><button class="seg-btn" data-val="30" onclick="setTempo(30)">30 km/h</button></div>
+        <div class="seg"><button class="seg-btn active" data-val="50" onclick="setTempo(50)">50 km/h</button><button class="seg-btn" data-val="30" onclick="setTempo(30)">30 km/h</button></div>
       </div>
     </div>
-    <div class="section">
+    <div class="sb-section">
       <div class="section-title">Plan platzieren</div>
       <div class="section-copy">Der aktive Regelplan wird mit zwei Punkten auf die Karte gelegt und kann danach weiter angepasst werden.</div>
       <div class="action-card">
@@ -637,22 +73,22 @@ select.param-input{cursor:pointer}
         <div class="btn-row"><button class="btn btn-primary" onclick="startPlacement()">Platzieren</button><button class="btn btn-danger" onclick="clearAll()" id="clearBtnD" style="display:none">Löschen</button></div>
       </div>
     </div>
-    <div class="section">
+    <div class="sb-section">
       <div class="section-title">Verkehrszeichen</div>
       <div class="section-copy">Alle RSA 21-relevanten Verkehrszeichen durchsuchen und auf die Karte setzen.</div>
       <div id="vzSearchPanel"></div>
     </div>
-    <div class="section section-hidden">
+    <div class="sb-section section-hidden">
       <div class="section-title">Kartenwerkzeuge</div>
-      <div class="section-label">Anzeige</div>
+      <div class="sb-label">Anzeige</div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="toggleRPImageOverlay()">🖼 RSA-Bild</button>
       </div>
     </div>
-    <div class="section">
+    <div class="sb-section">
       <div class="section-title">Projekt</div>
       <div class="section-copy">Projektangaben, Vorschau und Pruefhinweise bleiben in einem sauberen Exportfluss gebuendelt.</div>
-      <div class="section-label">Projekt</div>
+      <div class="sb-label">Projekt</div>
       <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektName" data-plan-field="name" placeholder="Projektname" maxlength="100"></div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="saveProject()">💾 Speichern</button>
@@ -678,7 +114,7 @@ select.param-input{cursor:pointer}
         <div class="param-row"><span class="param-label">Plan-Nr.</span><input class="param-input" type="text" data-plan-field="planNummer" placeholder="optional" maxlength="50"></div>
       </div>
       <div class="wizard-pane" data-wizard-pane="desktop" data-step="3">
-        <div class="section-label">Vorschau</div>
+        <div class="sb-label">Vorschau</div>
         <div class="wizard-summary" id="wizardSummaryDesktop"></div>
         <div class="section-label" style="margin-top:12px">Prüfung</div>
         <div class="validation-list" id="wizardValidationsDesktop"></div>
@@ -692,52 +128,91 @@ select.param-input{cursor:pointer}
       <button class="btn btn-primary btn-block" onclick="openExportFlow()">PDF exportieren</button>
     </div>
   </div>
+  </div>
 
+  <!-- ════ MAP ══════════════════════════════════════════════════ -->
   <div class="map-area">
     <div id="map"></div>
+
+    <!-- Map Switcher -->
     <div class="map-switcher">
       <button class="ms-btn active" onclick="switchBaseMap('k5',this)">K5</button>
-      <button class="ms-btn" onclick="switchBaseMap('sb',this)">Straßen + Kontext</button>
-      <button class="ms-btn" onclick="switchBaseMap('dop',this)">Luftbild</button>
+      <button class="ms-btn" onclick="switchBaseMap('sb',this)">Straße</button>
+      <button class="ms-btn" onclick="switchBaseMap('dop',this)">Luft</button>
       <button class="ms-btn" onclick="switchBaseMap('osm',this)">OSM</button>
     </div>
-    <div class="map-controls">
-      <button class="mc-btn active" id="mcRP" onclick="toggleLayer('rp')" title="Regelplan">📐</button>
-      <button class="mc-btn" id="mcMeasure" onclick="toggleMeasureMode()" title="Bemaßung">📏</button>
-      <button class="mc-btn" id="mcParking" onclick="toggleParkingMode()" title="Parkverbot-Paar">HV</button>
-      <button class="mc-btn" id="mcImg" onclick="toggleRPImageOverlay()" title="RSA-Bild">🖼</button>
-      <button class="mc-btn" onclick="getGPSLocation()" title="GPS-Standort">📍</button>
+
+    <!-- Tool Rail -->
+    <div class="tool-rail" id="toolRail">
+      <button class="tool-rail-toggle" id="toolRailToggle" onclick="toggleToolRail()">
+        <span class="tr-icon">⚙</span>
+      </button>
+      <div class="tool-rail-items" id="toolRailItems">
+        <button class="tr-btn active" id="mcRP" onclick="toggleLayer('rp')">
+          <span class="tr-label">Regelplan</span><span class="tr-icon">📐</span>
+        </button>
+        <button class="tr-btn" id="mcMeasure" onclick="toggleMeasureMode()">
+          <span class="tr-label">Bemaßung</span><span class="tr-icon">📏</span>
+        </button>
+        <button class="tr-btn" id="mcParking" onclick="toggleParkingMode()">
+          <span class="tr-label">Haltverbot</span><span class="tr-icon">🚫</span>
+        </button>
+        <button class="tr-btn" id="mcImg" onclick="toggleRPImageOverlay()">
+          <span class="tr-label">RSA-Bild</span><span class="tr-icon">🖼</span>
+        </button>
+        <button class="tr-btn" id="mcGehweg" onclick="toggleGehwegOverlay()">
+          <span class="tr-label">Gehwege</span><span class="tr-icon">🚶</span>
+        </button>
+        <button class="tr-btn" onclick="getGPSLocation()">
+          <span class="tr-label">GPS</span><span class="tr-icon">📍</span>
+        </button>
+      </div>
     </div>
-    <div class="instruction-banner" id="instrBanner">
+
+    <!-- Instruction Banner -->
+    <div class="instruction-banner" id="instrBanner" style="display:none">
       <span class="ib-step" id="instrStep">1</span>
-      <span class="ib-text" id="instrText">Tippe den Startpunkt der Baustelle</span>
+      <span class="ib-text" id="instrText">Startpunkt der Baustelle tippen</span>
       <button class="ib-finish" id="instrFinishBtn" onclick="finishPolygonPlacement()">Fertig</button>
       <button class="ib-cancel" onclick="cancelPlacement()">✕</button>
     </div>
+
+    <!-- RP Preview -->
     <div class="rp-preview" id="rpPreview" onclick="toggleRPImageOverlay()">
       <img id="rpPreviewImg" src="assets/rp_BII1_rsa21.png" alt="RP">
       <div class="rp-tag" id="rpPreviewTag">B II/1</div>
     </div>
+
+    <!-- RP Overlay Controls -->
     <div class="rp-overlay-controls" id="rpOverlayCtrl">
       <label>Deckkraft</label>
       <input type="range" min="10" max="100" value="70" oninput="setRPOverlayOpacity(this.value/100)">
     </div>
-    <div class="status-bar"><span class="dot"></span><span id="stCoord">—</span><span id="stZoom">Z17</span><span id="stVersion">v-local</span></div>
-    <div class="bau-info" id="bauInfo">
-      📏 <span id="bauLaenge">—</span>
-      <span>•</span>
-      🚶 <span id="restBreite">—</span>
-      <span>•</span>
-      🚗 <span id="restFahrbahn">—</span>
-    </div>
-  </div>
 
+    <!-- Status Bar -->
+    <div class="status-bar"><span class="dot"></span><span id="stCoord">—</span><span id="stZoom">Z17</span><span id="stVersion">v-local</span></div>
+
+    <!-- Bau Info -->
+    <div class="bau-info" id="bauInfo">
+  <div class="bau-drag-handle" id="bauDragHandle" title="Verschieben">⠿</div>
+  <div class="bau-row">
+    <span class="bau-item"><span class="bau-icon">📏</span><span class="bau-val" id="bauLaenge">—</span><span class="bau-unit">Länge</span></span>
+    <span class="bau-sep">·</span>
+    <span class="bau-item"><span class="bau-icon">🚶</span><span class="bau-val" id="restBreite">—</span><span class="bau-unit">GW</span></span>
+    <span class="bau-sep">·</span>
+    <span class="bau-item"><span class="bau-icon">🚗</span><span class="bau-val" id="restFahrbahn">—</span><span class="bau-unit">FB</span></span>
+  </div>
+</div>
+
+  </div><!-- /map-area -->
+
+  <!-- ════ MOBILE PANELS ════════════════════════════════════════ -->
   <div class="panel" id="panelRP">
     <div class="panel-header"><h2>📐 Regelplan</h2><button class="ph-close" onclick="closePanel()">✕</button></div>
-    <div class="section"><div class="section-label">Plan wählen</div><div class="rp-grid" id="rpGridM"></div></div>
-    <div class="section">
-      <div class="section-label">Parameter</div>
-      <div class="param-row"><span class="param-label">Seite</span><div class="seg-control"><button class="seg-btn active" data-val="rechts" onclick="setSide('rechts')">→ Rechts</button><button class="seg-btn" data-val="links" onclick="setSide('links')">← Links</button></div></div>
+    <div class="sb-section"><div class="sb-label">Plan wählen</div><div class="rp-grid" id="rpGridM"></div></div>
+    <div class="sb-section">
+      <div class="sb-label">Parameter</div>
+      <div class="param-row"><span class="param-label">Seite</span><div class="seg"><button class="seg-btn active" data-val="rechts" onclick="setSide('rechts')">→ Rechts</button><button class="seg-btn" data-val="links" onclick="setSide('links')">← Links</button></div></div>
       <div class="param-row"><span class="param-label">Breite (m)</span><input class="param-input" type="number" id="breiteInputM" value="2.0" step="0.5" min="0.5" max="8" onchange="document.getElementById('breiteInput').value=this.value;reapply()"></div>
     </div>
     <div class="action-card">
@@ -749,8 +224,8 @@ select.param-input{cursor:pointer}
 
   <div class="panel" id="panelExport">
     <div class="panel-header"><h2>📄 Export</h2><button class="ph-close" onclick="closePanel()">✕</button></div>
-    <div class="section">
-      <div class="section-label">Projekt</div>
+    <div class="sb-section">
+      <div class="sb-label">Projekt</div>
       <div class="param-row"><span class="param-label">Name</span><input class="param-input" type="text" id="projektNameM" data-plan-field="name" placeholder="Projektname" maxlength="100"></div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="saveProject()">💾 Speichern</button>
@@ -777,7 +252,7 @@ select.param-input{cursor:pointer}
       <div class="param-row"><span class="param-label">Plan-Nr.</span><input class="param-input" type="text" data-plan-field="planNummer" placeholder="optional" maxlength="50"></div>
     </div>
     <div class="wizard-pane" data-wizard-pane="mobile" data-step="3">
-      <div class="section-label">Vorschau</div>
+      <div class="sb-label">Vorschau</div>
       <div class="wizard-summary" id="wizardSummaryMobile"></div>
       <div class="section-label" style="margin-top:12px">Prüfung</div>
       <div class="validation-list" id="wizardValidationsMobile"></div>
@@ -791,14 +266,22 @@ select.param-input{cursor:pointer}
     <button class="btn btn-primary btn-block" onclick="openExportFlow()" style="margin-top:10px">PDF exportieren</button>
   </div>
 
-  <div class="tab-bar">
-    <button class="tab-item active" onclick="switchTab('map',this)"><span class="ti-icon">🗺</span>Karte</button>
-    <button class="tab-item" onclick="switchTab('rp',this)"><span class="ti-icon">📐</span>Regelplan</button>
-    <button class="tab-item" onclick="openExportFlow()"><span class="ti-icon">📄</span>PDF</button>
-  </div>
-</div>
-<div class="loading-overlay" id="loadingOverlay"><div style="text-align:center"><div class="loading-spinner"></div><div class="loading-label" id="loadingLabel">Wird geladen...</div></div></div>
-<div class="toast" id="toast"></div>
+  <!-- ════ TAB BAR ══════════════════════════════════════════════ -->
+  <nav class="tab-bar">
+    <button class="tab-item active" onclick="switchTab('map',this)">
+      <span class="ti-icon">🗺</span>Karte
+    </button>
+    <button class="tab-item" onclick="switchTab('rp',this)">
+      <span class="ti-icon">📐</span>Plan
+    </button>
+    <button class="tab-item" onclick="openExportFlow()">
+      <span class="ti-icon">↗</span>PDF
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ════ EXPORT MODAL ════════════════════════════════════════════ -->
 <div class="export-modal" id="exportModal" aria-hidden="true">
   <div class="export-sheet" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
     <div class="export-sheet-head">
@@ -826,8 +309,32 @@ select.param-input{cursor:pointer}
   </div>
 </div>
 
+<!-- ════ OVERLAYS ════════════════════════════════════════════════ -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div><div class="loading-spinner"></div><div class="loading-label" id="loadingLabel">Wird geladen…</div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/version.js"></script>
+<script src="js/leaflet-imageoverlay-rotated.js"></script>
+<script src="js/regelplan-catalog-v2.js"></script>
+<script src="js/regelplan-geometry-v2.js"></script>
+<script src="js/regelplan-layout-v2.js"></script>
+<script src="js/regelplan-renderer-leaflet-v2.js"></script>
+<script src="js/regelplan-templates.js"></script>
+<script src="js/massketten.js"></script>
+<script src="js/drag-handles.js"></script>
+<script src="js/regelplan-image-overlay.js"></script>
+<script src="js/gehweg-overlay.js"></script>
+<script src="js/pdf-export.js"></script>
+<script src="js/vz-catalog-v2.js"></script>
+<script src="js/vz-search-ui.js"></script>
+<script src="js/street-detect.js"></script>
+
 <script>
+
 // Fix: Leaflet 1.9.4 SVG className bug — SVGElement.className is SVGAnimatedString, not a string
 // Leaflet's setClass (ye) does: t.className = e which fails on SVG elements
 (function(){
@@ -849,22 +356,11 @@ select.param-input{cursor:pointer}
     return origGetClass?origGetClass.call(this,el):(el.className||'');
   };
 })();
+
 </script>
-<script src="js/version.js"></script>
-<script src="js/leaflet-imageoverlay-rotated.js"></script>
-<script src="js/regelplan-catalog-v2.js"></script>
-<script src="js/regelplan-geometry-v2.js"></script>
-<script src="js/regelplan-layout-v2.js"></script>
-<script src="js/regelplan-renderer-leaflet-v2.js"></script>
-<script src="js/regelplan-templates.js"></script>
-<script src="js/massketten.js"></script>
-<script src="js/drag-handles.js"></script>
-<script src="js/regelplan-image-overlay.js"></script>
-<script src="js/gehweg-overlay.js"></script>
-<script src="js/pdf-export.js"></script>
-<script src="js/vz-catalog-v2.js"></script>
-<script src="js/vz-search-ui.js"></script>
+
 <script>
+
 // ═══ GLOBAL ERROR HANDLER ═══
 window.onerror=function(msg,src,line){
   console.error('VZP Error:',msg,'at',src+':'+line);
@@ -2710,9 +2206,11 @@ try {
     }
   });
 } catch(e) { console.warn('VZSearch init:', e); }
+
 </script>
 
 <script>
+
 /* ═══════════════════════════════════════════════
    iOS TOUCH ENHANCEMENT — VZP Editor
    Visual spring feedback (works on iOS + Android)
@@ -2892,6 +2390,65 @@ try {
   });
 
 })();
+
 </script>
+
+<script>
+
+/* ─── Tool Rail ─────────────────────────────────────── */
+function toggleToolRail() {
+  var rail = document.getElementById('toolRail');
+  var open = rail.classList.toggle('open');
+  var icon = document.querySelector('#toolRailToggle .tr-icon');
+  if (icon) icon.textContent = open ? '✕' : '⚙';
+  if (typeof Haptic !== 'undefined') Haptic.light();
+  if (open) {
+    var btns = rail.querySelectorAll('.tr-btn');
+    btns.forEach(function(b){ b.style.animation='none'; b.offsetHeight; b.style.animation=''; });
+  }
+}
+document.addEventListener('click', function(e) {
+  var rail = document.getElementById('toolRail');
+  if (rail && !rail.contains(e.target) && rail.classList.contains('open')) {
+    rail.classList.remove('open');
+    var icon = document.querySelector('#toolRailToggle .tr-icon');
+    if (icon) icon.textContent = '⚙';
+  }
+}, true);
+
+/* ─── Bau-Info Drag ──────────────────────────────────── */
+(function() {
+  var el, sx, sy, ol, ot, dragging = false;
+  function initDrag() {
+    el = document.getElementById('bauInfo');
+    if (!el) return;
+    function start(cx, cy) {
+      var r = el.getBoundingClientRect();
+      sx = cx; sy = cy; ol = r.left; ot = r.top; dragging = true;
+      el.style.cssText += ';transition:none;transform:none;left:'+ol+'px;top:'+ot+'px;bottom:auto;right:auto';
+      el.classList.add('dragging');
+    }
+    function move(cx, cy) {
+      if (!dragging) return;
+      el.style.left = (ol + cx - sx) + 'px';
+      el.style.top  = (ot + cy - sy) + 'px';
+    }
+    function end() { dragging = false; el.classList.remove('dragging'); }
+    el.addEventListener('touchstart', function(e) { if(e.touches.length!==1)return; e.stopPropagation(); start(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+    window.addEventListener('touchmove', function(e) { if(dragging) move(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+    window.addEventListener('touchend', end, {passive:true});
+    el.addEventListener('mousedown', function(e) { start(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', function(e) { if(dragging) move(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', end);
+  }
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(initDrag, 600); });
+})();
+
+/* ─── Instruction Banner show helper ─────────────────── */
+function showBanner() { var b=document.getElementById('instrBanner'); if(b) b.style.display='flex'; }
+function hideBanner() { var b=document.getElementById('instrBanner'); if(b) b.style.display='none'; }
+
+</script>
+
 </body>
 </html>
