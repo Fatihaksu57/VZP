@@ -309,6 +309,7 @@ select.param-input{cursor:pointer}
     </div>
     <div class="header-actions">
       <button class="btn header-export-btn" id="gehwegToggleBtn" onclick="toggleGehwegOverlay()" style="background:rgba(255,255,255,.12);color:var(--toolbar-text);border:1px solid rgba(255,255,255,.18)" title="Gehwegbreiten einblenden (nur Berlin)">📏 Gehwege</button>
+      <button class="btn header-export-btn" id="streetDetectBtn" onclick="toggleStreetDetect()" style="background:rgba(255,255,255,.12);color:var(--toolbar-text);border:1px solid rgba(255,255,255,.18)" title="Straße / Gehweg erkennen (Overpass)">🔍 Straße</button>
       <button class="btn btn-primary header-export-btn" onclick="openExportFlow()">PDF Export</button>
 
     </div>
@@ -572,6 +573,7 @@ select.param-input{cursor:pointer}
 <script src="js/regelplan-image-overlay.js"></script>
 <script src="js/gehweg-overlay.js"></script>
 <script src="js/pdf-export.js"></script>
+<script src="js/street-detect.js"></script>
 <script src="js/vz-catalog-v2.js"></script>
 <script src="js/vz-search-ui.js"></script>
 <script>
@@ -2421,5 +2423,40 @@ try {
   });
 } catch(e) { console.warn('VZSearch init:', e); }
 </script>
+
+<script>
+function toggleStreetDetect() {
+  var btn = document.getElementById('streetDetectBtn');
+  if (typeof StreetDetect === 'undefined') return;
+  var active = StreetDetect.getLastDetection !== undefined;
+  // toggle
+  var wasActive = btn.dataset.active === '1';
+  if (wasActive) {
+    StreetDetect.setActive(false);
+    btn.dataset.active = '0';
+    btn.style.background = 'rgba(255,255,255,.12)';
+    btn.style.borderColor = 'rgba(255,255,255,.18)';
+    btn.textContent = '🔍 Straße';
+  } else {
+    StreetDetect.setActive(true);
+    btn.dataset.active = '1';
+    btn.style.background = 'rgba(37,99,235,.7)';
+    btn.style.borderColor = 'rgba(37,99,235,.9)';
+    btn.textContent = '🔍 aktiv…';
+    if (typeof UI !== 'undefined') UI.toast('Klicke auf Straße oder Gehweg');
+  }
+}
+// Listen for confirmed detection → auto-fill vzul in regelplan params
+document.addEventListener('streetDetectionConfirmed', function(e) {
+  var d = e.detail;
+  // Fill vzul input if present
+  var vzulInput = document.querySelector('[data-param="vzul"], [name="vzul"], #vzul');
+  if (vzulInput && d.vzul) vzulInput.value = d.vzul;
+  if (typeof UI !== 'undefined') {
+    UI.toast(d.classification.label + ' · vzul ' + d.vzul + ' km/h übernommen');
+  }
+});
+</script>
+
 </body>
 </html>
