@@ -79,67 +79,40 @@ var GehwegOverlay = (function() {
     return out;
   }
 
-  // ─── Breiten-Heuristik ─────────────────────────────────────────
-  // Gehweg-Polygone aus der Strassenbefahrung sind typisch schmale
-  // Streifen mit 4-20 Ecken. Die Kuerzeste Kante ist nicht immer die
-  // Breite (Polygon kann Ecken haben), aber: Wenn wir alle Kanten der
-  // Laenge nach sortieren, sind die KURZEN Kanten die Querseiten
-  // (ca. 30-40% der Gesamtkanten), die LANGEN die Laengsseiten.
-  //
-  // Strategie:
-  // 1. "area / halfPerim" als Baseline (fuer ideale Rechtecke exakt).
-  // 2. Median der unteren 40% der Kantenlaengen als Alternative.
-  // 3. Wenn Polygon "dick" ist (A/L_max > 3), wird area/halfPerim
-  //    unzuverlaessig → nur Median nehmen.
-  // 4. Plausibilitaet: 0.3 m <= breite <= 12 m.
+  // ─── Breitenberechnung ─────────────────────────────────────────
+  // Primaer: WFS-Attribute flaeche + shape_length (in Metern, vom
+  // Geoportal bereits geodaetisch korrekt berechnet).
+  // Quadratische Loesung fuer Rechteckstreifen:
+  //   W + L = shape_length/2  und  W * L = flaeche
+  //   → W = shape_length/2 - sqrt((shape_length/2)² - flaeche)
+  // Fallback: geometrische Schaetzung aus lat/lng-Koordinaten.
+
+  function widthFromAttributes(props) {
+    var area  = parseFloat(props.flaeche || props.shape_area || 0);
+    var perim = parseFloat(props.shape_length || 0);
+    if (area < 0.1 || perim < 0.5) return null;
+    var hp = perim / 2;
+    var disc = hp * hp - area;
+    if (disc < 0) return null;          // kompaktes Polygon (Platz etc.)
+    var w = hp - Math.sqrt(disc);
+    if (w < 0.3 || w > 15) return null;
+    return w;
+  }
+
   function estimateWidthMeters(ring4326, lat0) {
+    // Fallback: geometrische Schaetzung wenn keine WFS-Attribute
     if (!ring4326 || ring4326.length < 4) return null;
     var ringM = toLocalMeters(ring4326, lat0);
     var edges = edgeLengths(ringM);
     if (edges.length < 3) return null;
-
     var area = polygonAreaMeters(ringM);
     if (area < 0.5) return null;
-
     var halfPerim = 0;
     for (var i = 0; i < edges.length; i++) halfPerim += edges[i];
     halfPerim /= 2;
-
-    // Baseline: area / halfPerim → exakt fuer Rechteck mit L >> B
-    var widthBaseline = halfPerim > 0 ? area / halfPerim : null;
-
-    // Median der kuerzesten 40% Kanten (Querseiten)
-    var sorted = edges.slice().sort(function(a, b) { return a - b; });
-    var take = Math.max(1, Math.ceil(sorted.length * 0.4));
-    var shortSlice = sorted.slice(0, take);
-    var midIdx = Math.floor(shortSlice.length / 2);
-    var widthMedian = shortSlice.length % 2 === 0
-      ? (shortSlice[midIdx - 1] + shortSlice[midIdx]) / 2
-      : shortSlice[midIdx];
-
-    // Aspect-Ratio check: wenn laengste Kante stark groesser als kuerzeste
-    // → laengliches Rechteck → widthBaseline ist praezise
-    var longestEdge = sorted[sorted.length - 1];
-    var aspect = longestEdge / widthMedian;
-
-    var width;
-    if (widthBaseline && aspect > 3 && widthBaseline < 12) {
-      // Typisches langes Gehweg-Segment → Baseline ist am genausten
-      // aber Median dient als Sanity-Check
-      if (Math.abs(widthBaseline - widthMedian) / widthMedian < 0.6) {
-        width = widthBaseline;
-      } else {
-        // Polygon hat Knicke — Median der kurzen Kanten ist robuster
-        width = widthMedian;
-      }
-    } else {
-      // "Kompaktes" Polygon (Platz, Eingangsbereich) — Median der kurzen
-      // Kanten gibt eine sinnvolle "engste Stelle" zurueck
-      width = widthMedian;
-    }
-
-    if (width < 0.3 || width > 15) return null;
-    return width;
+    var w = halfPerim > 0 ? area / halfPerim : null;
+    if (!w || w < 0.3 || w > 15) return null;
+    return w;
   }
 
   // ─── WFS-Query (BBox in 4326, lat,lng-Order) ──────────────────
@@ -232,9 +205,9 @@ var GehwegOverlay = (function() {
       }
 
       rings4326.forEach(function(ring4326) {
-        // Lokal-Meter-Projektion am Polygon-Centroid
+        // Breite: primaer aus WFS-Attributen, Fallback geometrisch
         var c = polygonCentroid(ring4326);
-        var width = estimateWidthMeters(ring4326, c[0]);
+        var width = widthFromAttributes(f.properties) || estimateWidthMeters(ring4326, c[0]);
         var color = classifyWidth(width);
         var latlngs = coordsToLatLngs(ring4326);
 
